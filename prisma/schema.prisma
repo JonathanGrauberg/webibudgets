@@ -1,0 +1,362 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* =========================
+   ENUMS
+========================= */
+
+enum ProductCategory {
+  biodigesters
+  grease_traps
+  maintenance
+  other
+}
+
+enum BudgetStatus {
+  draft
+  sent
+  approved
+  rejected
+  expired
+}
+
+enum ClientType {
+  home
+  home_modular
+  cabin
+  hall
+  sanitary
+  company
+}
+
+enum StockMovementType {
+  in
+  out
+  adjust
+}
+
+enum UserRole {
+  owner
+  admin
+  seller
+  installer
+  viewer
+}
+
+/* =========================
+   TENANT
+========================= */
+
+model Tenant {
+  id        String   @id @default(uuid())
+
+  // Branding
+  name              String
+  slug              String   @unique
+  logoUrl           String?
+  primaryColor      String?
+  secondaryColor    String?
+  accentColor       String?
+
+  // Configuración
+  customSellerLabel     String? @default("Vendedor")
+  customInstallerLabel  String? @default("Instalador")
+
+  active     Boolean @default(true)
+
+  // Relaciones
+  users          User[]
+  clients        Client[]
+  budgets        Budget[]
+  sellers        Seller[]
+  installers     Installer[]
+  products       ProductService[]
+  stockMovements StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/* =========================
+   USERS
+========================= */
+
+model User {
+  id        String   @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String   @unique
+  password  String
+
+  role      UserRole @default(viewer)
+
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/* =========================
+   CLIENTS
+========================= */
+
+model Client {
+  id        String   @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Identidad
+  name      String
+  lastName  String?
+  company   String?
+  dni       String?
+  cuit      String?
+
+  // Contacto
+  email     String?
+  phone     String
+
+  // Dirección
+  address   String
+
+  // Ubicación
+  latitude  Float?
+  longitude Float?
+
+  // Uso
+  type            ClientType?
+  peopleCount     Int?
+  usageFrequency  String?
+
+  // Comercial
+  status           String   @default("nuevo")
+  notes            String   @default("")
+  lastContactAt    DateTime?
+  assignedSellerId String?
+  locationUrl      String?
+
+  // Relaciones
+  budgets   Budget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+/* =========================
+   PRODUCTS / SERVICES
+========================= */
+
+model ProductService {
+  id          String           @id @default(uuid())
+
+  tenantId    String
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String
+  category    ProductCategory
+
+  price       Float
+  unit        String
+
+  active      Boolean @default(true)
+
+  stock       Int @default(0)
+
+  items            BudgetItem[]
+  stockMovements   StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+/* =========================
+   BUDGETS
+========================= */
+
+model Budget {
+  id        String @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  items     BudgetItem[]
+  history   BudgetStatusHistory[]
+
+  status    BudgetStatus @default(draft)
+
+  notes     String @default("")
+
+  // Vendedor
+  sellerId  String?
+  seller    Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  // Instalador
+  installerId String?
+  installer   Installer? @relation(fields: [installerId], references: [id], onDelete: SetNull)
+
+  // Instalación
+  installationResponsible String?
+  installerReference      String?
+  siteDetails             String?
+  technicalDetails        String?
+
+  // Montos
+  subtotal     Float
+  discount     Float @default(0)
+  tax          Float @default(0)
+  shippingCost Float?
+  total        Float
+
+  // Comerciales
+  paymentTerms String?
+  validUntil   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+}
+
+/* =========================
+   INSTALLERS
+========================= */
+
+model Installer {
+  id        String @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  lastName  String
+
+  phone     String
+  email     String?
+
+  city      String?
+
+  budgets   Budget[]
+
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+/* =========================
+   SELLERS
+========================= */
+
+model Seller {
+  id        String @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  lastName  String
+
+  dni       String?
+  email     String?
+  phone     String?
+
+  address   String?
+  city      String?
+  province  String?
+
+  sector    String?
+
+  budgets   Budget[]
+
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+/* =========================
+   BUDGET ITEMS
+========================= */
+
+model BudgetItem {
+  id               String @id @default(uuid())
+
+  budgetId         String
+  budget           Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  productServiceId String
+  productService   ProductService @relation(fields: [productServiceId], references: [id])
+
+  quantity         Int
+
+  unitPrice        Float
+
+  discount         Float @default(0)
+
+  subtotal         Float?
+}
+
+/* =========================
+   BUDGET HISTORY
+========================= */
+
+model BudgetStatusHistory {
+  id        String @id @default(uuid())
+
+  budgetId  String
+  budget    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  from      BudgetStatus
+  to        BudgetStatus
+
+  changedAt DateTime @default(now())
+
+  user      String?
+}
+
+/* =========================
+   STOCK MOVEMENTS
+========================= */
+
+model StockMovement {
+  id        String @id @default(cuid())
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  productServiceId String
+  productService   ProductService @relation(fields: [productServiceId], references: [id])
+
+  delta     Int
+
+  type      StockMovementType
+
+  reason    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
