@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
+
     const clients = await prisma.client.findMany({
+      where: tenantWhere(tenantId),
       orderBy: { createdAt: 'desc' },
     })
+
     return NextResponse.json(clients)
   } catch (error: any) {
     console.error('Error fetching clients:', error)
@@ -18,6 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
     // Sanitización de campos básicos
@@ -45,28 +51,52 @@ export async function POST(request: Request) {
     ])
     const status = allowedCommercialStatus.has(data?.status) ? data.status : 'nuevo'
 
+    // Handle seller assignment (backwards compatibility with assignedSeller field name)
+    // Map from form field assignedSeller to DB field assignedSellerId
+    let assignedSellerId: string | null = null
+    const sellerIdFromForm = data?.assignedSeller || data?.assignedSellerId
+    if (sellerIdFromForm && typeof sellerIdFromForm === 'string' && sellerIdFromForm.trim()) {
+      assignedSellerId = sellerIdFromForm.trim()
+      // Validate seller exists only if provided
+      const seller = await prisma.seller.findFirst({
+        where: {
+          id: assignedSellerId,
+          tenantId,
+        },
+      })
+      if (!seller) {
+        return NextResponse.json(
+          { error: 'Seller not found' },
+          { status: 404 }
+        )
+      }
+    }
+
     const client = await prisma.client.create({
-      data: {
-        name,
-        lastName: data?.lastName ? String(data.lastName).trim() : null,
-        company,
-        dni: data?.dni ? String(data.dni).trim() : null,
-        cuit: data?.cuit ? String(data.cuit).trim() : null,
-        email,
-        phone,
-        address: typeof data?.address === 'string' && data.address.trim() ? data.address.trim() : '—',
-        type,
-        peopleCount: data?.peopleCount ? Number(data.peopleCount) || null : null,
-        usageFrequency: data?.usageFrequency ? String(data.usageFrequency) : null,
-        status,
-        notes: typeof data?.notes === 'string' ? data.notes : '',
-        locationUrl: data?.locationUrl ? String(data.locationUrl).trim() : null,
-        assignedSeller: data?.assignedSeller ? String(data.assignedSeller).trim() : null,
-        // Evita el error 'Invalid Date' si el string viene vacío
-        lastContactAt: data?.lastContactAt && String(data.lastContactAt).trim() !== '' 
-          ? new Date(data.lastContactAt) 
-          : null,
-      },
+      data: tenantCreateData(
+        {
+          name,
+          lastName: data?.lastName ? String(data.lastName).trim() : null,
+          company,
+          dni: data?.dni ? String(data.dni).trim() : null,
+          cuit: data?.cuit ? String(data.cuit).trim() : null,
+          email,
+          phone,
+          address: typeof data?.address === 'string' && data.address.trim() ? data.address.trim() : '—',
+          type,
+          peopleCount: data?.peopleCount ? Number(data.peopleCount) || null : null,
+          usageFrequency: data?.usageFrequency ? String(data.usageFrequency) : null,
+          status,
+          notes: typeof data?.notes === 'string' ? data.notes : '',
+          locationUrl: data?.locationUrl ? String(data.locationUrl).trim() : null,
+          assignedSellerId,
+          // Evita el error 'Invalid Date' si el string viene vacío
+          lastContactAt: data?.lastContactAt && String(data.lastContactAt).trim() !== '' 
+            ? new Date(data.lastContactAt) 
+            : null,
+        },
+        tenantId
+      ),
     })
 
     return NextResponse.json(client, { status: 201 })

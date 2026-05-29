@@ -91,7 +91,7 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       <PageHeader
         title="Dashboard"
-        description="Sistema de gestión de Ecoservicios"
+        description="Sistema de gestión WebiBudgets"
       />
 
       <div className="p-8">

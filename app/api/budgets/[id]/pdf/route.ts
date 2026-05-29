@@ -3,6 +3,7 @@ export const maxDuration = 60
 
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { budgetPdfTemplate } from "@/lib/pdf/template"
 import { generatePdf } from "@/lib/pdf/generator"
 import fs from "fs/promises"
@@ -13,10 +14,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const { id } = await params
 
-    const budget = await prisma.budget.findUnique({
-      where: { id },
+    const budget = await prisma.budget.findFirst({
+      where: tenantWhereId(id, tenantId),
       include: {
         client: true,
         items: {
@@ -35,8 +37,8 @@ export async function GET(
        Cargar logos desde /public
        ======================== */
 
-    const logoPath = path.join(process.cwd(), "public", "logo-ecoservicios.png")
-    const watermarkPath = path.join(process.cwd(), "public", "logo-watermark.png")
+    const logoPath = path.join(process.cwd(), "public", "placeholder-logo.png")
+    const watermarkPath = path.join(process.cwd(), "public", "placeholder-logo.png")
 
     const logoBase64 = (await fs.readFile(logoPath)).toString("base64")
     const watermarkBase64 = (await fs.readFile(watermarkPath)).toString("base64")

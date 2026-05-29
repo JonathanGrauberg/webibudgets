@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
+import {
+  isAllowedBudgetStatusTransition,
+  isValidBudgetStatus,
+  parseBudgetStatus,
+} from '@/lib/budget-validators'
 import { BudgetStatus } from '@prisma/client'
 
 export async function POST(
@@ -20,21 +26,17 @@ export async function POST(
       body = {}
     }
 
-    const statusRaw = body?.status
-    const status = (typeof statusRaw === 'string' ? statusRaw : '') as BudgetStatus
+    const status = parseBudgetStatus(body?.status)
     const confirmStock = Boolean(body?.confirmStock)
 
     if (!status) {
       return NextResponse.json({ error: 'status is required' }, { status: 400 })
     }
 
-    const allowed: BudgetStatus[] = ['draft', 'sent', 'approved', 'rejected', 'expired']
-    if (!allowed.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
+    const tenantId = await getTenantIdFromRequest(request)
 
-    const budget = await prisma.budget.findUnique({
-      where: { id: budgetId },
+    const budget = await prisma.budget.findFirst({
+      where: tenantWhereId(budgetId, tenantId),
       include: {
         items: {
           include: { productService: true },
@@ -49,15 +51,7 @@ export async function POST(
     const current = budget.status
 
     // ✅ Transiciones (si querés permitir aprobar directo desde draft, lo ajustamos abajo)
-    const transitions: Record<BudgetStatus, BudgetStatus[]> = {
-      draft: ['sent', 'approved', 'rejected', 'expired'],
-      sent: ['draft', 'approved', 'rejected', 'expired'],
-      approved: ['draft', 'sent', 'rejected', 'expired'],
-      rejected: ['draft', 'sent'],
-      expired: ['draft', 'sent'],
-    }
-
-    if (!transitions[current].includes(status)) {
+    if (!isAllowedBudgetStatusTransition(current, status)) {
       return NextResponse.json(
         { error: `Invalid transition from ${current} to ${status}` },
         { status: 400 }
@@ -93,7 +87,7 @@ export async function POST(
 
     await prisma.$transaction([
       prisma.budget.update({
-        where: { id: budgetId },
+        where: tenantWhereId(budgetId, tenantId),
         data: { status },
       }),
       prisma.budgetStatusHistory.create({

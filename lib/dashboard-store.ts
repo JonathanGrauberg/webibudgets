@@ -24,27 +24,27 @@ export interface RecentBudget {
   }[]
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const totalClients = await prisma.client.count()
+export async function getDashboardStats(tenantId: string): Promise<DashboardStats> {
+  const totalClients = await prisma.client.count({ where: { tenantId } })
   const totalProducts = await prisma.productService.count({
-    where: { active: true },
+    where: { tenantId, active: true },
   })
-  const totalBudgets = await prisma.budget.count()
+  const totalBudgets = await prisma.budget.count({ where: { tenantId } })
   const approvedBudgets = await prisma.budget.count({
-    where: { status: 'approved' },
+    where: { tenantId, status: 'approved' },
   })
   const draftBudgets = await prisma.budget.count({
-    where: { status: 'draft' },
+    where: { tenantId, status: 'draft' },
   })
   const sentBudgets = await prisma.budget.count({
-    where: { status: 'sent' },
+    where: { tenantId, status: 'sent' },
   })
   const rejectedBudgets = await prisma.budget.count({
-    where: { status: 'rejected' },
+    where: { tenantId, status: 'rejected' },
   })
 
   const approvedRevenue = await prisma.budget.aggregate({
-    where: { status: 'approved' },
+    where: { tenantId, status: 'approved' },
     _sum: { total: true },
   })
 
@@ -59,8 +59,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 }
 
-export async function getRecentBudgets(limit = 5): Promise<RecentBudget[]> {
+export async function getRecentBudgets(
+  tenantId: string,
+  limit = 5
+): Promise<RecentBudget[]> {
   const budgets = await prisma.budget.findMany({
+    where: { tenantId },
     take: limit,
     orderBy: { createdAt: 'desc' },
     include: {
@@ -95,9 +99,9 @@ export async function getRecentBudgets(limit = 5): Promise<RecentBudget[]> {
   }))
 }
 
-export async function getMonthlyRevenue() {
+export async function getMonthlyRevenue(tenantId: string) {
   const approved = await prisma.budget.findMany({
-    where: { status: 'approved' },
+    where: { tenantId, status: 'approved' },
     select: {
       total: true,
       createdAt: true,
@@ -117,9 +121,15 @@ export async function getMonthlyRevenue() {
   }))
 }
 
-export async function getBudgetStatusStats() {
+export interface BudgetStatusCount {
+  status: string
+  count: number
+}
+
+export async function getBudgetStatusStats(tenantId: string): Promise<BudgetStatusCount[]> {
   const grouped = await prisma.budget.groupBy({
     by: ['status'],
+    where: { tenantId },
     _count: { status: true },
   })
 

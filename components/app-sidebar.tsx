@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -33,7 +34,7 @@ import {
 const navigation = [
   {
     name: 'Dashboard',
-    href: '/',
+    href: '/dashboard',
     icon: LayoutDashboard,
     tooltip: 'Vista general del sistema',
   },
@@ -75,7 +76,7 @@ const navigation = [
   },
 ]
 
-function SidebarContent({ closeMenu }: { closeMenu?: () => void }) {
+function SidebarContent({ closeMenu, branding }: { closeMenu?: () => void; branding?: { id?: string; name?: string | null; logoUrl?: string | null; primaryColor?: string | null; secondaryColor?: string | null; accentColor?: string | null } }) {
   const pathname = usePathname()
 
   return (
@@ -83,8 +84,8 @@ function SidebarContent({ closeMenu }: { closeMenu?: () => void }) {
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
           <Image
-            src="/e-de-eco.png"
-            alt="Ecoservicios"
+            src={branding?.logoUrl ?? '/placeholder-logo.png'}
+            alt={branding?.name ?? 'WebiBudgets'}
             width={32}
             height={32}
             className="object-contain"
@@ -93,7 +94,7 @@ function SidebarContent({ closeMenu }: { closeMenu?: () => void }) {
         </div>
 
         <div>
-          <h1 className="text-lg font-bold text-sidebar-foreground">Ecoservicios</h1>
+          <h1 className="text-lg font-bold text-sidebar-foreground">{branding?.name ?? 'WebiBudgets'}</h1>
           <p className="text-xs text-sidebar-foreground/60">Sistema de Gestión</p>
         </div>
       </div>
@@ -129,7 +130,14 @@ function SidebarContent({ closeMenu }: { closeMenu?: () => void }) {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-sidebar-border p-4 space-y-3">
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="w-full rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground transition hover:bg-sidebar-accent/90"
+        >
+          Cerrar sesión
+        </button>
         <p className="text-xs text-sidebar-foreground/50">
           v1.0.0 - Creado por Webi.
         </p>
@@ -138,7 +146,7 @@ function SidebarContent({ closeMenu }: { closeMenu?: () => void }) {
   )
 }
 
-export function AppSidebar() {
+export function AppSidebar({ branding }: { branding?: { id?: string; name?: string | null; logoUrl?: string | null; primaryColor?: string | null; secondaryColor?: string | null; accentColor?: string | null } }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -146,16 +154,16 @@ export function AppSidebar() {
       <>
         {/* Mobile topbar */}
         <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
             <Image
-              src="/logo-watermark.png"
-              alt="Ecoservicios"
+              src={branding?.logoUrl ?? '/placeholder-logo.png'}
+              alt={branding?.name ?? 'WebiBudgets'}
               width={28}
               height={28}
               className="object-contain"
               priority
             />
-            <span className="text-sm font-semibold">Sistema Ecoservicios</span>
+            <span className="text-sm font-semibold">WebiBudgets</span>
           </div>
 
           <Sheet open={open} onOpenChange={setOpen}>
@@ -170,14 +178,14 @@ export function AppSidebar() {
                 <SheetTitle>Menú de navegación</SheetTitle>
               </SheetHeader>
 
-              <SidebarContent closeMenu={() => setOpen(false)} />
+              <SidebarContent closeMenu={() => setOpen(false)} branding={branding} />
             </SheetContent>
           </Sheet>
         </div>
 
         {/* Desktop sidebar */}
         <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 lg:flex">
-          <SidebarContent />
+          <SidebarContent branding={branding} />
         </aside>
       </>
     </TooltipProvider>

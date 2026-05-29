@@ -5,13 +5,15 @@ import {
   getMonthlyRevenue,
   getBudgetStatusStats,
 } from '@/lib/dashboard-store'
+import { getTenantIdFromRequest } from '@/lib/tenant'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const stats = await getDashboardStats()
-    const recentBudgets = await getRecentBudgets(5)
-    const revenue = await getMonthlyRevenue()
-    const statusStats = await getBudgetStatusStats()
+    const tenantId = await getTenantIdFromRequest(request)
+    const stats = await getDashboardStats(tenantId)
+    const recentBudgets = await getRecentBudgets(tenantId, 5)
+    const revenue = await getMonthlyRevenue(tenantId)
+    const statusStats = await getBudgetStatusStats(tenantId)
 
     return NextResponse.json({
       stats,

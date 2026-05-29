@@ -1,11 +1,31 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
+import {
+  calculateBudgetTotals,
+  getBudgetItemProductIds,
+  groupBudgetItemQuantities,
+  normalizeBudgetItems,
+  parseShippingCost,
+} from '@/lib/budget-calculator'
+import {
+  buildBudgetItemCreatePayload,
+  buildStockProblems,
+  findMissingProductIds,
+  isValidBudgetStatus,
+  parseBudgetStatus,
+  loadBudgetProducts,
+  normalizeRelationId,
+  validateBudgetInstaller,
+  validateBudgetSeller,
+} from '@/lib/budget-validators'
 
 type Params = {
   params: Promise<{ id: string }>
 }
 
-export async function GET(_: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
+  const tenantId = await getTenantIdFromRequest(request)
   const { id } = await params
 
   if (!id) {
@@ -16,8 +36,8 @@ export async function GET(_: Request, { params }: Params) {
   }
 
   try {
-    const budget = await prisma.budget.findUnique({
-      where: { id },
+    const budget = await prisma.budget.findFirst({
+      where: tenantWhereId(id, tenantId),
       include: {
         client: true,
         seller: true,
@@ -45,6 +65,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
+  const tenantId = await getTenantIdFromRequest(request)
   const { id } = await params
 
   if (!id) {
@@ -56,14 +77,160 @@ export async function PATCH(request: Request, { params }: Params) {
 
   try {
     const data = await request.json()
+    const sellerId = data.hasOwnProperty('sellerId') ? normalizeRelationId(data.sellerId) : undefined
+    const installerId = data.hasOwnProperty('installerId') ? normalizeRelationId(data.installerId) : undefined
 
-    const budget = await prisma.budget.update({
-      where: { id },
+    if (data.status !== undefined) {
+      const status = parseBudgetStatus(data.status)
+      if (!status) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+      }
+      data.status = status
+    }
+
+    if (Array.isArray(data.items)) {
+      const normalizedItems = normalizeBudgetItems(data.items)
+      if (normalizedItems.length === 0) {
+        return NextResponse.json({ error: 'items are required' }, { status: 400 })
+      }
+
+      const productIds = getBudgetItemProductIds(normalizedItems)
+      const groupedQty = groupBudgetItemQuantities(normalizedItems)
+
+      const [sellerIsValid, installerIsValid, products] = await Promise.all([
+        validateBudgetSeller(tenantId, sellerId ?? null),
+        validateBudgetInstaller(tenantId, installerId ?? null),
+        loadBudgetProducts(tenantId, productIds),
+      ])
+
+      if (sellerId !== undefined && !sellerIsValid) {
+        return NextResponse.json({ error: 'Invalid sellerId for tenant' }, { status: 400 })
+      }
+
+      if (installerId !== undefined && !installerIsValid) {
+        return NextResponse.json({ error: 'Invalid installerId for tenant' }, { status: 400 })
+      }
+
+      if (products.length !== productIds.length) {
+        const missingIds = findMissingProductIds(products, productIds)
+        return NextResponse.json(
+          {
+            error: 'Some products are invalid, inactive, or not part of the tenant',
+            missingProductIds: missingIds,
+          },
+          { status: 400 }
+        )
+      }
+
+      const stockProblems = buildStockProblems(products, groupedQty)
+
+      const calculation = calculateBudgetTotals({
+        items: normalizedItems,
+        discountType: (data.discountType as 'percentage' | 'fixed' | null) ?? null,
+        discountValue: Number(data.discountValue ?? 0) || 0,
+        taxPercentage: Number(data.taxPercentage ?? 0) || 0,
+        shippingCost: parseShippingCost(data.shippingCost),
+      })
+
+      const updateData: Record<string, unknown> = {
+        subtotal: calculation.subtotal,
+        discount: calculation.discountAmount,
+        tax: calculation.taxAmount,
+        shippingCost: calculation.shippingCost,
+        total: calculation.total,
+      }
+
+      if (data.status !== undefined) {
+        updateData.status = data.status
+      }
+
+      if (data.notes !== undefined) {
+        updateData.notes = data.notes
+      }
+
+      if (data.paymentTerms !== undefined) {
+        updateData.paymentTerms = data.paymentTerms ?? null
+      }
+
+      if (data.validUntil !== undefined) {
+        updateData.validUntil = data.validUntil ? new Date(data.validUntil) : null
+      }
+
+      if (data.installationResponsible !== undefined) {
+        updateData.installationResponsible = data.installationResponsible ?? null
+      }
+
+      if (data.installerReference !== undefined) {
+        updateData.installerReference = data.installerReference ?? null
+      }
+
+      if (data.siteDetails !== undefined) {
+        updateData.siteDetails = data.siteDetails ?? null
+      }
+
+      if (data.technicalDetails !== undefined) {
+        updateData.technicalDetails = data.technicalDetails ?? null
+      }
+
+      if (sellerId !== undefined) {
+        updateData.sellerId = sellerId
+      }
+
+      if (installerId !== undefined) {
+        updateData.installerId = installerId
+      }
+
+      const result = await prisma.$transaction([
+        prisma.budget.updateMany({ where: tenantWhereId(id, tenantId), data: updateData }),
+        prisma.budgetItem.deleteMany({ where: { budgetId: id } }),
+        prisma.budgetItem.createMany({
+          data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
+            budgetId: id,
+            productServiceId: item.productServiceId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            discount: item.discount,
+          })),
+        }),
+      ])
+
+      if (result[0].count === 0) {
+        return NextResponse.json({ error: 'Budget not found or tenant mismatch' }, { status: 404 })
+      }
+
+      const budget = await prisma.budget.findFirst({
+        where: tenantWhereId(id, tenantId),
+        include: {
+          client: true,
+          seller: true,
+          installer: true,
+          items: {
+            include: {
+              productService: true,
+            },
+          },
+        },
+      })
+
+      return NextResponse.json({ ...budget, stockProblems })
+    }
+
+    const updated = await prisma.budget.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: {
         status: data.status,
         notes: data.notes,
         total: data.total,
       },
+    })
+
+    if (updated.count === 0) {
+      return NextResponse.json({ error: 'Budget not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const budget = await prisma.budget.findFirst({
+      where: tenantWhereId(id, tenantId),
       include: {
         client: true,
         seller: true,
@@ -86,7 +253,8 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
+  const tenantId = await getTenantIdFromRequest(request)
   const { id } = await params
 
   if (!id) {
@@ -97,9 +265,13 @@ export async function DELETE(_: Request, { params }: Params) {
   }
 
   try {
-    await prisma.budget.delete({
-      where: { id },
+    const result = await prisma.budget.deleteMany({
+      where: tenantWhereId(id, tenantId),
     })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Budget not found or tenant mismatch' }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

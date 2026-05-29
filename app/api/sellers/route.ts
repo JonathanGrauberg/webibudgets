@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const tenantId = await getTenantIdFromRequest(request)
 
     // Por defecto: solo activos
     const includeInactive = searchParams.get('includeInactive') === 'true'
 
     const sellers = await prisma.seller.findMany({
-      where: includeInactive ? {} : { active: true },
+      where: includeInactive ? tenantWhere(tenantId) : { ...tenantWhere(tenantId), active: true },
       orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
     })
 
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
     // Validación mínima (podés endurecer después)
@@ -33,18 +36,21 @@ export async function POST(request: Request) {
     }
 
     const seller = await prisma.seller.create({
-      data: {
-        name: String(data.name).trim(),
-        lastName: String(data.lastName).trim(),
-        dni: data.dni ? String(data.dni).trim() : null,
-        email: data.email ? String(data.email).trim() : null,
-        phone: data.phone ? String(data.phone).trim() : null,
-        address: data.address ? String(data.address).trim() : null,
-        city: data.city ? String(data.city).trim() : null,
-        province: data.province ? String(data.province).trim() : null,
-        sector: data.sector ? String(data.sector).trim() : null,
-        active: typeof data.active === 'boolean' ? data.active : true,
-      },
+      data: tenantCreateData(
+        {
+          name: String(data.name).trim(),
+          lastName: String(data.lastName).trim(),
+          dni: data.dni ? String(data.dni).trim() : null,
+          email: data.email ? String(data.email).trim() : null,
+          phone: data.phone ? String(data.phone).trim() : null,
+          address: data.address ? String(data.address).trim() : null,
+          city: data.city ? String(data.city).trim() : null,
+          province: data.province ? String(data.province).trim() : null,
+          sector: data.sector ? String(data.sector).trim() : null,
+          active: typeof data.active === 'boolean' ? data.active : true,
+        },
+        tenantId
+      ),
     })
 
     return NextResponse.json(seller, { status: 201 })

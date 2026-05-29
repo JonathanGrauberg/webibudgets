@@ -15,7 +15,7 @@ export function budgetPdfTemplate(
   const shippingValue = Number(budget.shippingCost ?? 0)
 
   // ✅ Logo arriba derecha (chico)
-  const logo = opts?.logoDataUri ? `<img class="logo" src="${opts.logoDataUri}" alt="Ecoservicios" />` : ''
+  const logo = opts?.logoDataUri ? `<img class="logo" src="${opts.logoDataUri}" alt="WebiBudgets" />` : ''
 
   // ✅ Marca de agua (logo grande, transparente)
   // - Si no pasás watermarkDataUri, usa el mismo logo como watermark
@@ -24,7 +24,7 @@ export function budgetPdfTemplate(
   // Helpers para mostrar textos lindos (por si viene "company"/"client")
   const installationResponsibleLabel =
     budget.installationResponsible === 'company'
-      ? 'A cargo de Ecoservicios'
+      ? 'A cargo de WebiBudgets'
       : budget.installationResponsible === 'client'
         ? 'A cargo del cliente'
         : budget.installationResponsible || '—'

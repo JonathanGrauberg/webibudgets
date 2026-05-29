@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest } from '@/lib/tenant'
 
 export async function POST(req: Request) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
     const body = await req.json()
 
     const productServiceId: string = body.productServiceId
@@ -16,14 +18,14 @@ export async function POST(req: Request) {
       )
     }
 
-    const product = await prisma.productService.findUnique({
-      where: { id: productServiceId },
+    const product = await prisma.productService.findFirst({
+      where: { id: productServiceId, tenantId },
       select: { id: true, stock: true, name: true },
     })
 
     if (!product) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { error: 'Product not found or tenant mismatch' },
         { status: 404 }
       )
     }
@@ -45,11 +47,16 @@ export async function POST(req: Request) {
     if (delta < 0) type = 'out'
 
     // transacción = actualizar stock + guardar movimiento
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedProduct = await tx.productService.update({
-        where: { id: productServiceId },
+    // Transacción tenant-safe: actualizar usando filters y registrar movimiento con tenantId
+    const txResult = await prisma.$transaction(async (tx) => {
+      const updateRes = await tx.productService.updateMany({
+        where: { id: productServiceId, tenantId },
         data: { stock: newStock },
       })
+
+      if (updateRes.count === 0) {
+        throw new Error('Product not found or tenant mismatch during update')
+      }
 
       await tx.stockMovement.create({
         data: {
@@ -57,13 +64,15 @@ export async function POST(req: Request) {
           delta,
           type,
           reason,
+          tenantId,
         },
       })
 
-      return updatedProduct
+      const updated = await tx.productService.findFirst({ where: { id: productServiceId, tenantId } })
+      return updated
     })
 
-    return NextResponse.json(result)
+    return NextResponse.json(txResult)
   } catch (error) {
     console.error('Stock update error:', error)
     return NextResponse.json(

@@ -473,7 +473,7 @@ export default function NewBudgetPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="client">A cargo del cliente</SelectItem>
-                      <SelectItem value="company">A cargo de Ecoservicios</SelectItem>
+                      <SelectItem value="company">A cargo de WebiBudgets</SelectItem>
                       <SelectItem value="other">Otro</SelectItem>
                     </SelectContent>
                   </Select>

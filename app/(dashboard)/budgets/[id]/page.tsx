@@ -353,7 +353,7 @@ const handleGeneratePDF = async () => {
                     </div>
                     <p className="font-medium">
                       {budget.installationResponsible === 'company'
-                        ? 'A cargo de Ecoservicios'
+                        ? 'A cargo de WebiBudgets'
                         : budget.installationResponsible === 'client'
                           ? 'A cargo del cliente'
                           : budget.installationResponsible === 'other'

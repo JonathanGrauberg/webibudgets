@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 
 /* ======================
    GET
 ====================== */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
     const { id } = await params
 
-    const product = await prisma.productService.findUnique({
-      where: { id },
+    const product = await prisma.productService.findFirst({
+      where: tenantWhereId(id, tenantId),
     })
 
     if (!product) {
@@ -34,11 +36,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
     const { id } = await params
     const data = await req.json()
 
-    const updated = await prisma.productService.update({
-      where: { id },
+    const result = await prisma.productService.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: {
         name: typeof data.name === 'string' ? data.name : undefined,
         description:
@@ -51,6 +54,14 @@ export async function PATCH(
         unit: typeof data.unit === 'string' ? data.unit : undefined,
         active: typeof data.active === 'boolean' ? data.active : undefined,
       },
+    })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Product not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const updated = await prisma.productService.findFirst({
+      where: tenantWhereId(id, tenantId),
     })
 
     return NextResponse.json(updated)
@@ -68,11 +79,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(_req)
     const { id } = await params
 
-    const updated = await prisma.productService.update({
-      where: { id },
+    const result = await prisma.productService.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: { active: false },
+    })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Product not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const updated = await prisma.productService.findFirst({
+      where: tenantWhereId(id, tenantId),
     })
 
     return NextResponse.json(updated)

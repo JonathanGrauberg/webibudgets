@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, { params }: Params) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const { id } = await params
     const data = await request.json()
 
-    const installer = await prisma.installer.update({
-      where: { id },
+    const result = await prisma.installer.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: {
         name: data.name !== undefined ? String(data.name).trim() : undefined,
         lastName: data.lastName !== undefined ? String(data.lastName).trim() : undefined,
@@ -20,6 +22,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Installer not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const installer = await prisma.installer.findFirst({
+      where: tenantWhereId(id, tenantId),
+    })
+
     return NextResponse.json(installer)
   } catch (error) {
     console.error('Update installer error:', error)
@@ -28,13 +38,22 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 // Soft delete: active=false
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const { id } = await params
 
-    const installer = await prisma.installer.update({
-      where: { id },
+    const result = await prisma.installer.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: { active: false },
+    })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Installer not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const installer = await prisma.installer.findFirst({
+      where: tenantWhereId(id, tenantId),
     })
 
     return NextResponse.json(installer)

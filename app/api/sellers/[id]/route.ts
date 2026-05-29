@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const { id } = await context.params // ✅ ESTE ES EL FIX REAL
 
     if (!id) {
@@ -14,8 +16,8 @@ export async function PATCH(
 
     const data = await request.json()
 
-    const seller = await prisma.seller.update({
-      where: { id },
+    const updateResult = await prisma.seller.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: {
         name: data.name !== undefined ? String(data.name).trim() : undefined,
         lastName: data.lastName !== undefined ? String(data.lastName).trim() : undefined,
@@ -28,6 +30,14 @@ export async function PATCH(
         sector: data.sector !== undefined ? (data.sector ? String(data.sector).trim() : null) : undefined,
         active: data.active !== undefined ? Boolean(data.active) : undefined,
       },
+    })
+
+    if (updateResult.count === 0) {
+      return NextResponse.json({ error: 'Seller not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const seller = await prisma.seller.findFirst({
+      where: tenantWhereId(id, tenantId),
     })
 
     return NextResponse.json(seller)
@@ -51,16 +61,21 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantId = await getTenantIdFromRequest(_)
     const { id } = await context.params // ✅ FIX
 
     if (!id) {
       return NextResponse.json({ error: 'Missing ID' }, { status: 400 })
     }
 
-    await prisma.seller.update({
-      where: { id },
+    const result = await prisma.seller.updateMany({
+      where: tenantWhereId(id, tenantId),
       data: { active: false },
     })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Seller not found or tenant mismatch' }, { status: 404 })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error: any) {

@@ -1,4 +1,4 @@
-// Types for Ecoservicios Management System
+// Types for WebiBudgets Management System
 
 export interface Client {
   id: string
@@ -55,7 +55,7 @@ export interface Installer {
   updatedAt: Date
 }
 
-export type BudgetStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired'
+export type BudgetStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'completed' | 'expired'
 
 export interface BudgetItem {
   id: string
@@ -118,6 +118,7 @@ export const STATUS_LABELS: Record<BudgetStatus, string> = {
   sent: 'Enviado',
   approved: 'Aprobado',
   rejected: 'Rechazado',
+  completed: 'Completado',
   expired: 'Vencido',
 }
 
@@ -126,5 +127,6 @@ export const STATUS_COLORS: Record<BudgetStatus, string> = {
   sent: 'bg-blue-100 text-blue-800',
   approved: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
+  completed: 'bg-emerald-100 text-emerald-800',
   expired: 'bg-orange-100 text-orange-800',
 }

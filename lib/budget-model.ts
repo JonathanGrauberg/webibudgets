@@ -8,6 +8,7 @@ export type BudgetStatus =
   | 'viewed'
   | 'approved'
   | 'rejected'
+  | 'completed'
   | 'expired'
   | 'cancelled'
   | 'revised'

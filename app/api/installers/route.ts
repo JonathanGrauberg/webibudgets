@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const tenantId = await getTenantIdFromRequest(request)
 
     // Por defecto: solo activos
     const includeInactive = searchParams.get('includeInactive') === 'true'
 
     const installers = await prisma.installer.findMany({
-      where: includeInactive ? {} : { active: true },
+      where: includeInactive ? tenantWhere(tenantId) : { ...tenantWhere(tenantId), active: true },
       orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
     })
 
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
     if (!data?.name || !data?.lastName || !data?.phone) {
@@ -32,14 +35,17 @@ export async function POST(request: Request) {
     }
 
     const installer = await prisma.installer.create({
-      data: {
-        name: String(data.name).trim(),
-        lastName: String(data.lastName).trim(),
-        phone: String(data.phone).trim(),
-        email: data.email ? String(data.email).trim() : null,
-        city: data.city ? String(data.city).trim() : null,
-        active: typeof data.active === 'boolean' ? data.active : true,
-      },
+      data: tenantCreateData(
+        {
+          name: String(data.name).trim(),
+          lastName: String(data.lastName).trim(),
+          phone: String(data.phone).trim(),
+          email: data.email ? String(data.email).trim() : null,
+          city: data.city ? String(data.city).trim() : null,
+          active: typeof data.active === 'boolean' ? data.active : true,
+        },
+        tenantId
+      ),
     })
 
     return NextResponse.json(installer, { status: 201 })
