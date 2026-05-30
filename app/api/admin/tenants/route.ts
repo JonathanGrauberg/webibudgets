@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
@@ -11,7 +11,7 @@ const DEFAULT_BRANDING = {
   accentColor: '#F59E0B',
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   return NextResponse.json({ tenants })
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
