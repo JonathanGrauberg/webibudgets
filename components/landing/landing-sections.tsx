@@ -244,9 +244,9 @@ export function LandingSections({ openFaqIndex, setOpenFaqIndex, dashboardHref, 
                 <h3 className="font-semibold mb-4 text-lg">Brand Colors</h3>
                 <div className="flex gap-4 items-center">
                   <div className="flex gap-2">
-                    {brandSwatches.map((color) => (
+                    {brandSwatches.map((color, index) => (
                       <div
-                        key={color}
+                        key={`swatch-${index}`}
                         className="w-12 h-12 rounded-lg border-2 border-slate-200 dark:border-slate-600 cursor-pointer hover:scale-110 transition-transform"
                         style={{ backgroundColor: color }}
                       />

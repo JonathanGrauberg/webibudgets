@@ -38,7 +38,7 @@ import { ProductForm } from '@/components/product-form'
 import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
-
+import { usePermissions } from '@/hooks/use-permissions'
 
 async function fetchProducts() {
   const res = await fetch('/api/products')
@@ -66,6 +66,8 @@ function Loading() {
 }
 
 export default function ProductsPage() {
+  const { canEdit } = usePermissions()
+  const canEditProducts = canEdit('products')
   
   const { data: products = [], isLoading } = useSWR<ProductService[]>('/api/products', fetchProducts)
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,15 +117,17 @@ export default function ProductsPage() {
             title="Productos y Servicios"
             description="Administra tu catálogo de productos y lista de precios"
           >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleCreate} className="w-full sm:w-auto">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Producto
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Agregar un nuevo producto o servicio</TooltipContent>
-            </Tooltip>
+            {canEditProducts && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={handleCreate} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Producto
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Agregar un nuevo producto o servicio</TooltipContent>
+              </Tooltip>
+            )}
           </PageHeader>
 
           <div className="p-4 md:p-6 lg:p-8">
@@ -169,7 +173,7 @@ export default function ProductsPage() {
                       : 'No hay productos registrados'}
                   </p>
 
-                  {!searchQuery && categoryFilter === 'all' && (
+                  {!searchQuery && categoryFilter === 'all' && canEditProducts && (
                     <Button variant="link" onClick={handleCreate} className="mt-2">
                       Crear primer producto
                     </Button>
@@ -234,25 +238,27 @@ export default function ProductsPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => handleEdit(product)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </Button>
+                        {canEditProducts && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => handleEdit(product)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </Button>
 
-                          <Button
-                            variant="outline"
-                            className="flex-1 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </Button>
-                        </div>
+                            <Button
+                              variant="outline"
+                              className="flex-1 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(product.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -270,7 +276,9 @@ export default function ProductsPage() {
                             <TableHead className="text-right">Precio</TableHead>
                             <TableHead>Unidad</TableHead>
                             <TableHead>Estado</TableHead>
-                            <TableHead className="w-[100px]">Acciones</TableHead>
+                            {canEditProducts && (
+                              <TableHead className="w-[100px]">Acciones</TableHead>
+                            )}
                           </TableRow>
                         </TableHeader>
 
@@ -308,36 +316,38 @@ export default function ProductsPage() {
                                 </Badge>
                               </TableCell>
 
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleEdit(product)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Editar producto</TooltipContent>
-                                  </Tooltip>
+                              {canEditProducts && (
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEdit(product)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Editar producto</TooltipContent>
+                                    </Tooltip>
 
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDelete(product.id)}
-                                        className="text-destructive hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Eliminar producto</TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableCell>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDelete(product.id)}
+                                          className="text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Eliminar producto</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -349,22 +359,23 @@ export default function ProductsPage() {
             )}
           </div>
 
-          {/* Dialog */}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-                </DialogTitle>
-              </DialogHeader>
+          {canEditProducts && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                  </DialogTitle>
+                </DialogHeader>
 
-              <ProductForm
-                product={editingProduct}
-                onSuccess={handleFormSuccess}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+                <ProductForm
+                  product={editingProduct}
+                  onSuccess={handleFormSuccess}
+                  onCancel={() => setIsDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </TooltipProvider>
     </Suspense>

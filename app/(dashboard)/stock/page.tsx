@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Package, Tag, CircleDollarSign, Boxes } from 'lucide-react'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Product = {
   id: string
@@ -42,6 +43,9 @@ function formatCurrency(amount: number) {
 }
 
 export default function StockPage() {
+  const { canEdit } = usePermissions()
+  const canEditStock = canEdit('stock')
+
   const { data: products = [], isLoading } = useSWR<Product[]>(
     '/api/products',
     fetcher
@@ -104,7 +108,11 @@ export default function StockPage() {
     <div className="min-h-screen">
       <PageHeader
         title="Stock"
-        description="Gestioná las cantidades disponibles por producto/servicio"
+        description={
+          canEditStock
+            ? 'Gestioná las cantidades disponibles por producto/servicio'
+            : 'Consultá las cantidades disponibles por producto/servicio'
+        }
       />
 
       <div className="p-4 md:p-6 lg:p-8">
@@ -173,30 +181,36 @@ export default function StockPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-sm text-muted-foreground">
-                            Nuevo stock
-                          </label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={getValue(p)}
-                            onChange={(e) =>
-                              setDraft((prev) => ({
-                                ...prev,
-                                [p.id]: Math.max(0, Number(e.target.value) || 0),
-                              }))
-                            }
-                          />
-                        </div>
+                        {canEditStock ? (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-sm text-muted-foreground">
+                                Nuevo stock
+                              </label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={getValue(p)}
+                                onChange={(e) =>
+                                  setDraft((prev) => ({
+                                    ...prev,
+                                    [p.id]: Math.max(0, Number(e.target.value) || 0),
+                                  }))
+                                }
+                              />
+                            </div>
 
-                        <Button
-                          className="w-full"
-                          onClick={() => saveStock(p)}
-                          disabled={savingId === p.id}
-                        >
-                          {savingId === p.id ? 'Guardando…' : 'Guardar'}
-                        </Button>
+                            <Button
+                              className="w-full"
+                              onClick={() => saveStock(p)}
+                              disabled={savingId === p.id}
+                            >
+                              {savingId === p.id ? 'Guardando…' : 'Guardar'}
+                            </Button>
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Solo lectura</p>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -213,7 +227,7 @@ export default function StockPage() {
                           <TableHead className="text-right">Precio</TableHead>
                           <TableHead>Unidad</TableHead>
                           <TableHead className="w-[180px]">Stock</TableHead>
-                          <TableHead className="w-[140px]" />
+                          {canEditStock && <TableHead className="w-[140px]" />}
                         </TableRow>
                       </TableHeader>
 
@@ -227,26 +241,32 @@ export default function StockPage() {
                             </TableCell>
                             <TableCell>{p.unit}</TableCell>
                             <TableCell>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={getValue(p)}
-                                onChange={(e) =>
-                                  setDraft((prev) => ({
-                                    ...prev,
-                                    [p.id]: Math.max(0, Number(e.target.value) || 0),
-                                  }))
-                                }
-                              />
+                              {canEditStock ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={getValue(p)}
+                                  onChange={(e) =>
+                                    setDraft((prev) => ({
+                                      ...prev,
+                                      [p.id]: Math.max(0, Number(e.target.value) || 0),
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <span className="font-medium">{p.stock ?? 0}</span>
+                              )}
                             </TableCell>
-                            <TableCell>
-                              <Button
-                                onClick={() => saveStock(p)}
-                                disabled={savingId === p.id}
-                              >
-                                {savingId === p.id ? 'Guardando…' : 'Guardar'}
-                              </Button>
-                            </TableCell>
+                            {canEditStock && (
+                              <TableCell>
+                                <Button
+                                  onClick={() => saveStock(p)}
+                                  disabled={savingId === p.id}
+                                >
+                                  {savingId === p.id ? 'Guardando…' : 'Guardar'}
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>

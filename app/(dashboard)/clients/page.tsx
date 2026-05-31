@@ -30,6 +30,7 @@ import { ClientForm } from '@/components/client-form'
 import useSWR, { mutate } from 'swr'
 import type { Client } from '@/lib/types'
 import { useSearchParams } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
 import Loading from './loading'
 
 async function fetchClients() {
@@ -39,6 +40,8 @@ async function fetchClients() {
 }
 
 export default function ClientsPage() {
+  const { canEdit } = usePermissions()
+  const canEditClients = canEdit('clients')
   const searchParams = useSearchParams()
   const { data: clients = [], isLoading } = useSWR<Client[]>('/api/clients', fetchClients)
   const [searchQuery, setSearchQuery] = useState('')
@@ -82,15 +85,17 @@ export default function ClientsPage() {
       <TooltipProvider>
         <div className="min-h-screen">
           <PageHeader title="Clientes" description="Gestiona tu base de clientes">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleCreate} className="w-full sm:w-auto">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Cliente
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Agregar un nuevo cliente al sistema</TooltipContent>
-            </Tooltip>
+            {canEditClients && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={handleCreate} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Cliente
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Agregar un nuevo cliente al sistema</TooltipContent>
+              </Tooltip>
+            )}
           </PageHeader>
 
           <div className="p-4 md:p-6 lg:p-8">
@@ -119,7 +124,7 @@ export default function ClientsPage() {
                   <p className="text-center text-muted-foreground">
                     {searchQuery ? 'No se encontraron clientes' : 'No hay clientes registrados'}
                   </p>
-                  {!searchQuery && (
+                  {!searchQuery && canEditClients && (
                     <Button variant="link" onClick={handleCreate} className="mt-2">
                       Crear primer cliente
                     </Button>
@@ -159,25 +164,27 @@ export default function ClientsPage() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => handleEdit(client)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </Button>
+                        {canEditClients && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => handleEdit(client)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </Button>
 
-                          <Button
-                            variant="outline"
-                            className="flex-1 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(client.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </Button>
-                        </div>
+                            <Button
+                              variant="outline"
+                              className="flex-1 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(client.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -193,7 +200,9 @@ export default function ClientsPage() {
                             <TableHead>Cliente</TableHead>
                             <TableHead>Contacto</TableHead>
                             <TableHead>Dirección</TableHead>
-                            <TableHead className="w-[100px]">Acciones</TableHead>
+                            {canEditClients && (
+                              <TableHead className="w-[100px]">Acciones</TableHead>
+                            )}
                           </TableRow>
                         </TableHeader>
 
@@ -227,36 +236,38 @@ export default function ClientsPage() {
                                 {client.address}
                               </TableCell>
 
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleEdit(client)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Editar cliente</TooltipContent>
-                                  </Tooltip>
+                              {canEditClients && (
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEdit(client)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Editar cliente</TooltipContent>
+                                    </Tooltip>
 
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDelete(client.id)}
-                                        className="text-destructive hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Eliminar cliente</TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableCell>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDelete(client.id)}
+                                          className="text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Eliminar cliente</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -268,21 +279,23 @@ export default function ClientsPage() {
             )}
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
-                </DialogTitle>
-              </DialogHeader>
+          {canEditClients && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
+                  </DialogTitle>
+                </DialogHeader>
 
-              <ClientForm
-                client={editingClient}
-                onSuccess={handleFormSuccess}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+                <ClientForm
+                  client={editingClient}
+                  onSuccess={handleFormSuccess}
+                  onCancel={() => setIsDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </TooltipProvider>
     </Suspense>

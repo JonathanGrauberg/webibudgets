@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { Users, Package, FileText, CheckCircle, Clock, DollarSign } from 'lucide-react'
 import Link from 'next/link'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type DashboardBudget = {
   id: string
@@ -57,6 +58,8 @@ function formatDate(date: Date | string): string {
 }
 
 export default function DashboardPage() {
+  const { canAccess, filterBudgets } = usePermissions()
+  const canViewBudgets = canAccess('budgets')
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -85,7 +88,7 @@ export default function DashboardPage() {
   }
 
   const { stats, recentBudgets } = data ?? {}
-  const budgets = recentBudgets ?? []
+  const budgets = filterBudgets(recentBudgets ?? [])
 
   return (
     <div className="min-h-screen">
@@ -129,54 +132,55 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Recent Budgets */}
-        <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Presupuestos Recientes</CardTitle>
-            <Link
-              href="/budgets"
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Ver todos
-            </Link>
-          </CardHeader>
+        {canViewBudgets && (
+          <Card className="mt-8">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Presupuestos Recientes</CardTitle>
+              <Link
+                href="/budgets"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Ver todos
+              </Link>
+            </CardHeader>
 
-          <CardContent>
-            {budgets.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">
-                No hay presupuestos creados aún
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {budgets.map((budget: DashboardBudget) => (
-                  <Link
-                    key={budget.id}
-                    href={`/budgets/${budget.id}`}
-                    className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium text-card-foreground">
-                        {budget.client?.company || budget.client?.name || 'Cliente'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {budget.items?.length || 0} item(s) · {formatDate(budget.createdAt)}
-                      </p>
-                    </div>
+            <CardContent>
+              {budgets.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">
+                  No hay presupuestos creados aún
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {budgets.map((budget: DashboardBudget) => (
+                    <Link
+                      key={budget.id}
+                      href={`/budgets/${budget.id}`}
+                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium text-card-foreground">
+                          {budget.client?.company || budget.client?.name || 'Cliente'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {budget.items?.length || 0} item(s) · {formatDate(budget.createdAt)}
+                        </p>
+                      </div>
 
-                    <div className="flex items-center gap-4">
-                      <Badge className={STATUS_COLORS[budget.status]}>
-                        {STATUS_LABELS[budget.status]}
-                      </Badge>
-                      <span className="font-semibold text-card-foreground">
-                        {formatCurrency(budget.total)}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      <div className="flex items-center gap-4">
+                        <Badge className={STATUS_COLORS[budget.status]}>
+                          {STATUS_LABELS[budget.status]}
+                        </Badge>
+                        <span className="font-semibold text-card-foreground">
+                          {formatCurrency(budget.total)}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

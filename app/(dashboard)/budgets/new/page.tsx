@@ -86,6 +86,7 @@ function buildInstallerReference(installer: Installer) {
   return parts.join(' - ')
 }
 
+
 /* ================================
    PAGE
 ================================ */
@@ -106,6 +107,8 @@ export default function NewBudgetPage() {
   const [selectedProductId, setSelectedProductId] = useState('')
 
   /* ===== Datos del trabajo ===== */
+  const { data: branding } = useSWR('/api/tenants', fetcher)
+  const companyName = branding?.name || 'la empresa'
   const [installationResponsible, setInstallationResponsible] = useState('')
   const [installerId, setInstallerId] = useState('')
   const [installerReference, setInstallerReference] = useState('')
@@ -473,7 +476,9 @@ export default function NewBudgetPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="client">A cargo del cliente</SelectItem>
-                      <SelectItem value="company">A cargo de WebiBudgets</SelectItem>
+                      <SelectItem value="company">
+                      {`A cargo de ${companyName}`}
+                    </SelectItem>
                       <SelectItem value="other">Otro</SelectItem>
                     </SelectContent>
                   </Select>

@@ -24,6 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Pencil, Plus, Trash2, Mail, Phone, MapPin, Wrench } from 'lucide-react'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Installer = {
   id: string
@@ -46,6 +47,9 @@ const emptyForm = {
 }
 
 export default function InstallersPage() {
+  const { canEdit } = usePermissions()
+  const canEditInstallers = canEdit('installers')
+
   const [installers, setInstallers] = useState<Installer[]>([])
   const [loading, setLoading] = useState(true)
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -144,10 +148,12 @@ export default function InstallersPage() {
         title="Instaladores"
         description={`Activos: ${activeCount}`}
       >
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo instalador
-        </Button>
+        {canEditInstallers && (
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo instalador
+          </Button>
+        )}
       </PageHeader>
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -222,26 +228,28 @@ export default function InstallersPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => openEdit(i)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </Button>
+                        {canEditInstallers && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => openEdit(i)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </Button>
 
-                          <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => onDisable(i.id)}
-                            disabled={!i.active}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Desactivar
-                          </Button>
-                        </div>
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => onDisable(i.id)}
+                              disabled={!i.active}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Desactivar
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -257,7 +265,9 @@ export default function InstallersPage() {
                           <TableHead>Ciudad</TableHead>
                           <TableHead>Contacto</TableHead>
                           <TableHead className="text-center">Estado</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
+                          {canEditInstallers && (
+                            <TableHead className="text-right">Acciones</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
 
@@ -286,20 +296,22 @@ export default function InstallersPage() {
                               </Badge>
                             </TableCell>
 
-                            <TableCell className="space-x-2 text-right">
-                              <Button variant="outline" size="sm" onClick={() => openEdit(i)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                            {canEditInstallers && (
+                              <TableCell className="space-x-2 text-right">
+                                <Button variant="outline" size="sm" onClick={() => openEdit(i)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onDisable(i.id)}
-                                disabled={!i.active}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onDisable(i.id)}
+                                  disabled={!i.active}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -312,7 +324,8 @@ export default function InstallersPage() {
         </Card>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {canEditInstallers && (
+        <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
@@ -396,6 +409,7 @@ export default function InstallersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

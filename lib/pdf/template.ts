@@ -1,6 +1,11 @@
 export function budgetPdfTemplate(
   budget: any,
-  opts?: { logoDataUri?: string; watermarkDataUri?: string }
+  opts?: { 
+    logoDataUri?: string
+    watermarkDataUri?: string
+    companyName?: string   
+    isTrial?: boolean
+  }
 ) {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', {
@@ -24,7 +29,7 @@ export function budgetPdfTemplate(
   // Helpers para mostrar textos lindos (por si viene "company"/"client")
   const installationResponsibleLabel =
     budget.installationResponsible === 'company'
-      ? 'A cargo de WebiBudgets'
+      ? `A cargo de ${opts?.companyName || 'la empresa'}`
       : budget.installationResponsible === 'client'
         ? 'A cargo del cliente'
         : budget.installationResponsible || '—'

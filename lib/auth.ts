@@ -6,11 +6,6 @@ import bcrypt from 'bcryptjs'
 import type { User as PrismaUser } from '@prisma/client'
 import type { JWT } from 'next-auth/jwt'
 
-interface Token extends JWT {
-  tenantId?: string
-  role?: string
-}
-
 type AuthUser = {
   id: string
   email: string
@@ -54,22 +49,22 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt(params) {
-      const token = params.token as Token
+      const token = params.token as any
       const user = params.user as Partial<AuthUser> | undefined
       if (user) {
         token.tenantId = user.tenantId
         token.role = user.role
-        token.sub = token.sub ?? user.id
+        token.id = token.sub ?? user.id
       }
       return token
     },
     async session(params) {
       const session = params.session as Session
-      const token = params.token as Token
+      const token = params.token as any
       if (session.user) {
         ;(session.user as any).tenantId = token.tenantId
         ;(session.user as any).role = token.role
-        ;(session.user as any).id = token.sub ?? token?.id
+        ;(session.user as any).id = token.id
       }
       return session
     },

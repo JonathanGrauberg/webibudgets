@@ -1,6 +1,9 @@
-import { NextResponse } from 'next/server'
-import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'
+import { NextResponse, NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
+import { getTenantIdFromRequest } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
+
+const MANAGER_ROLES = ['owner', 'admin']
 
 export async function GET(request: Request) {
   const tenantId = await getTenantIdFromRequest(request)
@@ -11,6 +14,7 @@ export async function GET(request: Request) {
       id: true,
       name: true,
       logoUrl: true,
+      faviconUrl: true,
       primaryColor: true,
       secondaryColor: true,
       accentColor: true,
@@ -22,18 +26,37 @@ export async function GET(request: Request) {
   return NextResponse.json(branding)
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const role = token.role as string | undefined
+  if (!role || !MANAGER_ROLES.includes(role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const tenantId = await getTenantIdFromRequest(request)
 
-  let data: any = {}
+  let data: Record<string, unknown> = {}
   try {
     data = await request.json()
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const allowed = ['name', 'logoUrl', 'primaryColor', 'secondaryColor', 'accentColor', 'plan', 'maxUsers']
-  const updateData: Record<string, any> = {}
+  const allowed = [
+    'name',
+    'logoUrl',
+    'faviconUrl',
+    'primaryColor',
+    'secondaryColor',
+    'accentColor',
+    'plan',
+    'maxUsers',
+  ]
+  const updateData: Record<string, unknown> = {}
   for (const k of allowed) {
     if (Object.prototype.hasOwnProperty.call(data, k)) {
       const v = data[k]
@@ -53,7 +76,8 @@ export async function PUT(request: Request) {
   try {
     const updated = await prisma.tenant.update({ where: { id: tenantId }, data: updateData })
     return NextResponse.json({ success: true, tenant: updated })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? 'Error updating tenant' }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error updating tenant'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

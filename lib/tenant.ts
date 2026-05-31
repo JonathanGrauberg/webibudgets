@@ -145,6 +145,7 @@ export async function getTenantBranding(tenantId: string) {
       id: true,
       name: true,
       logoUrl: true,
+      faviconUrl: true,
       primaryColor: true,
       secondaryColor: true,
       accentColor: true,

@@ -17,6 +17,8 @@ import {
 import { Loader2, Eye } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
+import { usePermissions } from '@/hooks/use-permissions'
+import { Plus } from 'lucide-react'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -33,7 +35,10 @@ function formatCurrency(amount: number) {
 }
 
 export default function BudgetsPage() {
-  const { data: budgets = [], isLoading, error } = useSWR<Budget[]>('/api/budgets', fetcher)
+  const { canEdit, filterBudgets } = usePermissions()
+  const canCreateBudget = canEdit('budgets')
+  const { data: budgetsRaw = [], isLoading, error } = useSWR<Budget[]>('/api/budgets', fetcher)
+  const budgets = filterBudgets(budgetsRaw)
 
   if (isLoading) {
     return (
@@ -57,9 +62,14 @@ export default function BudgetsPage() {
         title="Presupuestos"
         description="Listado de presupuestos generados"
       >
-        <Link href="/budgets/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">Nuevo presupuesto</Button>
-        </Link>
+        {canCreateBudget && (
+          <Link href="/budgets/new" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto hover:secondaryColor">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo presupuesto
+              </Button>
+          </Link>
+        )}
       </PageHeader>
 
       <div className="p-4 md:p-6 lg:p-8">

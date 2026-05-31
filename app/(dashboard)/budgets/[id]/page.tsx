@@ -48,6 +48,9 @@ import {
   CATEGORY_LABELS,
 } from '@/lib/types'
 
+import { AccessDenied } from '@/components/access-denied'
+import { usePermissions } from '@/hooks/use-permissions'
+
 import {
   Dialog,
   DialogContent,
@@ -99,6 +102,7 @@ type StockProblem = {
 export default function BudgetDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { canViewBudgetStatus, canChangeBudgetStatus } = usePermissions()
   const id = params?.id as string | undefined
 
   const isValidId = typeof id === 'string' && id !== 'pdf' && id.length > 10
@@ -248,6 +252,14 @@ const handleGeneratePDF = async () => {
     )
   }
 
+  if (!canViewBudgetStatus(budget.status)) {
+    return (
+      <AccessDenied message="No tienes permisos para ver este presupuesto." />
+    )
+  }
+
+  const canChangeStatus = canChangeBudgetStatus()
+
   const discount = Number(budget.discount ?? 0)
   const tax = Number(budget.tax ?? 0)
   const shippingCost =
@@ -353,7 +365,7 @@ const handleGeneratePDF = async () => {
                     </div>
                     <p className="font-medium">
                       {budget.installationResponsible === 'company'
-                        ? 'A cargo de WebiBudgets'
+                        ? 'A cargo de la empresa'
                         : budget.installationResponsible === 'client'
                           ? 'A cargo del cliente'
                           : budget.installationResponsible === 'other'
@@ -511,22 +523,26 @@ const handleGeneratePDF = async () => {
                   {STATUS_LABELS[budget.status]}
                 </Badge>
 
-                <Select
-                  value={budget.status}
-                  onValueChange={(v) => handleStatusChange(v as BudgetStatus)}
-                  disabled={isUpdating}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {canChangeStatus ? (
+                  <Select
+                    value={budget.status}
+                    onValueChange={(v) => handleStatusChange(v as BudgetStatus)}
+                    disabled={isUpdating}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Solo lectura</p>
+                )}
               </CardContent>
             </Card>
 
@@ -622,14 +638,16 @@ const handleGeneratePDF = async () => {
               Ir a Stock
             </Button>
 
-            <Button
-              type="button"
-              onClick={approveAnyway}
-              disabled={isUpdating}
-              className="w-full sm:w-auto"
-            >
-              {isUpdating ? 'Aprobando…' : 'Aprobar igual'}
-            </Button>
+            {canChangeStatus && (
+              <Button
+                type="button"
+                onClick={approveAnyway}
+                disabled={isUpdating}
+                className="w-full sm:w-auto"
+              >
+                {isUpdating ? 'Aprobando…' : 'Aprobar igual'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
