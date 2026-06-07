@@ -38,10 +38,17 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   address: client?.address || '',
   notes: client?.notes || '',
 
-  // uso / clasificación
-  type: (client as any)?.type || '',
-  peopleCount: (client as any)?.peopleCount || '',
-  usageFrequency: (client as any)?.usageFrequency || '',
+  identificationType:
+    (client as any)?.cuit
+      ? 'company'
+      : 'person',
+
+  identificationNumber:
+    (client as any)?.cuit ||
+    (client as any)?.dni ||
+    '',
+
+  
   status: (client as any)?.status || 'nuevo',
 
   // 📍 ubicación simple
@@ -61,10 +68,24 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
       const url = client ? `/api/clients/${client.id}` : '/api/clients'
       const method = client ? 'PUT' : 'POST'
 
+      const payload = {
+        ...formData,
+
+        dni:
+          formData.identificationType === 'person'
+            ? formData.identificationNumber
+            : null,
+
+        cuit:
+          formData.identificationType === 'company'
+            ? formData.identificationNumber
+            : null,
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) throw new Error('Failed to save client')
@@ -119,7 +140,55 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
+
+          <div className="space-y-2">
+            <Label>Tipo de identificación</Label>
+
+            <Select
+              value={formData.identificationType}
+              onValueChange={(v) =>
+                setFormData({
+                  ...formData,
+                  identificationType: v,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="person">Persona</SelectItem>
+                <SelectItem value="company">Empresa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              {formData.identificationType === 'company'
+                ? 'CUIT / RUT / RUC'
+                : 'DNI'}
+            </Label>
+
+            <Input
+              placeholder={
+                formData.identificationType === 'company'
+                  ? 'CUIT / RUT / RUC / CNPJ'
+                  : 'Documento'
+              }
+              value={formData.identificationNumber}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  identificationNumber: e.target.value,
+                })
+              }
+            />
+          </div>
+
+
           <div className="space-y-2">
             <Label>Email</Label>
             <Input
@@ -186,52 +255,6 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
                 <MapPin className="h-4 w-4" />
               </Button>
             )}
-          </div>
-        </div>
-
-        {/* Tipo de cliente */}
-        <div className="space-y-2">
-          <Label>Tipo de Uso</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(v) => setFormData({ ...formData, type: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="home">Casa</SelectItem>
-              <SelectItem value="home_modular">Casa Modular</SelectItem>
-              <SelectItem value="cabin">Cabaña</SelectItem>
-              <SelectItem value="hall">Salón</SelectItem>
-              <SelectItem value="sanitary">Sanitario</SelectItem>
-              <SelectItem value="company">Empresa</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Uso */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Cantidad de personas</Label>
-            <Input
-              type="number"
-              value={formData.peopleCount}
-              onChange={(e) =>
-                setFormData({ ...formData, peopleCount: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Frecuencia de uso</Label>
-            <Input
-              value={formData.usageFrequency}
-              onChange={(e) =>
-                setFormData({ ...formData, usageFrequency: e.target.value })
-              }
-              placeholder="Ej: fines de semana"
-            />
           </div>
         </div>
 

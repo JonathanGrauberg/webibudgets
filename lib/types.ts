@@ -12,7 +12,11 @@ export interface Client {
   updatedAt: Date
 }
 
-export type ProductCategory = 'biodigesters' | 'grease_traps' | 'maintenance' | 'other'
+export type ProductCategory =
+  | 'biodigesters'
+  | 'grease_traps'
+  | 'maintenance'
+  | 'other'
 
 export interface ProductService {
   id: string
@@ -55,7 +59,13 @@ export interface Installer {
   updatedAt: Date
 }
 
-export type BudgetStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'completed' | 'expired'
+export type BudgetStatus =
+  | 'draft'
+  | 'sent'
+  | 'approved'
+  | 'rejected'
+  | 'completed'
+  | 'expired'
 
 export interface BudgetItem {
   id: string
@@ -65,6 +75,20 @@ export interface BudgetItem {
   quantity: number
   unitPrice: number
   subtotal: number
+}
+
+export interface BudgetStatusHistory {
+  id: string
+  from: BudgetStatus
+  to: BudgetStatus
+  changedAt: Date
+  user?: string | null
+}
+
+export interface BudgetDetail {
+  id?: string
+  title: string
+  value: string
 }
 
 export interface Budget {
@@ -82,6 +106,8 @@ export interface Budget {
   installer?: Installer | null
 
   items: BudgetItem[]
+
+  history?: BudgetStatusHistory[]
 
   status: BudgetStatus
   notes: string
@@ -101,8 +127,8 @@ export interface Budget {
   // 🛠 Instalación
   installationResponsible?: string | null
   installerReference?: string | null
-  siteDetails?: string | null
-  technicalDetails?: string | null
+
+  details?: BudgetDetail[]
 
   createdAt: Date
   updatedAt: Date

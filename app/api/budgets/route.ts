@@ -154,8 +154,10 @@ const budget = await prisma.budget.create({
 
     installationResponsible: data.installationResponsible ?? null,
     installerReference: data.installerReference ?? null,
-    siteDetails: data.siteDetails ?? null,
-    technicalDetails: data.technicalDetails ?? null,
+
+    details: Array.isArray(data.details)
+      ? data.details
+      : [],
 
     subtotal: calculation.subtotal,
     discount: calculation.discountAmount,

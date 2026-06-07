@@ -247,21 +247,17 @@ export function budgetPdfTemplate(
       Instalador de referencia: ${budget.installerReference || '—'}
     </div>
 
-    <h2>Datos del Lugar</h2>
+    ${budget.details
+      .map(
+        (detail: { title: string; content: string }) => `
     <div class="box avoid-break">
-      ${budget.siteDetails || '—'}
-    </div>
-
-    ${
-      budget.technicalDetails
-        ? `
-    <h2>Observaciones Técnicas</h2>
-    <div class="box avoid-break">
-      ${budget.technicalDetails}
+      <strong>${detail.title}</strong>
+      <br />
+      ${detail.content}
     </div>
     `
-        : ''
-    }
+      )
+      .join('')}
 
     ${
       budget.notes

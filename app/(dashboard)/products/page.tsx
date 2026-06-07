@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogOverlay
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -361,6 +362,7 @@ export default function ProductsPage() {
 
           {canEditProducts && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>

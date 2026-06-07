@@ -78,8 +78,17 @@ export async function POST(request: Request) {
           name,
           lastName: data?.lastName ? String(data.lastName).trim() : null,
           company,
-          dni: data?.dni ? String(data.dni).trim() : null,
-          cuit: data?.cuit ? String(data.cuit).trim() : null,
+          dni:
+            data?.identificationType === 'person' &&
+            data?.identificationNumber
+              ? String(data.identificationNumber).trim()
+              : null,
+
+          cuit:
+            data?.identificationType === 'company' &&
+            data?.identificationNumber
+              ? String(data.identificationNumber).trim()
+              : null,
           email,
           phone,
           address: typeof data?.address === 'string' && data.address.trim() ? data.address.trim() : '—',

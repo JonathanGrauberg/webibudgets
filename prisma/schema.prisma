@@ -276,8 +276,9 @@ model Budget {
   // Instalación
   installationResponsible String?
   installerReference      String?
-  siteDetails             String?
-  technicalDetails        String?
+
+  // Información adicional
+  details Json?
 
   // Montos
   subtotal     Float

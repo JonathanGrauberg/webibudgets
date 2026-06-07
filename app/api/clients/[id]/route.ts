@@ -64,6 +64,15 @@ export async function PUT(
     const updateData: any = {
       name: data.name?.trim(),
       company: data.company?.trim() || null,
+      dni:
+        data?.identificationType === 'person'
+          ? data?.identificationNumber?.trim() || null
+          : null,
+
+      cuit:
+        data?.identificationType === 'company'
+          ? data?.identificationNumber?.trim() || null
+          : null,
       email: data.email?.trim() || null,
       phone: data.phone?.trim(),
       address: data.address?.trim() || '—',

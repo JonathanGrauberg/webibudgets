@@ -20,6 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogOverlay
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
@@ -326,6 +327,7 @@ export default function InstallersPage() {
 
       {canEditInstallers && (
         <Dialog open={open} onOpenChange={setOpen}>
+          <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>

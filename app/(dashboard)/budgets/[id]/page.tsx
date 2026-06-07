@@ -426,18 +426,39 @@ const handleGeneratePDF = async () => {
                   </p>
                 </div>
 
-                {budget.siteDetails?.trim() && (
-                  <div className="rounded-md border p-3">
-                    <p className="mb-1 text-muted-foreground">Datos del lugar / uso</p>
-                    <p className="whitespace-pre-wrap break-words">{budget.siteDetails}</p>
-                  </div>
-                )}
+                {Array.isArray(budget.details) &&
+                  budget.details.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Información adicional</CardTitle>
+                      </CardHeader>
 
-                {budget.technicalDetails?.trim() && (
-                  <div className="rounded-md border p-3">
-                    <p className="mb-1 text-muted-foreground">Observaciones técnicas</p>
-                    <p className="whitespace-pre-wrap break-words">{budget.technicalDetails}</p>
-                  </div>
+                      <CardContent className="space-y-4">
+                        {budget.details.map(
+                          (
+                            detail: {
+                              id?: string
+                              title?: string
+                              value?: string
+                            },
+                            index: number
+                          ) => (
+                            <div
+                              key={detail.id || index}
+                              className="border-b pb-3 last:border-0"
+                            >
+                              <p className="font-medium">
+                                {detail.title}
+                              </p>
+
+                              <p className="text-muted-foreground">
+                                {detail.value}
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </CardContent>
+                    </Card>
                 )}
               </CardContent>
             </Card>
@@ -536,7 +557,7 @@ const handleGeneratePDF = async () => {
 
           {/* SIDEBAR */}
           <div className="space-y-4 md:space-y-6">
-            <Card className="lg:sticky lg:top-8">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Estado del Presupuesto</CardTitle>
               </CardHeader>
@@ -564,6 +585,45 @@ const handleGeneratePDF = async () => {
                   </Select>
                 ) : (
                   <p className="text-sm text-muted-foreground">Solo lectura</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">
+                  Historial
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className="space-y-4 pt-0">
+                {budget.history?.length ? (
+                  budget.history.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border-l-2 pl-4 relative"
+                    >
+                      <div className="absolute -left-[6px] top-1 h-3 w-3 rounded-full bg-primary" />
+
+                      <p className="font-medium">
+                        {STATUS_LABELS[item.to]}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        {item.from !== item.to &&
+                          `${STATUS_LABELS[item.from]} → `}
+                        {STATUS_LABELS[item.to]}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(item.changedAt)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Sin movimientos registrados
+                  </p>
                 )}
               </CardContent>
             </Card>

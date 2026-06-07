@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogOverlay,
 } from '@/components/ui/dialog'
 import {
   Tooltip,
@@ -281,7 +282,17 @@ export default function ClientsPage() {
 
           {canEditClients && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+              <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
+              
+              <DialogContent
+                className="
+                  max-h-[90vh]
+                  overflow-y-auto
+                  sm:max-w-4xl
+                  backdrop-blur-sm
+                "
+              >
+                
                 <DialogHeader>
                   <DialogTitle>
                     {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}

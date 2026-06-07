@@ -42,12 +42,19 @@ export async function GET(request: Request, { params }: Params) {
         client: true,
         seller: true,
         installer: true,
+
         items: {
           include: {
             productService: true,
           },
         },
-      },
+
+        history: {
+          orderBy: {
+            changedAt: 'desc',
+          },
+        },
+      }
     })
 
     if (!budget) {
@@ -164,14 +171,10 @@ export async function PATCH(request: Request, { params }: Params) {
         updateData.installerReference = data.installerReference ?? null
       }
 
-      if (data.siteDetails !== undefined) {
-        updateData.siteDetails = data.siteDetails ?? null
+      if (data.details !== undefined) {
+        updateData.details = data.details ?? []
       }
-
-      if (data.technicalDetails !== undefined) {
-        updateData.technicalDetails = data.technicalDetails ?? null
-      }
-
+      
       if (sellerId !== undefined) {
         updateData.sellerId = sellerId
       }

@@ -20,6 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogOverlay
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
@@ -338,6 +339,7 @@ export default function SellersPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
+        <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
         <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>

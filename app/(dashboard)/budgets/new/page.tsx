@@ -112,8 +112,13 @@ export default function NewBudgetPage() {
   const [installationResponsible, setInstallationResponsible] = useState('')
   const [installerId, setInstallerId] = useState('')
   const [installerReference, setInstallerReference] = useState('')
-  const [siteDetails, setSiteDetails] = useState('')
-  const [technicalDetails, setTechnicalDetails] = useState('')
+  const [details, setDetails] = useState([
+        {
+          id: crypto.randomUUID(),
+          title: '',
+          value: '',
+        },
+      ])
 
   /* ===== Avanzados ===== */
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed' | null>(null)
@@ -211,6 +216,37 @@ export default function NewBudgetPage() {
     setItems((prev) => prev.filter((i) => i.productServiceId !== productServiceId))
   }
 
+  const addDetail = () => {
+    setDetails((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        title: '',
+        value: '',
+      },
+    ])
+  }
+
+  const removeDetail = (id: string) => {
+    setDetails((prev) =>
+      prev.filter((detail) => detail.id !== id)
+    )
+  }
+
+  const updateDetail = (
+    id: string,
+    field: 'title' | 'value',
+    value: string
+  ) => {
+    setDetails((prev) =>
+      prev.map((detail) =>
+        detail.id === id
+          ? { ...detail, [field]: value }
+          : detail
+      )
+    )
+  }
+
   /* ================================
      CALCULOS (UI)
   ================================ */
@@ -255,8 +291,9 @@ export default function NewBudgetPage() {
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
           installerReference,
-          siteDetails,
-          technicalDetails,
+          details: details.filter(
+            (d) => d.title.trim() || d.value.trim()
+          ),
 
           discountType,
           discountValue: safeDiscountValue,
@@ -524,17 +561,60 @@ export default function NewBudgetPage() {
                     onChange={(e) => setInstallerReference(e.target.value)}
                   />
 
-                  <Textarea
-                    placeholder="Datos del lugar / uso"
-                    value={siteDetails}
-                    onChange={(e) => setSiteDetails(e.target.value)}
-                  />
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">
+                      Información adicional
+                    </p>
 
-                  <Textarea
-                    placeholder="Observaciones técnicas"
-                    value={technicalDetails}
-                    onChange={(e) => setTechnicalDetails(e.target.value)}
-                  />
+                    {details.map((detail) => (
+                      <div
+                        key={detail.id}
+                        className="grid gap-2 md:grid-cols-[220px_1fr_auto]"
+                      >
+                        <Input
+                          placeholder="Título"
+                          value={detail.title}
+                          onChange={(e) =>
+                            updateDetail(
+                              detail.id,
+                              'title',
+                              e.target.value
+                            )
+                          }
+                        />
+
+                        <Input
+                          placeholder="Contenido"
+                          value={detail.value}
+                          onChange={(e) =>
+                            updateDetail(
+                              detail.id,
+                              'value',
+                              e.target.value
+                            )
+                          }
+                        />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => removeDetail(detail.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addDetail}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar información
+                    </Button>
+                  </div>
+
                 </CardContent>
               </Card>
 
