@@ -90,15 +90,21 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
   }))
 }
 
-export const VALID_BUDGET_STATUSES = ['draft', 'sent', 'approved', 'rejected', 'completed'] as const
+export const VALID_BUDGET_STATUSES = ['draft', 'sent', 'approved', 'rejected', 'completed', 'expired'] as const
 export const LEGACY_BUDGET_STATUSES = ['expired'] as const
 export const ALL_BUDGET_STATUSES = [...VALID_BUDGET_STATUSES, ...LEGACY_BUDGET_STATUSES] as const
 
 export type ValidBudgetStatus = (typeof VALID_BUDGET_STATUSES)[number]
 export type BudgetStatusValue = (typeof ALL_BUDGET_STATUSES)[number]
 
-export function isValidBudgetStatus(status: unknown): status is ValidBudgetStatus {
-  return typeof status === 'string' && (VALID_BUDGET_STATUSES as readonly string[]).includes(status)
+export function isValidBudgetStatus(
+  status: unknown
+): status is BudgetStatusValue {
+  return (
+    typeof status === 'string' &&
+    (ALL_BUDGET_STATUSES as readonly string[])
+      .includes(status)
+  )
 }
 
 export function parseBudgetStatus(value: unknown): ValidBudgetStatus | null {

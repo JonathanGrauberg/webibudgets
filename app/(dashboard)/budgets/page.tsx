@@ -91,7 +91,7 @@ export default function BudgetsPage() {
                         {b.client?.company || b.client?.name || '-'}
                       </p>
                       <p className="mt-1 font-mono text-xs text-muted-foreground">
-                        ID: {b.id.slice(0, 8)}
+                        Presupuesto #{String(b.budgetNumber ?? 0).padStart(6, '0')}
                       </p>
                     </div>
 
@@ -126,7 +126,7 @@ export default function BudgetsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>N°</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Total</TableHead>
@@ -138,7 +138,7 @@ export default function BudgetsPage() {
                   {budgets.map((b) => (
                     <TableRow key={b.id}>
                       <TableCell className="font-mono text-xs">
-                        {b.id.slice(0, 8)}
+                        #{String(b.budgetNumber ?? 0).padStart(6, '0')}
                       </TableCell>
 
                       <TableCell>

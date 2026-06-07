@@ -99,13 +99,17 @@ export async function GET(
     const clientName = budget.client?.name || ""
     const clientLastName = budget.client?.lastName || ""
 
+    const budgetNumber = String(
+      budget.budgetNumber ?? 0
+    ).padStart(6, '0')
+
     const safeName = `${clientName} ${clientLastName}`
       .trim()
       .replace(/\s+/g, "_")
       .replace(/[^\w\-]/g, "")
       .toLowerCase() || "cliente"
 
-    const fileName = `${safeName}_pto_${id.slice(0, 6)}.pdf`
+    const fileName = `${safeName}_pto_${budgetNumber}.pdf`
 
     return new NextResponse(buffer, {
       headers: {

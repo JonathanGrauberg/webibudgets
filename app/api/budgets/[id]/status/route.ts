@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import {
-  isAllowedBudgetStatusTransition,
   isValidBudgetStatus,
   parseBudgetStatus,
 } from '@/lib/budget-validators'
@@ -50,13 +49,7 @@ export async function POST(
 
     const current = budget.status
 
-    // ✅ Transiciones (si querés permitir aprobar directo desde draft, lo ajustamos abajo)
-    if (!isAllowedBudgetStatusTransition(current, status)) {
-      return NextResponse.json(
-        { error: `Invalid transition from ${current} to ${status}` },
-        { status: 400 }
-      )
-    }
+    
 
     // ✅ Chequeo de stock SOLO para disparar modal al aprobar
     if (status === 'approved' && !confirmStock) {

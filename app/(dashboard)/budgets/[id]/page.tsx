@@ -60,6 +60,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 
+import { toast } from 'sonner'
+
 async function fetcher(url: string) {
   const res = await fetch(url)
 
@@ -148,17 +150,25 @@ export default function BudgetDetailPage() {
         setStockProblems(problems)
         setStockModalOpen(true)
         return
-      }
+      } 
 
       if (!result.ok) {
-        console.error('Error updating status:', result.json)
+        toast.error(
+          result.json?.error ?? 'No se pudo actualizar el estado'
+        )
         return
-      }
+      } 
+
+      toast.success('Estado actualizado')
 
       mutate(`/api/budgets/${id}`)
     } catch (err) {
       console.error('Error updating status:', err)
-    } finally {
+
+        toast.error(
+          'Ocurrió un error al actualizar el estado'
+        )
+      } finally {
       setIsUpdating(false)
     }
   }
@@ -171,11 +181,19 @@ export default function BudgetDetailPage() {
       const result = await postStatus('approved', true)
       if (!result.ok) {
         console.error('Error approving anyway:', result.json)
+        toast.error(
+          result.json?.error ?? 'No se pudo aprobar el presupuesto'
+        )
         return
       }
 
       setStockModalOpen(false)
       setStockProblems([])
+
+      toast.success(
+        'Presupuesto aprobado'
+      )
+
       mutate(`/api/budgets/${id}`)
     } catch (err) {
       console.error(err)
