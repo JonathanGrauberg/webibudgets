@@ -70,6 +70,8 @@ export interface BudgetItem {
 export interface Budget {
   id: string
 
+  budgetNumber?: number | null
+
   clientId: string
   client?: Client
 

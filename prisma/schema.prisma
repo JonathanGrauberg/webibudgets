@@ -57,29 +57,29 @@ enum UserRole {
 ========================= */
 
 model Tenant {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
 
-  // Branding
-  name              String
-  slug              String   @unique
-  logoUrl           String?
-  faviconUrl        String?
-  primaryColor      String?
-  secondaryColor    String?
-  accentColor       String?
+  name      String
+  slug      String @unique
 
-  // Configuración
-  customSellerLabel     String? @default("Vendedor")
-  customInstallerLabel  String? @default("Instalador")
+  logoUrl        String?
+  faviconUrl     String?
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+
+  customSellerLabel    String? @default("Vendedor")
+  customInstallerLabel String? @default("Instalador")
+
+  plan     String? @default("free")
+  maxUsers Int?    @default(5)
+
+  active Boolean @default(true)
+
   
-  // SaaS basics
-  plan                 String? @default("free")
-  maxUsers             Int?    @default(5)
+  budgetSequence Int @default(1)
 
-  active     Boolean @default(true)
-
-  // Relaciones
-  users    User[]
+  users          User[]
   clients        Client[]
   budgets        Budget[]
   sellers        Seller[]
@@ -252,6 +252,8 @@ model Budget {
 
   tenantId  String
   tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  budgetNumber Int?
 
   clientId  String
   client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)

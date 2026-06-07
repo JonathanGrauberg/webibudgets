@@ -113,83 +113,115 @@ export async function POST(request: Request) {
       shippingCost: parseShippingCost(data.shippingCost),
     })
 
-    const budget = await prisma.budget.create({
-      data: {
-        tenant: {
-          connect: {
-            id: tenantId,
-          },
-        },
+    const tenant = await prisma.tenant.findUnique({
+  where: {
+    id: tenantId,
+  },
+  select: {
+    budgetSequence: true,
+  },
+})
 
-        status: 'draft',
-        notes: typeof data.notes === 'string' ? data.notes : '',
+if (!tenant) {
+  throw new Error('Tenant not found')
+}
 
-        installationResponsible: data.installationResponsible ?? null,
-        installerReference: data.installerReference ?? null,
-        siteDetails: data.siteDetails ?? null,
-        technicalDetails: data.technicalDetails ?? null,
+const budgetNumber = tenant.budgetSequence
 
-        subtotal: calculation.subtotal,
-        discount: calculation.discountAmount,
-        tax: calculation.taxAmount,
-        shippingCost: calculation.shippingCost,
-        total: calculation.total,
+await prisma.tenant.update({
+  where: {
+    id: tenantId,
+  },
+  data: {
+    budgetSequence: {
+      increment: 1,
+    },
+  },
+})
 
-        paymentTerms: data.paymentTerms ?? null,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+const budget = await prisma.budget.create({
+  data: {
+    tenant: {
+      connect: {
+        id: tenantId,
+      },
+    },
 
-        client: {
-          connect: {
-            id: data.clientId,
-          },
-        },
+    status: 'draft',
+    budgetNumber,
 
-        ...(sellerId
-          ? {
-              seller: {
-                connect: {
-                  id: sellerId,
-                },
-              },
-            }
-          : {}),
+    notes: typeof data.notes === 'string' ? data.notes : '',
 
-        ...(installerId
-          ? {
-              installer: {
-                connect: {
-                  id: installerId,
-                },
-              },
-            }
-          : {}),
+    installationResponsible: data.installationResponsible ?? null,
+    installerReference: data.installerReference ?? null,
+    siteDetails: data.siteDetails ?? null,
+    technicalDetails: data.technicalDetails ?? null,
 
-        items: {
-          create: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
-            discount: item.discount,
-            productService: {
-              connect: {
-                id: item.productServiceId,
-              },
+    subtotal: calculation.subtotal,
+    discount: calculation.discountAmount,
+    tax: calculation.taxAmount,
+    shippingCost: calculation.shippingCost,
+    total: calculation.total,
+
+    paymentTerms: data.paymentTerms ?? null,
+    validUntil: data.validUntil
+      ? new Date(data.validUntil)
+      : null,
+
+    client: {
+      connect: {
+        id: data.clientId,
+      },
+    },
+
+    ...(sellerId
+      ? {
+          seller: {
+            connect: {
+              id: sellerId,
             },
-          })),
-        },
-      },
+          },
+        }
+      : {}),
 
-      include: {
-        client: true,
-        seller: true,
-        installer: true,
-        items: {
-          include: {
-            productService: true,
+    ...(installerId
+      ? {
+          installer: {
+            connect: {
+              id: installerId,
+            },
+          },
+        }
+      : {}),
+
+    items: {
+      create: buildBudgetItemCreatePayload(
+        normalizedItems
+      ).map((item) => ({
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+        discount: item.discount,
+        productService: {
+          connect: {
+            id: item.productServiceId,
           },
         },
+      })),
+    },
+  },
+
+  include: {
+    client: true,
+    seller: true,
+    installer: true,
+    items: {
+      include: {
+        productService: true,
       },
-    })
+    },
+  },
+})
     return NextResponse.json(
       {
         ...budget,

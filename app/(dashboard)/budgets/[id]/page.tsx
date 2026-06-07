@@ -267,11 +267,15 @@ const handleGeneratePDF = async () => {
       ? null
       : Number(budget.shippingCost)
 
+  const budgetNumber = String(
+      budget.budgetNumber ?? 0
+      ).padStart(6, '0')
+    
   return (
   <TooltipProvider>
     <div className="min-h-screen">
       <PageHeader
-        title={`Presupuesto #${budget.id.slice(0, 6).toUpperCase()}`}
+        title={`Presupuesto #${budgetNumber}`}
         description={`Creado el ${formatDate(budget.createdAt)}`}
       >
         <Link href="/budgets" className="w-full sm:w-auto">

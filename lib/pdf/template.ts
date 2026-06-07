@@ -147,7 +147,9 @@ export function budgetPdfTemplate(
     <div class="header">
       <div class="header-left">
         <h1>Presupuesto</h1>
-        <p class="muted">N° ${budget.id?.slice(0, 6) ?? ''}</p>
+        <p class="muted">
+          N° ${(budget.budgetNumber ?? 0).toString().padStart(6, '0')}
+        </p>
         <p class="muted">Fecha: ${budget.createdAt ? new Date(budget.createdAt).toLocaleDateString('es-AR') : '—'}</p>
       </div>
 
