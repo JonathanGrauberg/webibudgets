@@ -5,6 +5,8 @@ export type Branding = {
   name?: string | null
   logoUrl?: string | null
   faviconUrl?: string | null
+  watermarkUrl?: string | null
+  sidebarIconUrl?: string | null
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
@@ -14,6 +16,8 @@ export const SYSTEM_BRANDING: Branding = {
   name: 'WebiBudgets',
   logoUrl: '/placeholder-logo.png',
   faviconUrl: null,
+  watermarkUrl: null,
+  sidebarIconUrl: null,
   primaryColor: '#0ea5e9',
   secondaryColor: '#64748b',
   accentColor: '#10b981',
@@ -27,6 +31,8 @@ export function effectiveBranding(tenant?: Branding): Branding {
     name: tenant.name ?? SYSTEM_BRANDING.name,
     logoUrl: tenant.logoUrl ?? SYSTEM_BRANDING.logoUrl,
     faviconUrl: tenant.faviconUrl ?? SYSTEM_BRANDING.faviconUrl,
+      watermarkUrl: tenant.watermarkUrl ?? SYSTEM_BRANDING.watermarkUrl,
+      sidebarIconUrl: tenant.sidebarIconUrl ?? SYSTEM_BRANDING.sidebarIconUrl,
     primaryColor: tenant.primaryColor ?? SYSTEM_BRANDING.primaryColor,
     secondaryColor: tenant.secondaryColor ?? SYSTEM_BRANDING.secondaryColor,
     accentColor: tenant.accentColor ?? SYSTEM_BRANDING.accentColor,

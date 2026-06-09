@@ -62,11 +62,24 @@ model Tenant {
   name      String
   slug      String @unique
 
+  email String?
+  phone String?
+  address String?
+  website String?
+  description String?
+
   logoUrl        String?
   faviconUrl     String?
+  watermarkUrl   String?
+  sidebarIconUrl String?
   primaryColor   String?
   secondaryColor String?
   accentColor    String?
+  watermarkOpacity Float? @default(0.06)
+  showPageNumbers  Boolean? @default(true)
+  showWebsiteInPdf Boolean? @default(true)
+  showFooterBranding Boolean? @default(false)
+  preferredTheme  String? @default("system")
 
   customSellerLabel    String? @default("Vendedor")
   customInstallerLabel String? @default("Instalador")

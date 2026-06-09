@@ -84,10 +84,26 @@ export async function GET(
     /* ========================
        HTML
     ======================== */
+    const tenantForTemplate = budget.tenant
+      ? {
+          name: budget.tenant.name ?? undefined,
+          phone: budget.tenant.phone ?? undefined,
+          email: budget.tenant.email ?? undefined,
+          address: budget.tenant.address ?? undefined,
+          website: budget.tenant.website ?? undefined,
+          primaryColor: (budget.tenant as any).primaryColor ?? undefined,
+          watermarkOpacity: (budget.tenant as any).watermarkOpacity ?? undefined,
+          showPageNumbers: (budget.tenant as any).showPageNumbers ?? undefined,
+          showWebsiteInPdf: (budget.tenant as any).showWebsiteInPdf ?? undefined,
+          showFooterBranding: (budget.tenant as any).showFooterBranding ?? undefined,
+        }
+      : undefined
+
     const html = budgetPdfTemplate(budget, {
       logoDataUri,
       ...(watermarkDataUri && { watermarkDataUri }), // 👈 solo si existe
       isTrial,
+      tenant: tenantForTemplate,
     })
 
     const pdfUint8 = await generatePdf(html)

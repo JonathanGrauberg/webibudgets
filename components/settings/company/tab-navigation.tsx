@@ -8,8 +8,8 @@ export default function TabNavigation() {
   const pathname = usePathname()
 
   const tabs = [
-    { name: 'Company', href: '/settings/company' },
-    { name: 'Team', href: '/settings/team' },
+    { name: 'Empresa', href: '/settings/company' },
+    { name: 'Equipo', href: '/settings/team' },
     { name: 'Branding', href: '/settings/company' },
   ]
 

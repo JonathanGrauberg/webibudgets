@@ -144,11 +144,22 @@ export async function getTenantBranding(tenantId: string) {
     select: {
       id: true,
       name: true,
+      email: true,
+      phone: true,
+      address: true,
+      website: true,
+      description: true,
       logoUrl: true,
       faviconUrl: true,
+      watermarkUrl: true,
+      sidebarIconUrl: true,
       primaryColor: true,
       secondaryColor: true,
       accentColor: true,
+      watermarkOpacity: true,
+      showPageNumbers: true,
+      showWebsiteInPdf: true,
+      showFooterBranding: true,
     },
   })
 }

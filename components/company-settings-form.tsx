@@ -35,6 +35,7 @@ export default function CompanySettingsForm({ initialBranding }: { initialBrandi
     try {
       const res = await fetch('/api/tenants', {
         method: 'PUT',
+        credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(form),
       })

@@ -13,12 +13,26 @@ export async function GET(request: Request) {
     select: {
       id: true,
       name: true,
+
+      email: true,
+      phone: true,
+      address: true,
+      website: true,
+      description: true,
+
       logoUrl: true,
       faviconUrl: true,
+      watermarkUrl: true,
+      sidebarIconUrl: true,
+
       primaryColor: true,
       secondaryColor: true,
       accentColor: true,
-    },
+      watermarkOpacity: true,
+      showPageNumbers: true,
+      showWebsiteInPdf: true,
+      showFooterBranding: true,
+    }
   })
 
   if (!branding) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
@@ -46,13 +60,33 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
+  // Diagnostic: log incoming payload to trace where branding fields may be lost
+  // eslint-disable-next-line no-console
+  console.debug('PUT /api/tenants received', { tenantId, data })
+
   const allowed = [
     'name',
+
+    'email',
+    'phone',
+    'address',
+    'website',
+    'description',
+
     'logoUrl',
     'faviconUrl',
+    'watermarkUrl',
+    'sidebarIconUrl',
+
     'primaryColor',
     'secondaryColor',
     'accentColor',
+    'watermarkOpacity',
+    'showPageNumbers',
+    'showWebsiteInPdf',
+    'showFooterBranding',
+    // 'preferredTheme' intentionally excluded for MVP: fixed corporate theme
+
     'plan',
     'maxUsers',
   ]
@@ -75,6 +109,12 @@ export async function PUT(request: NextRequest) {
 
   try {
     const updated = await prisma.tenant.update({ where: { id: tenantId }, data: updateData })
+    console.log('[PUNTO 3 - Prisma devuelve]', {
+      watermarkUrl: updated.watermarkUrl?.slice(0, 50) ?? null,
+      sidebarIconUrl: updated.sidebarIconUrl?.slice(0, 50) ?? null,
+    })
+    // eslint-disable-next-line no-console
+    console.debug('PUT /api/tenants prisma.update called', { tenantId, updateData, updated })
     return NextResponse.json({ success: true, tenant: updated })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error updating tenant'

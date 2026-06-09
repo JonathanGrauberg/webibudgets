@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { CreateUserForm, UserCard } from '@/components/team-form'
 import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 import { Spinner } from '@/components/ui/spinner'
+import { useBranding } from '@/components/branding-provider'
 
 type User = {
   id: string
@@ -19,21 +20,24 @@ type User = {
 export default function TeamPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { branding } = useBranding()
+  const primaryColor = branding?.primaryColor ?? '#6366f1'
+  const accentColor = branding?.accentColor ?? '#8b5cf6'
+
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  const isManager = session?.user?.role === 'owner' || session?.user?.role === 'admin'
+  const isManager =
+    session?.user?.role === 'owner' || session?.user?.role === 'admin'
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
       return
     }
-
     if (status !== 'authenticated' || !isManager) return
-
     fetchUsers()
   }, [status, isManager, router])
 
@@ -68,10 +72,9 @@ export default function TeamPage() {
       }
 
       const payload = await res.json()
-
       if (payload.tempPassword) {
         setMessage(
-          `Contraseña temporal: ${payload.tempPassword}. Comparte con el usuario.`
+          `Contraseña temporal: ${payload.tempPassword}. Compartila con el usuario.`
         )
       }
 
@@ -81,98 +84,133 @@ export default function TeamPage() {
     }
   }
 
+  // — Loading —
   if (status === 'loading' || isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: `linear-gradient(135deg, #0f0c29, #1a1040, #0f1a2e)` }}
+      >
         <Spinner />
       </div>
     )
   }
 
+  // — Sin permisos —
   if (!isManager) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="p-6 rounded-lg border border-red-200 bg-red-50">
-            <p className="text-red-800">
-              No tienes permisos para gestionar el equipo.
-            </p>
-          </div>
+      <div
+        className="flex min-h-screen items-center justify-center p-6"
+        style={{ background: `linear-gradient(135deg, #0f0c29, #1a1040, #0f1a2e)` }}
+      >
+        <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-8 py-6 text-center backdrop-blur-xl">
+          <p className="text-red-300">No tenés permisos para gestionar el equipo.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <PageBreadcrumbs />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20">
-              <svg
-                className="w-6 h-6 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-            </div>
+    <div
+      className="relative min-h-screen overflow-x-hidden"
+      style={{ background: `linear-gradient(135deg, #0f0c29 0%, #1a1040 50%, #0f1a2e 100%)` }}
+    >
+      {/* Orbs */}
+      <div
+        className="pointer-events-none fixed -left-24 -top-24 h-96 w-96 rounded-full blur-[120px]"
+        style={{ background: `${primaryColor}44` }}
+      />
+      <div
+        className="pointer-events-none fixed -bottom-16 -right-16 h-80 w-80 rounded-full blur-[100px]"
+        style={{ background: `${accentColor}33` }}
+      />
+      <div
+        className="pointer-events-none fixed bottom-1/3 left-1/4 h-64 w-64 rounded-full blur-[90px]"
+        style={{ background: `#06b6d433` }}
+      />
+
+      <div className="relative z-10">
+        <PageBreadcrumbs />
+
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+          {/* Header */}
+          <div className="mb-8 flex items-center gap-4">
+            
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+              <h1 className="text-2xl font-semibold text-white">
                 Gestión del Equipo
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Crea y gestiona los usuarios de tu equipo
+              <p className="text-sm text-white/40">
+                Creá y gestioná los usuarios de tu equipo
               </p>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Create form */}
-          <div className="lg:col-span-1">
-            <CreateUserForm onUserCreated={() => fetchUsers()} />
-          </div>
+          {/* Alerts */}
+          {error && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300 backdrop-blur-sm">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              {error}
+            </div>
+          )}
 
-          {/* Users list */}
-          <div className="lg:col-span-2">
-            <div className="space-y-4">
+          {message && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm text-blue-300 backdrop-blur-sm">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+              </svg>
+              {message}
+            </div>
+          )}
+
+          {/* Grid */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+            {/* Formulario crear usuario */}
+            <div className="lg:col-span-1">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-6 shadow-2xl backdrop-blur-xl"
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }}
+              >
+                <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-white/40">
+                  Nuevo usuario
+                </p>
+                <CreateUserForm onUserCreated={() => fetchUsers()} />
+              </div>
+            </div>
+
+            {/* Lista de usuarios */}
+            <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
-                  Usuarios ({users.length})
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-white">Usuarios</h2>
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                    style={{ backgroundColor: `${primaryColor}55`, border: `1px solid ${primaryColor}44` }}
+                  >
+                    {users.length}
+                  </span>
+                </div>
               </div>
 
-              {error && (
-                <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
-              )}
-
-              {message && (
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="text-sm text-blue-800">{message}</p>
-                </div>
-              )}
-
               {users.length === 0 ? (
-                <p className="text-muted-foreground">No hay usuarios aún.</p>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-6 py-12 text-center backdrop-blur-sm">
+                  <p className="text-sm text-white/30">No hay usuarios aún.</p>
+                </div>
               ) : (
                 <div className="grid gap-3">
                   {users.map((user) => (
-                    <UserCard
+                    <div
                       key={user.id}
-                      user={user}
-                      onUpdate={handleUpdateUser}
-                    />
+                      className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl transition hover:bg-white/[0.09]"
+                      style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+                    >
+                      <UserCard user={user} onUpdate={handleUpdateUser} />
+                    </div>
                   ))}
                 </div>
               )}

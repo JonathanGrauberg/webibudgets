@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { getContrastColor } from '@/lib/contrast'
 import { motion } from 'framer-motion'
 import { FileText } from 'lucide-react'
 
@@ -31,7 +32,7 @@ export function SidebarPreview({ colors, logo }: { colors: ColorSystem; logo: st
             ) : (
               <div
                 className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
-                style={{ backgroundColor: colors.primary }}
+                  style={{ backgroundColor: colors.primary, color: getContrastColor(colors.primary) }}
               >
                 WB
               </div>
@@ -122,10 +123,18 @@ export function PDFPreview({
   colors,
   watermark,
   logo,
+  watermarkOpacity = 0.06,
+  showPageNumbers = true,
+  showWebsiteInPdf = true,
+  showFooterBranding = false,
 }: {
   colors: ColorSystem
   watermark: string | null
   logo: string | null
+  watermarkOpacity?: number
+  showPageNumbers?: boolean
+  showWebsiteInPdf?: boolean
+  showFooterBranding?: boolean
 }){
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700">
@@ -143,12 +152,8 @@ export function PDFPreview({
     <div className="relative w-full h-full flex flex-col bg-white">
       {/* Watermark */}
       {watermark && (
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none">
-          <img
-            src={watermark}
-            alt="Watermark"
-            className="w-2/3 h-2/3 object-contain"
-          />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <img src={watermark} alt="Watermark" className="w-2/3 h-2/3 object-contain" style={{ opacity: watermarkOpacity }} />
         </div>
       )}
 
@@ -205,8 +210,8 @@ export function PDFPreview({
               className="grid grid-cols-12 border-b text-white"
               style={{
                 backgroundColor: colors.primary,
-              }}
-            >
+                color: getContrastColor(colors.primary),
+              }}>
               <div className="col-span-6 px-2 py-2 font-semibold">
                 Concepto
               </div>
@@ -258,7 +263,20 @@ export function PDFPreview({
 
       {/* Footer */}
       <div className="px-5 py-3 border-t relative z-10">
-        <div className="h-2 w-24 bg-slate-200 rounded" />
+        <div className="flex items-center justify-between">
+          <div>
+            {showFooterBranding && (
+              <div className="flex items-center space-x-2">
+                {logo && <img src={logo} alt="logo" className="h-6 w-6 object-contain" />}
+                <div className="text-xs font-semibold">Mi Empresa</div>
+              </div>
+            )}
+
+            {showWebsiteInPdf && <div className="text-xs text-muted-foreground">www.mi-empresa.com</div>}
+          </div>
+
+          {showPageNumbers && <div className="text-xs text-muted-foreground">Página 1 de 1</div>}
+        </div>
       </div>
     </div>
   </div>
@@ -282,7 +300,7 @@ export function MobilePreview({ colors, logo }: { colors: ColorSystem; logo: str
             <div className="w-16 h-4 bg-slate-900 rounded-t-lg" />
           </div>
           <div className="rounded-lg overflow-hidden border-2 dark:border-slate-600" style={{ height: '280px', margin: '0 4px 8px 4px' }}>
-            <div className="h-10 px-3 flex items-center justify-between" style={{ backgroundColor: colors.primary }}>
+            <div className="h-10 px-3 flex items-center justify-between" style={{ backgroundColor: colors.primary, color: getContrastColor(colors.primary) }}>
               {logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logo} alt="Logo" className="h-5 w-auto object-contain" />

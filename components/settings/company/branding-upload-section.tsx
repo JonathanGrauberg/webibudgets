@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import FileUploadZone from './file-upload-zone'
+import { FileUploadZone } from './file-upload-zone'
 
 export default function BrandingUploadSection({ logoUrl, onChange }: { logoUrl?: string; onChange: (url: string) => void }) {
   const [local, setLocal] = useState(logoUrl ?? '')
@@ -15,7 +15,14 @@ export default function BrandingUploadSection({ logoUrl, onChange }: { logoUrl?:
       </label>
 
       <div className="mt-3">
-        <FileUploadZone onUpload={(url) => { setLocal(url); onChange(url) }} />
+        <FileUploadZone
+          value={local || null}
+          onChange={(url) => {
+            const v = url ?? ''
+            setLocal(v)
+            onChange(v)
+          }}
+        />
       </div>
     </div>
   )

@@ -1,38 +1,62 @@
 export const features = [
-  { icon: 'FileText', title: 'Smart Quotation Generation', description: 'Create professional quotations in seconds with intelligent templates and auto-calculations.' },
-  { icon: 'Download', title: 'One-Click PDF Export', description: 'Export quotations and invoices as branded PDFs with your company colors and logo.' },
-  { icon: 'Users', title: 'Client Management', description: 'Organize and track all your clients in one centralized, easy-to-search database.' },
-  { icon: 'Package', title: 'Product Catalog', description: 'Maintain a comprehensive product and service catalog with pricing and descriptions.' },
-  { icon: 'Palette', title: 'Brand Customization', description: 'Fully customize colors, fonts, and layouts to match your company brand perfectly.' },
-  { icon: 'Share2', title: 'Multi-Tenant Support', description: 'Perfect for agencies managing multiple brands with complete data isolation.' },
+  { icon: 'FileText', title: 'Presupuestos inteligentes', description: 'Creá presupuestos profesionales en segundos con plantillas inteligentes y cálculos automáticos.' },
+  { icon: 'Download', title: 'Exportación PDF con un clic', description: 'Exportá presupuestos y facturas como PDFs con tu logo y colores de marca.' },
+  { icon: 'Users', title: 'Gestión de clientes', description: 'Organizá y seguí a todos tus clientes en una base de datos centralizada y fácil de buscar.' },
+  { icon: 'Package', title: 'Catálogo de productos', description: 'Mantené un catálogo completo de productos y servicios con precios y descripciones.' },
+  { icon: 'Palette', title: 'Personalización de marca', description: 'Personalizá colores, fuentes y diseños para que coincidan perfectamente con tu identidad.' },
+  { icon: 'Share2', title: 'Multi-empresa', description: 'Perfecto para agencias que gestionan múltiples marcas con aislamiento total de datos.' },
 ]
 
 export const plans = [
-  { name: 'Starter', description: 'Perfect for freelancers and small teams', price: '$29', period: '/month', cta: 'Get Started', featured: false, features: ['Up to 50 quotations/month', '5 client profiles', 'Basic templates', 'PDF export', 'Email support', '1 user account'] },
-  { name: 'Team', description: 'For growing businesses and agencies', price: '$79', period: '/month', cta: 'Start Free Trial', featured: true, features: ['Unlimited quotations', 'Unlimited clients', 'Advanced templates', 'PDF + branded exports', 'Priority support', 'Up to 5 team members', 'Custom branding', 'Real-time collaboration'] },
-  { name: 'Business', description: 'For enterprises with complex needs', price: 'Custom', period: 'pricing', cta: 'Contact Sales', featured: false, features: ['Everything in Team +', 'Unlimited team members', 'Advanced API access', 'White-label solutions', 'Dedicated account manager', 'Custom integrations', 'SLA guarantee', 'Advanced analytics'] },
+  {
+    name: 'Starter',
+    description: 'Ideal para freelancers y equipos pequeños',
+    price: '$29',
+    period: '/mes',
+    cta: 'Empezar',
+    featured: false,
+    features: ['Hasta 50 presupuestos/mes', '5 perfiles de clientes', 'Plantillas básicas', 'Exportación PDF', 'Soporte por email', '1 cuenta de usuario'],
+  },
+  {
+    name: 'Team',
+    description: 'Para empresas en crecimiento y agencias',
+    price: '$79',
+    period: '/mes',
+    cta: 'Probar gratis 14 días',
+    featured: true,
+    features: ['Presupuestos ilimitados', 'Clientes ilimitados', 'Plantillas avanzadas', 'PDFs con marca propia', 'Soporte prioritario', 'Hasta 5 usuarios', 'Branding personalizado', 'Colaboración en tiempo real'],
+  },
+  {
+    name: 'Business',
+    description: 'Para empresas con necesidades complejas',
+    price: 'A consultar',
+    period: '',
+    cta: 'Contactar ventas',
+    featured: false,
+    features: ['Todo lo de Team +', 'Usuarios ilimitados', 'Acceso avanzado a API', 'Soluciones white-label', 'Gerente de cuenta dedicado', 'Integraciones personalizadas', 'Garantía SLA', 'Analytics avanzado'],
+  },
 ]
 
 export const testimonials = [
-  { name: 'Sarah Chen', role: 'Founder, Design Studio', company: 'Chen Creative', image: 'SC', content: 'WebiBudgets has completely transformed how we handle quotations. Our client response time is down by 60%, and our invoicing is now fully automated. The branding customization is outstanding.', rating: 5 },
-  { name: 'Marcus Rodriguez', role: 'Operations Manager', company: 'BuildRight Construction', image: 'MR', content: 'Managing multiple projects and clients used to be a nightmare. Now everything is organized, our team collaborates seamlessly, and we rarely miss a deadline. Highly recommend.', rating: 5 },
-  { name: 'Elena Kowalski', role: 'CEO', company: 'Digital Agency Plus', image: 'EK', content: 'The white-label feature is a game-changer for our agency. Our clients love the professional quotations, and we can maintain our brand throughout the entire process. Worth every penny.', rating: 5 },
-  { name: 'David Thompson', role: 'Freelance Consultant', company: 'Independent', image: 'DT', content: 'As a solo consultant, this platform handles everything I need. Easy to use, beautiful quotations, and the client portal is fantastic. Customer support is incredibly responsive too.', rating: 5 },
+  { name: 'Sarah Chen', role: 'Fundadora, Estudio de Diseño', company: 'Chen Creative', image: 'SC', content: 'WebiBudgets transformó completamente cómo manejamos los presupuestos. El tiempo de respuesta a clientes bajó un 60% y la facturación está totalmente automatizada.', rating: 5 },
+  { name: 'Marcos Rodríguez', role: 'Gerente de Operaciones', company: 'BuildRight Construcción', image: 'MR', content: 'Gestionar múltiples proyectos y clientes era una pesadilla. Ahora todo está organizado, el equipo colabora sin fricciones y casi nunca perdemos un plazo.', rating: 5 },
+  { name: 'Elena Kowalski', role: 'CEO', company: 'Digital Agency Plus', image: 'EK', content: 'El white-label es un cambio de juego para nuestra agencia. Los clientes adoran los presupuestos profesionales y podemos mantener nuestra marca en todo el proceso.', rating: 5 },
+  { name: 'David Thompson', role: 'Consultor Independiente', company: 'Freelance', image: 'DT', content: 'Como consultor solo, esta plataforma cubre todo lo que necesito. Fácil de usar, presupuestos hermosos y el soporte al cliente es increíblemente rápido.', rating: 5 },
 ]
 
 export const faqs = [
-  { question: 'What payment methods do you accept?', answer: 'We accept all major credit cards (Visa, Mastercard, American Express), PayPal, and bank transfers for annual plans. All payments are processed securely through Stripe.' },
-  { question: 'Can I switch plans anytime?', answer: 'Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we\'ll prorate your billing accordingly.' },
-  { question: 'Is there a limit to team members?', answer: 'The Starter plan includes 1 user, Team plan includes up to 5 users, and Business plan has unlimited users. Additional users are charged at $10/month each for the Team plan.' },
-  { question: 'Do you offer API access?', answer: 'Yes, API access is available on Team and Business plans. This allows you to integrate WebiBudgets with your existing tools and workflows.' },
-  { question: 'What happens to my data if I cancel?', answer: 'Your data is yours. If you cancel, you can export all your data in standard formats. We keep it for 30 days in case you want to reactivate.' },
-  { question: 'Is there a contract or commitment required?', answer: 'No long-term contracts required. You can cancel anytime with no penalty. We offer month-to-month and annual billing, with a 20% discount on annual plans.' },
+  { question: '¿Qué métodos de pago aceptan?', answer: 'Aceptamos todas las tarjetas de crédito principales (Visa, Mastercard, American Express), PayPal y transferencias bancarias para planes anuales. Los pagos se procesan de forma segura a través de Stripe.' },
+  { question: '¿Puedo cambiar de plan en cualquier momento?', answer: 'Sí. Podés subir o bajar de plan cuando quieras. Los cambios se aplican de inmediato y ajustamos el cobro de forma proporcional.' },
+  { question: '¿Hay límite de usuarios?', answer: 'El plan Starter incluye 1 usuario, Team hasta 5 usuarios, y Business usuarios ilimitados. En el plan Team, cada usuario adicional tiene un costo de $10/mes.' },
+  { question: '¿Ofrecen acceso a API?', answer: 'Sí, el acceso a API está disponible en los planes Team y Business, permitiéndote integrar WebiBudgets con tus herramientas y flujos de trabajo existentes.' },
+  { question: '¿Qué pasa con mis datos si cancelo?', answer: 'Tus datos son tuyos. Si cancelás, podés exportar todo en formatos estándar. Los conservamos 30 días por si querés reactivar.' },
+  { question: '¿Se requiere contrato o compromiso?', answer: 'No. Sin contratos a largo plazo ni penalidades. Ofrecemos facturación mensual y anual, con 20% de descuento en planes anuales.' },
 ]
 
-export const brandSwatches = ['#000000', '#F59E0B', '#3B82F6', '#10B981', '#EF4444']
+export const brandSwatches = ['#000000', '#FCC107', '#3B82F6', '#10B981', '#EF4444']
 
 export const brandStats = [
-  { label: 'Happy Customers', value: '2,847' },
-  { label: 'Quotations Generated', value: '500K+' },
-  { label: 'Revenue Tracked', value: '$125M+' },
+  { label: 'Clientes satisfechos', value: '2.847' },
+  { label: 'Presupuestos generados', value: '+500K' },
+  { label: 'Facturación gestionada', value: '+$125M' },
 ]

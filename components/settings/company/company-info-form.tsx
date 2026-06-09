@@ -38,6 +38,7 @@ export default function CompanyInfoForm({ initialBranding }: { initialBranding?:
     try {
       const res = await fetch('/api/tenants', {
         method: 'PUT',
+        credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(form),
       })

@@ -2,14 +2,33 @@
 
 import React from 'react'
 
+import { getContrastColor } from '@/lib/contrast'
+
 interface PdfPreviewProps {
-  branding: {
-    logoUrl?: string | null
-    watermarkUrl?: string | null
+  colors?: {
+    primary?: string | null
+    secondary?: string | null
+    accent?: string | null
   }
+  watermark?: string | null
+  logo?: string | null
+  watermarkOpacity?: number
+  showPageNumbers?: boolean
+  showWebsiteInPdf?: boolean
+  showFooterBranding?: boolean
 }
 
-export default function PdfPreview({ branding }: PdfPreviewProps) {
+export default function PdfPreview({
+  colors,
+  watermark,
+  logo,
+  watermarkOpacity = 0.06,
+  showPageNumbers = true,
+  showWebsiteInPdf = true,
+  showFooterBranding = false,
+}: PdfPreviewProps) {
+  const primary = colors?.primary ?? '#0F172A'
+  const headerColor = getContrastColor(primary)
   return (
     <div className="rounded-xl border bg-card shadow-sm">
       <div className="border-b px-4 py-3">
@@ -28,20 +47,21 @@ export default function PdfPreview({ branding }: PdfPreviewProps) {
           }}
         >
           {/* Watermark */}
-          {branding?.watermarkUrl && (
+          {watermark && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <img
-                src={branding.watermarkUrl}
+                src={watermark}
                 alt="Watermark"
-                className="w-64 opacity-[0.06] object-contain"
+                className="w-64 object-contain"
+                style={{ opacity: watermarkOpacity }}
               />
             </div>
           )}
 
           {/* Header */}
-          <div className="relative z-10 flex items-start justify-between border-b px-5 py-4">
+            <div className="relative z-10 flex items-start justify-between border-b px-5 py-4" style={{ borderBottomColor: `${primary}30` }}>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-lg font-bold" style={{ color: primary }}>
                 Presupuesto
               </h2>
               <p className="text-xs text-slate-500">
@@ -49,19 +69,15 @@ export default function PdfPreview({ branding }: PdfPreviewProps) {
               </p>
             </div>
 
-            {branding?.logoUrl && (
-              <img
-                src={branding.logoUrl}
-                alt="Logo"
-                className="h-12 w-12 object-contain"
-              />
+            {logo && (
+              <img src={logo} alt="Logo" className="h-12 w-12 object-contain" />
             )}
           </div>
 
           {/* Body */}
           <div className="relative z-10 px-5 py-4">
             <div className="mb-5">
-              <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-800">
+              <h3 className="text-[11px] font-bold uppercase tracking-wide" style={{ color: primary }}>
                 Datos del Cliente
               </h3>
 
@@ -73,7 +89,7 @@ export default function PdfPreview({ branding }: PdfPreviewProps) {
             </div>
 
             <div>
-              <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-800">
+              <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide" style={{ color: primary }}>
                 Detalle
               </h3>
 
@@ -123,7 +139,24 @@ export default function PdfPreview({ branding }: PdfPreviewProps) {
 
           {/* Footer */}
           <div className="absolute bottom-0 left-0 right-0 border-t px-5 py-3">
-            <div className="h-2 w-24 rounded bg-slate-200" />
+            <div className="flex items-center justify-between">
+              <div>
+                {showFooterBranding && (
+                  <div className="flex items-center space-x-2">
+                    {logo && <img src={logo} alt="logo" className="h-6 w-6 object-contain" />}
+                    <div className="text-xs font-semibold">Mi Empresa</div>
+                  </div>
+                )}
+
+                {showWebsiteInPdf && (
+                  <div className="text-xs text-muted-foreground">www.mi-empresa.com</div>
+                )}
+              </div>
+
+              {showPageNumbers && (
+                <div className="text-xs text-muted-foreground">Página 1 de 1</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -58,8 +58,8 @@ export default function CompanyPageClient({ initialBranding }: { initialBranding
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"></path><path d="M12 3v18"></path></svg>
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Company Settings</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your workspace branding and company information</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Configuración de Empresa</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestiona la marca y la información de la empresa</p>
             </div>
           </div>
         </div>

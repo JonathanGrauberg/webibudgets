@@ -4,6 +4,12 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-sans',
+})
 
 
 export const metadata: Metadata = {
@@ -35,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="es" className={`${inter.variable}`}>
       <body className={`font-sans antialiased`}>
         <Providers>
           {children}

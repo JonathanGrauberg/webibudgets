@@ -1,0 +1,1 @@
+SELECT migration_name, started_at, finished_at, checksum FROM "_prisma_migrations" ORDER BY started_at;

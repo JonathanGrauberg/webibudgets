@@ -1,6 +1,7 @@
 import React from 'react'
 import { SidebarWrapper } from '@/components/sidebar-wrapper'
 import { BrandingProvider } from '@/components/branding-provider'
+import { ThemeProvider } from '@/components/theme-provider'
 import { headers } from 'next/headers'
 import { getTenantBranding, TENANT_HEADER } from '@/lib/tenant'
 import { effectiveBranding } from '@/lib/branding'
@@ -23,13 +24,14 @@ export default async function DashboardLayout({
   }
 
   const branding = effectiveBranding(tenantBranding ?? undefined)
-
   return (
-    <BrandingProvider initialBranding={branding}>
-      <SidebarWrapper />
-      <main className="min-h-screen lg:ml-64">
-        {children}
-      </main>
-    </BrandingProvider>
+    <ThemeProvider>
+      <BrandingProvider initialBranding={branding}>
+        <SidebarWrapper />
+        <main className="min-h-screen lg:ml-64">
+          {children}
+        </main>
+      </BrandingProvider>
+    </ThemeProvider>
   )
 }

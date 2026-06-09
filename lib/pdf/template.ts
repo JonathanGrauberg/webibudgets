@@ -1,3 +1,5 @@
+import { getContrastColor } from '@/lib/contrast'
+
 export function budgetPdfTemplate(
   budget: any,
   opts?: { 
@@ -5,8 +7,25 @@ export function budgetPdfTemplate(
     watermarkDataUri?: string
     companyName?: string   
     isTrial?: boolean
+    tenant?: {          // ← Agregá esto
+      name?: string
+      phone?: string
+      email?: string
+      address?: string
+      website?: string
+      primaryColor?: string
+      watermarkOpacity?: number
+      showPageNumbers?: boolean
+      showWebsiteInPdf?: boolean
+      showFooterBranding?: boolean
+    }
   }
 ) {
+
+  const tenant = opts?.tenant
+  const watermarkOpacity = tenant?.watermarkOpacity ?? 0.06
+  const pdfPrimary = tenant?.primaryColor ?? '#0F172A'
+  const pdfHeaderText = getContrastColor(pdfPrimary)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -64,7 +83,7 @@ export function budgetPdfTemplate(
       background-repeat: no-repeat;
       background-position: center;
       background-size: 520px auto;
-      opacity: 0.06;
+      opacity: ${watermarkOpacity};
       pointer-events: none;
       z-index: 0;
     }`
@@ -90,6 +109,23 @@ export function budgetPdfTemplate(
       width: auto;
       object-fit: contain;
     }
+
+    /* Two columns side-by-side for client/company */
+    .two-columns {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .two-columns .box {
+      flex: 1 1 0;
+    }
+
+    a { color: #0b63d6; text-decoration: none; }
+
+    /* Footer / page numbers */
+    .footer { position: fixed; bottom: 10px; left: 0; right: 0; font-size: 10px; color: #666; display: flex; justify-content: space-between; padding: 0 6px; }
+    .page-num:after { content: 'Página ' counter(page) ' de ' counter(pages); }
 
     /* ===== Sections ===== */
     h2 {
@@ -158,18 +194,30 @@ export function budgetPdfTemplate(
       </div>
     </div>
 
-    <h2>Datos del Cliente</h2>
-    <div class="box avoid-break">
-      <strong>${budget.client?.company ?? '—'}</strong><br />
-      Cliente: ${budget.client?.name ?? '—'}<br />
-      Tel: ${budget.client?.phone || '—'}<br />
-      Email: ${budget.client?.email || '—'}<br />
-      Dirección: ${budget.client?.address || '—'}
+    <h2>Datos</h2>
+
+    <div class="two-columns">
+      <div class="box avoid-break">
+        <strong>Cliente</strong><br />
+        ${budget.client?.company ?? '—'}<br />
+        Contacto: ${budget.client?.name ?? '—'}<br />
+        Tel: ${budget.client?.phone || '—'}<br />
+        Email: ${budget.client?.email || '—'}<br />
+        Dirección: ${budget.client?.address || '—'}
+      </div>
+
+      <div class="box avoid-break">
+        <strong>${tenant?.name ?? 'Empresa'}</strong><br />
+        Tel: ${tenant?.phone || '—'}<br />
+        Email: ${tenant?.email || '—'}<br />
+        Dirección: ${tenant?.address || '—'}
+        ${tenant?.website ? `<br/>Sitio: <a href="${tenant.website}">${tenant.website}</a>` : ''}
+      </div>
     </div>
 
     <h2>Detalle del Presupuesto</h2>
     <table class="avoid-break">
-      <thead>
+      <thead style="background-color: ${pdfPrimary}; color: ${pdfHeaderText};">
         <tr>
           <th>Concepto</th>
           <th class="right">Cant.</th>
@@ -247,7 +295,7 @@ export function budgetPdfTemplate(
       Instalador de referencia: ${budget.installerReference || '—'}
     </div>
 
-    ${budget.details
+    ${(budget.details ?? [])
       .map(
         (detail: { title: string; content: string }) => `
     <div class="box avoid-break">
@@ -270,6 +318,13 @@ export function budgetPdfTemplate(
         : ''
     }
   </div>
+      <div class="footer">
+        <div>
+          ${tenant?.showFooterBranding ? `<div class="text-xs">Generado con WebiBudgets</div>` : ''}
+          ${tenant?.showWebsiteInPdf && tenant?.website ? `<div class="text-xs"><a href="${tenant.website}">${tenant.website}</a></div>` : ''}
+        </div>
+        ${tenant?.showPageNumbers ? `<div class="text-xs page-num"></div>` : ''}
+      </div>
 </body>
 </html>
 `
