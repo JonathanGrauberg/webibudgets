@@ -71,7 +71,21 @@ export async function GET(
     ======================== */
     let watermarkDataUri: string | undefined
 
-    if (isTrial) {
+    // Prefer tenant-provided watermark URL if available
+    if (budget.tenant?.watermarkUrl) {
+      try {
+        const res = await fetch(budget.tenant.watermarkUrl)
+        const arrayBuffer = await res.arrayBuffer()
+        const base64 = Buffer.from(arrayBuffer).toString("base64")
+        const contentType = res.headers.get("content-type") || "image/png"
+        watermarkDataUri = `data:${contentType};base64,${base64}`
+      } catch (e) {
+        console.error("Error loading tenant watermark:", e)
+      }
+    }
+
+    // Fallback to public watermark for trial tenants when no tenant watermark provided
+    if (!watermarkDataUri && isTrial) {
       try {
         const watermarkPath = path.join(process.cwd(), "public", "watermark.png")
         const watermarkBase64 = (await fs.readFile(watermarkPath)).toString("base64")

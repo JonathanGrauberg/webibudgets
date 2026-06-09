@@ -400,7 +400,7 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
     description: companyInfo.description,
   }) !== savedCompanySnapshot
 
-  const previewLogo = brandingAssets.sidebarIcon || brandingAssets.logo
+  const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
 
 const persistBranding = useCallback(
   async (payload: PersistedState) => {
