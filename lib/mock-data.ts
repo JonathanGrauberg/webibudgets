@@ -31,7 +31,7 @@ export const mockClients: Client[] = [
     email: 'carlos@losaltos.com',
     phone: '+506 8888-9012',
     address: 'Alajuela, Costa Rica',
-    notes: 'Interesado en biodigestor grande',
+    notes: 'Interesado en equipo grande',
     createdAt: new Date('2024-03-05'),
     updatedAt: new Date('2024-03-05'),
   },
@@ -41,8 +41,8 @@ export const mockClients: Client[] = [
 export const mockProducts: ProductService[] = [
   {
     id: '1',
-    name: 'Biodigestor Residencial 600L',
-    description: 'Sistema de tratamiento de aguas residuales para uso residencial',
+    name: 'Equipo Residencial 600L',
+    description: 'Equipo para uso residencial',
     category: 'biodigesters',
     price: 850000,
     unit: 'unidad',
@@ -52,8 +52,8 @@ export const mockProducts: ProductService[] = [
   },
   {
     id: '2',
-    name: 'Biodigestor Comercial 1500L',
-    description: 'Sistema de tratamiento para restaurantes y pequeños comercios',
+    name: 'Equipo Comercial 1500L',
+    description: 'Equipo para uso comercial',
     category: 'biodigesters',
     price: 1450000,
     unit: 'unidad',

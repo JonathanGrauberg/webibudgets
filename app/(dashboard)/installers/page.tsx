@@ -202,7 +202,7 @@ export default function InstallersPage() {
                           <Badge
                             className={
                               i.active
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-slate-100 text-slate-800'
                                 : 'bg-muted text-muted-foreground'
                             }
                           >
@@ -289,7 +289,7 @@ export default function InstallersPage() {
                               <Badge
                                 className={
                                   i.active
-                                    ? 'bg-green-100 text-green-800'
+                                    ? 'bg-slate-100 text-slate-800'
                                     : 'bg-muted text-muted-foreground'
                                 }
                               >

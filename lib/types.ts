@@ -135,9 +135,9 @@ export interface Budget {
 }
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  biodigesters: 'Biodigestores',
-  grease_traps: 'Trampas de Grasa',
-  maintenance: 'Mantenimiento',
+  biodigesters: 'Equipos',
+  grease_traps: 'Accesorios',
+  maintenance: 'Servicios',
   other: 'Otros',
 }
 
@@ -153,8 +153,8 @@ export const STATUS_LABELS: Record<BudgetStatus, string> = {
 export const STATUS_COLORS: Record<BudgetStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
   sent: 'bg-blue-100 text-blue-800',
-  approved: 'bg-green-100 text-green-800',
+  approved: 'bg-slate-100 text-slate-800',
   rejected: 'bg-red-100 text-red-800',
-  completed: 'bg-emerald-100 text-emerald-800',
+  completed: 'bg-slate-100 text-slate-800',
   expired: 'bg-orange-100 text-orange-700 border-orange-200',
 }

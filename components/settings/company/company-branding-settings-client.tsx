@@ -168,8 +168,8 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
       )}
       {status === 'saved' && (
         <>
-          <Check className="w-3.5 h-3.5 text-green-600" />
-          <span className="text-green-600">Guardado</span>
+          <Check className="w-3.5 h-3.5 text-slate-600" />
+          <span className="text-slate-600">Guardado</span>
         </>
       )}
       {status === 'error' && <span className="text-red-600">Error al guardar</span>}

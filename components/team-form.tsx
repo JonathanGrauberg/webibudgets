@@ -143,8 +143,8 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
         </div>
 
         {message && (
-          <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-            <p className="text-sm text-green-800">{message}</p>
+          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+            <p className="text-sm text-slate-800">{message}</p>
           </div>
         )}
         {error && (
@@ -209,8 +209,8 @@ export function UserCard({
             </span>
             <span
               className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                user.active ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700'
-              }`}
+                  user.active ? 'bg-slate-50 text-slate-700' : 'bg-gray-50 text-gray-700'
+                }`}
             >
               {user.active ? 'Activo' : 'Inactivo'}
             </span>

@@ -81,7 +81,7 @@ export function DashboardPreview({ colors }: { colors: ColorSystem }) {
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-400" />
               <div className="w-3 h-3 rounded-full bg-yellow-400" />
-              <div className="w-3 h-3 rounded-full bg-green-400" />
+              <div className="w-3 h-3 rounded-full bg-slate-400" />
             </div>
           </div>
           <div className="p-4 bg-slate-50 dark:bg-slate-950">

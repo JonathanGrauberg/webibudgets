@@ -82,7 +82,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             id="name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Biodigestor Residencial 600L"
+            placeholder="Ej: Producto/Servicio (p. ej. Silla Modelo A)"
             required
           />
         </div>
@@ -101,7 +101,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             id="description"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Sistema de tratamiento de aguas residuales..."
+            placeholder="Descripción breve del producto o servicio..."
             rows={2}
           />
         </div>
