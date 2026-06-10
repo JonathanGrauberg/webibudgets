@@ -25,99 +25,24 @@ interface LandingSectionsProps {
 }
 
 /* ── Mock dashboard recreated in CSS (replaceable with PNG) ── */
+import Image from "next/image"
+
 function DashboardMock() {
   return (
-    <div className="pointer-events-none relative select-none">
-      {/* Sidebar */}
-      <div className="absolute left-0 top-6 z-20 w-64 rotate-[-4deg] rounded-3xl bg-neutral-900 p-4 text-neutral-100 shadow-2xl">
-        <div className="mb-4 flex items-center gap-2.5 px-1">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-700 text-[10px] font-bold">
-            Webi
-          </span>
-          <span className="leading-tight">
-            <span className="block text-xs font-bold">Webi Studio</span>
-            <span className="block text-[10px] text-neutral-400">Sistema de Gestión</span>
-          </span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {sidebarItems.map((item) => {
-            const Icon = sidebarIcons[item.icon as keyof typeof sidebarIcons]
-            return (
-              <div
-                key={item.label}
-                className={
-                  item.active
-                    ? 'flex items-center gap-2.5 rounded-xl bg-neutral-700/70 px-3 py-2 text-xs font-medium'
-                    : 'flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-neutral-400'
-                }
-              >
-                <Icon size={15} />
-                {item.label}
-              </div>
-            )
-          })}
-          <p className="mt-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600">Configuración</p>
-          <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-neutral-400">
-            <LayoutGrid size={15} />
-            Configuración
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-neutral-700/50 px-3 py-2.5 text-xs">
-          <LogOut size={14} />
-          Cerrar sesión
-        </div>
-        <p className="mt-3 text-center text-[10px] text-neutral-600">v1.0.0 · Creado por Webi</p>
-      </div>
-
-      {/* Dashboard cards on black circle */}
-      <div className="relative ml-32 flex h-[460px] w-full items-center justify-center overflow-hidden rounded-3xl bg-neutral-950">
-        <div className="absolute inset-0 flex items-start justify-center pt-8">
-          <div className="w-[88%] space-y-3 pl-12">
-            {/* Header card */}
-            <div className="w-3/4 rounded-2xl bg-white p-4 shadow-lg">
-              <p className="text-sm font-bold text-neutral-900">Dashboard</p>
-              <p className="text-[11px] text-neutral-500">Sistema de gestión Webi Studio</p>
-            </div>
-
-            {/* Stat cards */}
-            <div className="flex gap-2.5 overflow-hidden">
-              {dashboardStats.map((stat) => {
-                const Icon = statIcons[stat.icon as keyof typeof statIcons]
-                return (
-                  <div key={stat.label} className="flex min-w-[92px] flex-col rounded-2xl bg-white p-3 shadow-lg">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] text-neutral-500">{stat.label}</span>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-neutral-100">
-                        <Icon size={12} className="text-neutral-700" />
-                      </span>
-                    </div>
-                    <span className="text-xl font-bold text-neutral-900">{stat.value}</span>
-                    <span className="text-[9px] text-neutral-400">{stat.sub}</span>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Recent budgets */}
-            <div className="rounded-2xl bg-white p-4 shadow-lg">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-bold text-neutral-900">Presupuestos Recientes</p>
-                <span className="rounded-full border border-neutral-200 px-2.5 py-1 text-[9px] text-neutral-500">Ver todos</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-neutral-100 pt-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold text-neutral-800">Neostone</p>
-                  <p className="text-[9px] text-neutral-400">1 item(s) · 09 de jun de 2026</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-medium text-emerald-700">Pendiente</span>
-                  <span className="text-xs font-bold text-neutral-900">$180.000</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="relative flex justify-center overflow-visible">
+      <Image
+        src="/images/webibudgets-dashboard.png"
+        alt="Dashboard WebiBudgets"
+        width={1400}
+        height={900}
+        priority
+        className="
+          object-contain
+          scale-[1.35]
+          origin-center
+          drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]
+        "
+      />
     </div>
   )
 }
