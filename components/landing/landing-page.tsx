@@ -1,35 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState } from 'react'
 import { LandingNav } from './landing-nav'
 import { LandingSections } from './landing-sections'
+import { dashboardHref } from './landing-data'
 
-export default function LandingPage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+export function LandingPage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0)
-  const { data: session, status } = useSession()
-
-  // Fixed corporate theme: use static styling, no theme toggles.
-  const dashboardHref = status === 'authenticated' ? '/dashboard' : '/auth/login'
-  const dashboardLabel = status === 'authenticated' ? 'Dashboard' : 'Login'
 
   return (
-    <div>
-      <div className="bg-[#080808] text-white transition-colors duration-300">
-        <LandingNav
-          isMenuOpen={isMenuOpen}
-          setIsMenuOpen={setIsMenuOpen}
-          dashboardHref={dashboardHref}
-          dashboardLabel={dashboardLabel}
-        />
-        <LandingSections
-          openFaqIndex={openFaqIndex}
-          setOpenFaqIndex={setOpenFaqIndex}
-          dashboardHref={dashboardHref}
-          dashboardLabel={dashboardLabel}
-        />
-      </div>
+    <div className="min-h-screen bg-background">
+      <LandingNav />
+      <LandingSections
+        openFaqIndex={openFaqIndex}
+        setOpenFaqIndex={setOpenFaqIndex}
+        dashboardHref={dashboardHref}
+        dashboardLabel="Dashboard"
+      />
     </div>
   )
 }

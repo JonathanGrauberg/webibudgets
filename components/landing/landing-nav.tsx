@@ -1,91 +1,96 @@
-import { Menu, X } from 'lucide-react'
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
+import { navLinks, dashboardHref } from './landing-data'
 
-interface LandingNavProps {
-  isMenuOpen: boolean
-  setIsMenuOpen: (open: boolean) => void
-  dashboardHref: string
-  dashboardLabel: string
-}
+export function LandingNav() {
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
 
-export function LandingNav({
-  isMenuOpen,
-  setIsMenuOpen,
-  dashboardHref,
-  dashboardLabel,
-}: LandingNavProps) {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-18 py-4">
+    <header className="sticky top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-background/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
+        {/* Logo */}
+        <Link href="#hero" className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-background">
+            Webi
+          </span>
+          <span className="leading-tight">
+            <span className="block text-sm font-bold tracking-tight text-foreground">Webi Studio</span>
+            <span className="block text-[11px] text-muted-foreground">Sistema de Gestión</span>
+          </span>
+        </Link>
 
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="relative w-8 h-8 bg-[#fcc107] rounded-lg flex items-center justify-center shadow-lg shadow-[#fcc107]/30">
-              <span className="text-black font-black text-sm">W</span>
-            </div>
-            <span className="font-bold text-lg text-white hidden sm:inline tracking-tight">
-              Webi<span className="text-[#fcc107]">Budgets</span>
-            </span>
-          </div>
-
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-8">
-            {['#features', '#pricing', '#testimonials', '#faq'].map((href, i) => (
-              <a
-                key={href}
-                href={href}
-                className="text-sm font-medium text-white/60 hover:text-[#fcc107] transition-colors"
-              >
-                {['Funciones', 'Precios', 'Testimonios', 'FAQ'][i]}
-              </a>
-            ))}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-3">
-            {/* Theme toggle removed for MVP */}
-
+        {/* Center links */}
+        <div className="hidden items-center gap-1 lg:flex">
+          {navLinks.map((link, i) => (
             <Link
-              href={dashboardHref}
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#fcc107] text-black text-sm font-bold hover:bg-[#fcc107]/90 transition shadow-lg shadow-[#fcc107]/25"
+              key={link.label}
+              href={link.href}
+              onClick={() => setActiveIndex(i)}
+              className={
+                i === activeIndex
+                  ? 'rounded-full border border-border bg-white px-4 py-1.5 text-sm font-medium text-foreground'
+                  : 'rounded-full px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground'
+              }
             >
-              {dashboardLabel === 'Dashboard' ? 'Ir al panel' : 'Iniciar sesión'}
+              {link.label}
             </Link>
-
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition"
-            >
-              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* Mobile menu */}
-        {isMenuOpen && (
-          <div className="md:hidden border-t border-white/10 py-4 space-y-1">
-            {['#features', '#pricing', '#testimonials', '#faq'].map((href, i) => (
-              <a
-                key={href}
-                href={href}
-                onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/8 rounded-xl transition"
-              >
-                {['Funciones', 'Precios', 'Testimonios', 'FAQ'][i]}
-              </a>
-            ))}
-            <div className="pt-2 px-2">
+        {/* Sign in */}
+        <div className="flex items-center gap-2">
+          <Link
+            href={dashboardHref}
+            className="hidden rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:opacity-90 sm:inline-flex"
+          >
+            Sign in
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground lg:hidden"
+            aria-label="Abrir menú"
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile menu */}
+      {open && (
+        <div className="mx-auto mt-2 max-w-7xl rounded-3xl border border-border bg-background p-4 lg:hidden">
+          <div className="flex flex-col gap-1">
+            {navLinks.map((link, i) => (
               <Link
-                href={dashboardHref}
-                className="block text-center py-2.5 rounded-xl bg-[#fcc107] text-black text-sm font-bold"
+                key={link.label}
+                href={link.href}
+                onClick={() => {
+                  setActiveIndex(i)
+                  setOpen(false)
+                }}
+                className={
+                  i === activeIndex
+                    ? 'rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-foreground'
+                    : 'rounded-xl px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground'
+                }
               >
-                {dashboardLabel === 'Dashboard' ? 'Ir al panel' : 'Iniciar sesión'}
+                {link.label}
               </Link>
-            </div>
+            ))}
+            <Link
+              href={dashboardHref}
+              onClick={() => setOpen(false)}
+              className="mt-2 rounded-full bg-foreground px-5 py-2.5 text-center text-sm font-semibold text-background"
+            >
+              Sign in
+            </Link>
           </div>
-        )}
-      </div>
-    </nav>
+        </div>
+      )}
+    </header>
   )
 }

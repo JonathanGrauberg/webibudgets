@@ -1,62 +1,158 @@
+export const dashboardHref = '/auth/login'
+
+export const navLinks = [
+  { label: 'Dashboard', href: '#hero' },
+  { label: 'Clientes', href: '#features' },
+  { label: 'Productos', href: '#productos' },
+  { label: 'Presupuestos', href: '#pricing' },
+  { label: 'Vendedores', href: '#testimonials' },
+  { label: 'Stock', href: '#faq' },
+  { label: 'Configuración', href: '#footer' },
+]
+
+export const sidebarItems = [
+  { label: 'Dashboard', icon: 'LayoutGrid', active: true },
+  { label: 'Clientes', icon: 'Users' },
+  { label: 'Productos y Servicios', icon: 'Package' },
+  { label: 'Presupuestos', icon: 'FileText' },
+  { label: 'Vendedores', icon: 'UserCheck' },
+  { label: 'Stock', icon: 'Layers' },
+  { label: 'Usuarios', icon: 'User' },
+]
+
+export const dashboardStats = [
+  { label: 'Clientes', value: '1', sub: 'Registrados', icon: 'Users' },
+  { label: 'Servicios', value: '1', sub: 'Activos', icon: 'Package' },
+  { label: 'Presupuestos', value: '1', sub: 'Creados', icon: 'FileText' },
+  { label: 'Aprobados', value: '0', sub: 'Confirmados', icon: 'CheckCircle' },
+  { label: 'Pendientes', value: '1', sub: 'En gestión', icon: 'Clock' },
+]
+
 export const features = [
-  { icon: 'FileText', title: 'Presupuestos inteligentes', description: 'Creá presupuestos profesionales en segundos con plantillas inteligentes y cálculos automáticos.' },
-  { icon: 'Download', title: 'Exportación PDF con un clic', description: 'Exportá presupuestos y facturas como PDFs con tu logo y colores de marca.' },
-  { icon: 'Users', title: 'Gestión de clientes', description: 'Organizá y seguí a todos tus clientes en una base de datos centralizada y fácil de buscar.' },
-  { icon: 'Package', title: 'Catálogo de productos', description: 'Mantené un catálogo completo de productos y servicios con precios y descripciones.' },
-  { icon: 'Palette', title: 'Personalización de marca', description: 'Personalizá colores, fuentes y diseños para que coincidan perfectamente con tu identidad.' },
-  { icon: 'Share2', title: 'Multi-empresa', description: 'Perfecto para agencias que gestionan múltiples marcas con aislamiento total de datos.' },
+  {
+    icon: 'FileText',
+    title: 'Presupuestos profesionales',
+    description: 'Generá cotizaciones claras y elegantes en minutos, listas para enviar a tus clientes.',
+  },
+  {
+    icon: 'Users',
+    title: 'Gestión de clientes',
+    description: 'Centralizá la información de cada cliente y seguí el historial de cada presupuesto.',
+  },
+  {
+    icon: 'Package',
+    title: 'Productos y servicios',
+    description: 'Catálogo organizado con precios, stock y categorías para armar presupuestos al instante.',
+  },
+  {
+    icon: 'Palette',
+    title: 'Identidad de marca',
+    description: 'Personalizá colores, logo y tipografías para que todo refleje tu negocio.',
+  },
+  {
+    icon: 'Share2',
+    title: 'Compartí en un clic',
+    description: 'Enviá presupuestos por link o PDF y mantené a tus clientes siempre al día.',
+  },
+  {
+    icon: 'Download',
+    title: 'Exportá a PDF',
+    description: 'Descargá documentos prolijos y consistentes con un diseño impecable.',
+  },
 ]
 
 export const plans = [
   {
-    name: 'Starter',
-    description: 'Ideal para freelancers y equipos pequeños',
+    name: 'Inicial',
+    description: 'Para emprendedores que empiezan.',
+    price: '$0',
+    period: '/mes',
+    cta: 'Empezar gratis',
+    featured: false,
+    features: ['Hasta 10 presupuestos', '1 usuario', 'Gestión de clientes', 'Exportar a PDF'],
+  },
+  {
+    name: 'Negocio',
+    description: 'Para equipos en crecimiento.',
     price: '$29',
     period: '/mes',
-    cta: 'Empezar',
-    featured: false,
-    features: ['Hasta 50 presupuestos/mes', '5 perfiles de clientes', 'Plantillas básicas', 'Exportación PDF', 'Soporte por email', '1 cuenta de usuario'],
+    cta: 'Probar Negocio',
+    featured: true,
+    features: ['Presupuestos ilimitados', 'Hasta 5 usuarios', 'Control de stock', 'Identidad de marca', 'Soporte prioritario'],
   },
   {
-    name: 'Team',
-    description: 'Para empresas en crecimiento y agencias',
+    name: 'Empresa',
+    description: 'Para operaciones a gran escala.',
     price: '$79',
     period: '/mes',
-    cta: 'Probar gratis 14 días',
-    featured: true,
-    features: ['Presupuestos ilimitados', 'Clientes ilimitados', 'Plantillas avanzadas', 'PDFs con marca propia', 'Soporte prioritario', 'Hasta 5 usuarios', 'Branding personalizado', 'Colaboración en tiempo real'],
-  },
-  {
-    name: 'Business',
-    description: 'Para empresas con necesidades complejas',
-    price: 'A consultar',
-    period: '',
     cta: 'Contactar ventas',
     featured: false,
-    features: ['Todo lo de Team +', 'Usuarios ilimitados', 'Acceso avanzado a API', 'Soluciones white-label', 'Gerente de cuenta dedicado', 'Integraciones personalizadas', 'Garantía SLA', 'Analytics avanzado'],
+    features: ['Todo en Negocio', 'Usuarios ilimitados', 'Reportes avanzados', 'Acceso por roles', 'Onboarding dedicado'],
   },
 ]
 
+export const brandSwatches = ['#111111', '#3f3f46', '#71717a', '#a1a1aa', '#e4e4e7']
+
 export const testimonials = [
-  { name: 'Sarah Chen', role: 'Fundadora, Estudio de Diseño', company: 'Chen Creative', image: 'SC', content: 'WebiBudgets transformó completamente cómo manejamos los presupuestos. El tiempo de respuesta a clientes bajó un 60% y la facturación está totalmente automatizada.', rating: 5 },
-  { name: 'Marcos Rodríguez', role: 'Gerente de Operaciones', company: 'BuildRight Construcción', image: 'MR', content: 'Gestionar múltiples proyectos y clientes era una pesadilla. Ahora todo está organizado, el equipo colabora sin fricciones y casi nunca perdemos un plazo.', rating: 5 },
-  { name: 'Elena Kowalski', role: 'CEO', company: 'Digital Agency Plus', image: 'EK', content: 'El white-label es un cambio de juego para nuestra agencia. Los clientes adoran los presupuestos profesionales y podemos mantener nuestra marca en todo el proceso.', rating: 5 },
-  { name: 'David Thompson', role: 'Consultor Independiente', company: 'Freelance', image: 'DT', content: 'Como consultor solo, esta plataforma cubre todo lo que necesito. Fácil de usar, presupuestos hermosos y el soporte al cliente es increíblemente rápido.', rating: 5 },
+  {
+    name: 'María González',
+    role: 'Fundadora',
+    company: 'Estudio Neostone',
+    rating: 5,
+    image: 'MG',
+    content: 'Webi Studio ordenó por completo nuestra forma de cotizar. Lo que antes nos llevaba horas ahora lo resolvemos en minutos.',
+  },
+  {
+    name: 'Lucas Fernández',
+    role: 'Director Comercial',
+    company: 'BuildPro',
+    rating: 5,
+    image: 'LF',
+    content: 'La gestión de clientes y presupuestos en un solo lugar nos cambió la operación. El diseño es impecable y muy claro.',
+  },
+  {
+    name: 'Sofía Ramírez',
+    role: 'Diseñadora',
+    company: 'CreativeHub',
+    rating: 5,
+    image: 'SR',
+    content: 'Poder mantener mi identidad de marca en cada documento hace que mis presupuestos se vean realmente profesionales.',
+  },
+  {
+    name: 'Diego Pérez',
+    role: 'CEO',
+    company: 'ServiceMax',
+    rating: 5,
+    image: 'DP',
+    content: 'Simple, rápido y elegante. Exactamente lo que necesitábamos para profesionalizar nuestra gestión.',
+  },
+]
+
+export const brandStats = [
+  { value: '12K+', label: 'Presupuestos generados' },
+  { value: '98%', label: 'Clientes satisfechos' },
+  { value: '24/7', label: 'Soporte disponible' },
 ]
 
 export const faqs = [
-  { question: '¿Qué métodos de pago aceptan?', answer: 'Aceptamos todas las tarjetas de crédito principales (Visa, Mastercard, American Express), PayPal y transferencias bancarias para planes anuales. Los pagos se procesan de forma segura a través de Stripe.' },
-  { question: '¿Puedo cambiar de plan en cualquier momento?', answer: 'Sí. Podés subir o bajar de plan cuando quieras. Los cambios se aplican de inmediato y ajustamos el cobro de forma proporcional.' },
-  { question: '¿Hay límite de usuarios?', answer: 'El plan Starter incluye 1 usuario, Team hasta 5 usuarios, y Business usuarios ilimitados. En el plan Team, cada usuario adicional tiene un costo de $10/mes.' },
-  { question: '¿Ofrecen acceso a API?', answer: 'Sí, el acceso a API está disponible en los planes Team y Business, permitiéndote integrar WebiBudgets con tus herramientas y flujos de trabajo existentes.' },
-  { question: '¿Qué pasa con mis datos si cancelo?', answer: 'Tus datos son tuyos. Si cancelás, podés exportar todo en formatos estándar. Los conservamos 30 días por si querés reactivar.' },
-  { question: '¿Se requiere contrato o compromiso?', answer: 'No. Sin contratos a largo plazo ni penalidades. Ofrecemos facturación mensual y anual, con 20% de descuento en planes anuales.' },
-]
-
-export const brandSwatches = ['#000000', '#FCC107', '#3B82F6', '#10B981', '#EF4444']
-
-export const brandStats = [
-  { label: 'Clientes satisfechos', value: '2.847' },
-  { label: 'Presupuestos generados', value: '+500K' },
-  { label: 'Facturación gestionada', value: '+$125M' },
+  {
+    question: '¿Necesito tarjeta de crédito para empezar?',
+    answer: 'No. Podés crear tu cuenta y usar el plan inicial sin ingresar ningún dato de pago.',
+  },
+  {
+    question: '¿Puedo personalizar el diseño de mis presupuestos?',
+    answer: 'Sí. Podés ajustar colores, subir tu logo y elegir tipografías para que todo coincida con tu marca.',
+  },
+  {
+    question: '¿Cuántos usuarios puedo agregar?',
+    answer: 'Depende del plan. El plan Negocio incluye hasta 5 usuarios y el plan Empresa ofrece usuarios ilimitados.',
+  },
+  {
+    question: '¿Mis datos están seguros?',
+    answer: 'Tus datos se almacenan de forma segura con cifrado y respaldos automáticos para que nunca pierdas información.',
+  },
+  {
+    question: '¿Puedo cancelar cuando quiera?',
+    answer: 'Por supuesto. No hay contratos ni permanencia: podés cancelar tu suscripción en cualquier momento.',
+  },
 ]
