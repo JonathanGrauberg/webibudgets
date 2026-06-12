@@ -87,6 +87,7 @@ model Tenant {
   plan     String? @default("free")
   maxUsers Int?    @default(5)
   trialEndsAt DateTime?
+  mpSubscriptionId String?
 
   active Boolean @default(true)
 

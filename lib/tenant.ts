@@ -1,3 +1,4 @@
+//lib\tenant.ts
 import { prisma } from '@/lib/prisma'
 
 export const TENANT_HEADER = 'x-tenant-id'
