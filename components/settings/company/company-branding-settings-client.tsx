@@ -1,3 +1,4 @@
+//components\settings\company\company-branding-settings-client.tsx
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -58,6 +59,12 @@ type TeamMember = {
   name: string
   role: string
   email: string
+}
+
+type PlanInfo = {
+  maxUsers: number
+  activeUsers: number
+  plan: string
 }
 
 type PersistedState = {
@@ -180,13 +187,16 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
 function TeamPlanCard({
   currentUsers,
   maxUsers,
+  plan,
   colors,
 }: {
   currentUsers: number
   maxUsers: number
+  plan: string
   colors: ColorSystem
 }) {
   const usagePercent = maxUsers > 0 ? Math.min(100, (currentUsers / maxUsers) * 100) : 0
+  const isAtLimit = currentUsers >= maxUsers
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700 relative">
@@ -196,7 +206,7 @@ function TeamPlanCard({
       />
       <div className="px-4 py-4">
         <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div
               className="p-2.5 rounded-xl"
               style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)` }}
@@ -205,24 +215,28 @@ function TeamPlanCard({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Plan de Equipo</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Límites del espacio de trabajo</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{plan}</p>
             </div>
           </div>
           <span
             className="px-3 py-1 rounded-full text-xs font-medium"
-            style={{ backgroundColor: `${colors.accent}15`, color: colors.accent }}
+            style={
+              isAtLimit
+                ? { backgroundColor: '#fef2f2', color: '#b91c1c' }
+                : { backgroundColor: `${colors.accent}15`, color: colors.accent }
+            }
           >
-            Active
+            {isAtLimit ? 'Límite' : 'Activo'}
           </span>
         </div>
 
         <div className="space-y-3 mb-4">
           <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-slate-500" />
-              <span className="text-slate-600 dark:text-slate-400">Miembros</span>
+              <span className="text-slate-600 dark:text-slate-400">Miembros activos</span>
             </div>
-            <span className="font-medium text-slate-900 dark:text-slate-50">
+            <span className={`font-medium ${isAtLimit ? 'text-red-600' : 'text-slate-900 dark:text-slate-50'}`}>
               {currentUsers} / {maxUsers}
             </span>
           </div>
@@ -232,18 +246,94 @@ function TeamPlanCard({
               initial={{ width: 0 }}
               animate={{ width: `${usagePercent}%` }}
               transition={{ duration: 0.5 }}
-              style={{ backgroundColor: colors.primary }}
+              style={{ backgroundColor: isAtLimit ? '#ef4444' : colors.primary }}
             />
           </div>
+          {isAtLimit && (
+            <p className="text-xs text-red-600">
+              Límite alcanzado.{' '}
+              <a href="/pricing" className="underline font-medium">
+                Actualizá tu plan
+              </a>{' '}
+              para agregar más miembros.
+            </p>
+          )}
         </div>
 
-          <Link
-            href="/settings/team"
-            className="block w-full py-2.5 rounded-lg font-medium text-center transition-all"
-            style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)`, color: getContrastColor(colors.primary) }}
-          >
+        <Link
+          href="/settings/team"
+          className="block w-full py-2.5 rounded-lg font-medium text-center transition-all"
+          style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)`, color: getContrastColor(colors.primary) }}
+        >
           Gestionar Equipo
         </Link>
+      </div>
+    </div>
+  )
+}
+
+// ─── Compact asset row ────────────────────────────────────────────────────────
+function CompactAssetRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string | null
+  onChange: (v: string | null) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => onChange(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+      <div className="w-12 h-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
+        {value ? (
+          <img src={value} alt={label} className="w-full h-full object-contain p-1" />
+        ) : (
+          <ImageIcon className="w-5 h-5 text-slate-300" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{label}</p>
+        <p className="text-xs text-slate-400 truncate">
+          {value ? 'Imagen cargada' : 'Sin imagen'}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFile}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+        >
+          {value ? 'Cambiar' : 'Subir'}
+        </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="px-3 py-1.5 text-xs font-medium rounded-md border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+          >
+            Quitar
+          </button>
+        )}
       </div>
     </div>
   )
@@ -263,7 +353,6 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
     description: (initialBranding as any)?.description ?? '',
   })
 
-  // Themes removed for MVP: use a single corporate visual theme.
   const [brandingAssets, setBrandingAssets] = useState<BrandingAssets>({
     logo: effective.logoUrl ?? null,
     favicon: effective.faviconUrl ?? null,
@@ -282,7 +371,7 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
 
   const [savedBrandingSnapshot, setSavedBrandingSnapshot] = useState(() =>
     serializeBranding(
-    { logo: effective.logoUrl ?? null, favicon: effective.faviconUrl ?? null, watermark: effective.watermarkUrl ?? null, sidebarIcon: effective.sidebarIconUrl ?? null },
+      { logo: effective.logoUrl ?? null, favicon: effective.faviconUrl ?? null, watermark: effective.watermarkUrl ?? null, sidebarIcon: effective.sidebarIconUrl ?? null },
       {
         primary: effective.primaryColor ?? '#0ea5e9',
         secondary: effective.secondaryColor ?? '#64748b',
@@ -315,7 +404,8 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
   const [companySaveMessage, setCompanySaveMessage] = useState<string | null>(null)
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [maxUsers] = useState(5)
+  // ✅ Plan info dinámica — ya no hardcodeada
+  const [planInfo, setPlanInfo] = useState<PlanInfo>({ maxUsers: 5, activeUsers: 0, plan: 'free' })
 
   const saveInFlightRef = useRef(false)
   const pendingSaveRef = useRef(false)
@@ -325,9 +415,7 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
 
   const lastSeenBrandingPropsRef = useRef(savedBrandingSnapshot)
   const lastSeenCompanyPropsRef = useRef(savedCompanySnapshot)
-  // Sync incoming `initialBranding` with local state when it changes.
-  // We compare serialized snapshots to avoid stomping on local edits
-  // when the user is actively modifying fields.
+
   useEffect(() => {
     const eff = effective
 
@@ -346,7 +434,6 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
       }
     )
 
-    // 🌟 Ahora comparamos contra la referencia del componente, no contra el snapshot local de guardado
     if (incomingBrandingSerialized !== lastSeenBrandingPropsRef.current) {
       setBrandingAssets({ logo: eff.logoUrl ?? null, favicon: eff.faviconUrl ?? null, watermark: eff.watermarkUrl ?? null, sidebarIcon: eff.sidebarIconUrl ?? null })
       setColorSystem({
@@ -371,7 +458,6 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
       description: (initialBranding as any).description ?? '',
     })
 
-    // 🌟 Hacemos lo mismo para la info de la empresa
     if (incomingCompanySerialized !== lastSeenCompanyPropsRef.current) {
       setCompanyInfo({
         name: eff.name ?? '',
@@ -386,7 +472,7 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
       lastSeenCompanyPropsRef.current = incomingCompanySerialized
     }
 
-  }, [initialBranding, effective]) // 🌟 Limpiamos las dependencias para evitar ejecuciones infinitas
+  }, [initialBranding, effective])
 
   const brandingChanged =
     serializeBranding(brandingAssets, colorSystem, { watermarkOpacity, showPageNumbers, showWebsiteInPdf, showFooterBranding }) !== savedBrandingSnapshot
@@ -402,139 +488,122 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
 
-const persistBranding = useCallback(
-  async (payload: PersistedState) => {
-    console.log('[persistBranding llamado]', {
-      logoUrl: payload.logoUrl?.slice(0, 30) || 'NULL', // ✅ Corregido con ?.
-      watermarkUrl: payload.watermarkUrl?.slice(0, 30) || 'NULL', // ✅ Corregido con ?.
-      inFlight: saveInFlightRef.current,
-    })
+  const persistBranding = useCallback(
+    async (payload: PersistedState) => {
+      if (saveInFlightRef.current) {
+        pendingSaveRef.current = true
+        latestPayloadRef.current = payload
+        return
+      }
 
-    if (saveInFlightRef.current) {
-      pendingSaveRef.current = true
-      latestPayloadRef.current = payload
+      saveInFlightRef.current = true
+      setSaveStatus('saving')
+      setSaveError(null)
+
+      let currentPayload = payload
+
+      try {
+        while (true) {
+          pendingSaveRef.current = false
+
+          const res = await fetch('/api/tenants', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(currentPayload),
+          })
+
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            throw new Error(body.error || 'Failed to save settings')
+          }
+
+          setSavedBrandingSnapshot(
+            serializeBranding(
+              {
+                logo: currentPayload.logoUrl,
+                favicon: currentPayload.faviconUrl,
+                watermark: currentPayload.watermarkUrl,
+                sidebarIcon: currentPayload.sidebarIconUrl,
+              },
+              {
+                primary: currentPayload.primaryColor,
+                secondary: currentPayload.secondaryColor,
+                accent: currentPayload.accentColor,
+              },
+              {
+                watermarkOpacity: currentPayload.watermarkOpacity,
+                showPageNumbers: currentPayload.showPageNumbers,
+                showWebsiteInPdf: currentPayload.showWebsiteInPdf,
+                showFooterBranding: currentPayload.showFooterBranding,
+              }
+            )
+          )
+
+          updateBranding({
+            name: currentPayload.name,
+            logoUrl: currentPayload.logoUrl,
+            faviconUrl: currentPayload.faviconUrl,
+            primaryColor: currentPayload.primaryColor,
+            secondaryColor: currentPayload.secondaryColor,
+            accentColor: currentPayload.accentColor,
+            watermarkUrl: currentPayload.watermarkUrl,
+            sidebarIconUrl: currentPayload.sidebarIconUrl,
+          })
+
+          if (pendingSaveRef.current && latestPayloadRef.current) {
+            currentPayload = latestPayloadRef.current
+            latestPayloadRef.current = null
+            continue
+          }
+
+          break
+        }
+
+        setSaveStatus('saved')
+        if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current)
+        savedStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to save settings'
+        setSaveError(message)
+        setSaveStatus('error')
+      } finally {
+        saveInFlightRef.current = false
+      }
+    },
+    [updateBranding]
+  )
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
       return
     }
 
-    saveInFlightRef.current = true
-    setSaveStatus('saving')
-    setSaveError(null)
+    if (!brandingChanged) return
 
-    let currentPayload = payload
+    const timer = setTimeout(() => {
+      const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, {
+        watermarkOpacity,
+        showPageNumbers,
+        showWebsiteInPdf,
+        showFooterBranding,
+      })
+      void persistBranding(payload)
+    }, AUTOSAVE_DEBOUNCE_MS)
 
-    try {
-      while (true) {
-        pendingSaveRef.current = false
-
-        console.debug('[persistBranding] sending payload', currentPayload)
-        console.debug('[persistBranding] brandingAssets (closure)', { 
-          watermark: brandingAssets.watermark, 
-          sidebarIcon: brandingAssets.sidebarIcon 
-        })
-
-        console.log('[PUNTO 1 - Cliente antes del PUT]', {
-          watermarkUrl: currentPayload.watermarkUrl?.slice(0, 50) || null, // ✅ Corregido con ?.
-          sidebarIconUrl: currentPayload.sidebarIconUrl?.slice(0, 50) || null, // ✅ Corregido con ?.
-        })
-
-        const res = await fetch('/api/tenants', {
-          method: 'PUT',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(currentPayload),
-        })
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error || 'Failed to save settings')
-        }
-
-        setSavedBrandingSnapshot(
-          serializeBranding(
-            {
-              logo: currentPayload.logoUrl,
-              favicon: currentPayload.faviconUrl,
-              watermark: currentPayload.watermarkUrl,
-              sidebarIcon: currentPayload.sidebarIconUrl,
-            },
-            {
-              primary: currentPayload.primaryColor,
-              secondary: currentPayload.secondaryColor,
-              accent: currentPayload.accentColor,
-            },
-            {
-              watermarkOpacity: currentPayload.watermarkOpacity,
-              showPageNumbers: currentPayload.showPageNumbers,
-              showWebsiteInPdf: currentPayload.showWebsiteInPdf,
-              showFooterBranding: currentPayload.showFooterBranding,
-            }
-          )
-        )
-
-        updateBranding({
-          name: currentPayload.name,
-          logoUrl: currentPayload.logoUrl,
-          faviconUrl: currentPayload.faviconUrl,
-          primaryColor: currentPayload.primaryColor,
-          secondaryColor: currentPayload.secondaryColor,
-          accentColor: currentPayload.accentColor,
-          watermarkUrl: currentPayload.watermarkUrl,
-          sidebarIconUrl: currentPayload.sidebarIconUrl,
-        })
-
-        if (pendingSaveRef.current && latestPayloadRef.current) {
-          currentPayload = latestPayloadRef.current
-          latestPayloadRef.current = null
-          continue
-        }
-
-        break
-      }
-
-      setSaveStatus('saved')
-      if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current)
-      savedStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save settings'
-      setSaveError(message)
-      setSaveStatus('error')
-    } finally {
-      saveInFlightRef.current = false
-    }
-  },
-  [updateBranding]
-)
-
-useEffect(() => {
-  if (!hasMountedRef.current) {
-    hasMountedRef.current = true
-    return
-  }
-
-  if (!brandingChanged) return
-
-  const timer = setTimeout(() => {
-    const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, { 
-      watermarkOpacity, 
-      showPageNumbers, 
-      showWebsiteInPdf, 
-      showFooterBranding 
-    })
-    void persistBranding(payload)
-  }, AUTOSAVE_DEBOUNCE_MS)
-
-  return () => clearTimeout(timer)
-}, [
-  brandingAssets, 
-  colorSystem, 
-  brandingChanged, 
-  companyInfo, 
-  persistBranding,
-  watermarkOpacity, // ✅ Incluido para refrescar el efecto
-  showPageNumbers, // ✅ Incluido para refrescar el efecto
-  showWebsiteInPdf, // ✅ Incluido para refrescar el efecto
-  showFooterBranding // ✅ Incluido para refrescar el efecto
-])
+    return () => clearTimeout(timer)
+  }, [
+    brandingAssets,
+    colorSystem,
+    brandingChanged,
+    companyInfo,
+    persistBranding,
+    watermarkOpacity,
+    showPageNumbers,
+    showWebsiteInPdf,
+    showFooterBranding,
+  ])
 
   useEffect(() => {
     return () => {
@@ -542,6 +611,7 @@ useEffect(() => {
     }
   }, [])
 
+  // ✅ Cargar plan info real desde la API
   useEffect(() => {
     if (activeTab !== 'plan') return
 
@@ -552,8 +622,15 @@ useEffect(() => {
         const res = await fetch('/api/tenants/users', { credentials: 'same-origin' })
         if (!res.ok) return
         const payload = await res.json()
-        if (!cancelled && Array.isArray(payload.users)) {
-          setTeamMembers(payload.users)
+        if (!cancelled) {
+          if (Array.isArray(payload.users)) {
+            setTeamMembers(payload.users)
+          }
+          setPlanInfo({
+            maxUsers: payload.maxUsers ?? 5,
+            activeUsers: payload.activeUsers ?? 0,
+            plan: payload.plan ?? 'free',
+          })
         }
       } catch {
         // keep empty list on failure
@@ -617,37 +694,11 @@ useEffect(() => {
   const tabs = [
     { id: 'company', icon: Building2, label: 'Configuración' },
     { id: 'branding', icon: ImageIcon, label: 'Branding' },
-    { id: 'colors', icon: Palette, label: 'Colores' },
-    { id: 'preview', icon: Monitor, label: 'Vista' },
     { id: 'plan', icon: Crown, label: 'Plan' },
   ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 pb-24">
-      <div className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div
-                className="p-2 rounded-xl shadow-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${colorSystem.primary} 0%, ${colorSystem.accent} 100%)`,
-                  boxShadow: `0 4px 20px ${colorSystem.primary}30`,
-                }}
-              >
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Configuración de Empresa</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Gestiona la marca y los datos de tu espacio de trabajo</p>
-              </div>
-            </div>
-
-            <SaveIndicator status={saveStatus} />
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto">
           {tabs.map((tab) => (
@@ -668,6 +719,8 @@ useEffect(() => {
         )}
 
         <AnimatePresence mode="wait">
+
+          {/* ── CONFIGURACIÓN ─────────────────────────────────────────────── */}
           {activeTab === 'company' && (
             <motion.div
               key="company"
@@ -694,9 +747,11 @@ useEffect(() => {
                       {isSavingCompany ? 'Guardando...' : 'Guardar cambios'}
                     </button>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Company Name</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre de la Empresa</label>
                       <div className="relative">
                         <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
@@ -704,8 +759,7 @@ useEffect(() => {
                           value={companyInfo.name}
                           onChange={(e) => updateCompanyInfo('name', e.target.value)}
                           className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-slate-50"
-                          style={{ outlineColor: 'var(--color-primary)' }}
-                          placeholder="Your company name"
+                          placeholder="Nombre de la empresa"
                         />
                       </div>
                     </div>
@@ -775,12 +829,8 @@ useEffect(() => {
                         placeholder="Describe tu empresa..."
                       />
                     </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <p className="text-sm text-slate-500">La aplicación utiliza un único tema corporativo. No hay opciones de tema disponibles.</p>
-                    </div>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="mt-4 text-xs text-slate-400">
                     Los cambios de branding se guardan automáticamente. La información de la empresa requiere que pulses "Guardar cambios".
                   </p>
                 </div>
@@ -788,117 +838,167 @@ useEffect(() => {
             </motion.div>
           )}
 
+          {/* ── BRANDING + COLORES ── */}
           {activeTab === 'branding' && (
-            <motion.div key="branding" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
-              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Recursos de Marca</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Sube logos y recursos de marca — los cambios se guardan automáticamente</p>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <FileUploadZone label="Logo de la Empresa" value={brandingAssets.logo} onChange={(v) => updateBrandingAsset('logo', v)} />
-                  <FileUploadZone label="Favicon" value={brandingAssets.favicon} onChange={(v) => updateBrandingAsset('favicon', v)} />
-                  <FileUploadZone label="Marca de Agua (PDF)" value={brandingAssets.watermark} onChange={(v) => updateBrandingAsset('watermark', v)} />
-                  <FileUploadZone label="Icono de Barra Lateral" value={brandingAssets.sidebarIcon} onChange={(v) => updateBrandingAsset('sidebarIcon', v)} />
-                </div>
-                <div className="p-6 border-t">
-                  <h3 className="text-lg font-semibold mb-3">PDF Branding</h3>
-                  <div className="space-y-3">
-                    <label className="block text-sm">Intensidad de marca de agua: <span className="font-medium">{watermarkOpacity}</span></label>
-                    <input type="range" min="0.01" max="0.2" step="0.01" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} />
-                    <div className="flex gap-4 items-center">
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={showPageNumbers} onChange={(e) => setShowPageNumbers(e.target.checked)} /> Mostrar numeración de páginas</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={showWebsiteInPdf} onChange={(e) => setShowWebsiteInPdf(e.target.checked)} /> Mostrar sitio web</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={showFooterBranding} onChange={(e) => setShowFooterBranding(e.target.checked)} /> Mostrar "Generado con WebiBudgets"</label>
+            <motion.div
+              key="branding"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start"
+            >
+              <div className="space-y-5">
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Recursos de Marca</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Los cambios se guardan automáticamente</p>
                     </div>
-                    <p className="text-xs text-slate-500">Los cambios de PDF se guardan automáticamente junto al branding.</p>
+                    <AnimatePresence>
+                      {saveStatus !== 'idle' && (
+                        <SaveIndicator status={saveStatus} />
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className="px-5 py-3 divide-y divide-slate-100 dark:divide-slate-800">
+                    <CompactAssetRow
+                      label="Logo de la Empresa"
+                      value={brandingAssets.logo}
+                      onChange={(v) => updateBrandingAsset('logo', v)}
+                    />
+                    <CompactAssetRow
+                      label="Favicon"
+                      value={brandingAssets.favicon}
+                      onChange={(v) => updateBrandingAsset('favicon', v)}
+                    />
+                    <CompactAssetRow
+                      label="Marca de Agua (PDF)"
+                      value={brandingAssets.watermark}
+                      onChange={(v) => updateBrandingAsset('watermark', v)}
+                    />
+                    <CompactAssetRow
+                      label="Icono de Barra Lateral"
+                      value={brandingAssets.sidebarIcon}
+                      onChange={(v) => updateBrandingAsset('sidebarIcon', v)}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Sistema de Colores</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Personaliza los colores de marca</p>
+                  </div>
+                  <div className="px-5 py-4 space-y-5">
+                    <ColorPicker label="Color Principal" value={colorSystem.primary} onChange={(v) => setColorSystem((p) => ({ ...p, primary: v }))} />
+                    <ColorPicker label="Color Secundario" value={colorSystem.secondary} onChange={(v) => setColorSystem((p) => ({ ...p, secondary: v }))} />
+                    <ColorPicker label="Color de Acento" value={colorSystem.accent} onChange={(v) => setColorSystem((p) => ({ ...p, accent: v }))} />
+                  </div>
+                  <div className="px-5 pb-4 space-y-3">
+                    <div className="flex gap-2">
+                      {([
+                        { id: 'primary', color: colorSystem.primary, label: 'Principal' },
+                        { id: 'secondary', color: colorSystem.secondary, label: 'Secundario' },
+                        { id: 'accent', color: colorSystem.accent, label: 'Acento' },
+                      ] as const).map(({ id, color, label }) => (
+                        <div key={id} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="w-full h-10 rounded-lg shadow-sm" style={{ backgroundColor: color }} />
+                          <span className="text-[10px] text-slate-400">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className="h-8 rounded-lg"
+                      style={{ background: `linear-gradient(90deg, ${colorSystem.primary} 0%, ${colorSystem.secondary} 50%, ${colorSystem.accent} 100%)` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Configuración de PDF</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Ajustes aplicados a documentos exportados</p>
+                  </div>
+                  <div className="px-5 py-4 space-y-4">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <label className="text-slate-700 dark:text-slate-300">Intensidad de marca de agua</label>
+                        <span className="font-medium text-slate-500">{watermarkOpacity}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.01"
+                        max="0.2"
+                        step="0.01"
+                        value={watermarkOpacity}
+                        onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                        className="w-full accent-current"
+                        style={{ accentColor: colorSystem.primary }}
+                      />
+                    </div>
+                    <div className="space-y-2.5">
+                      {[
+                        { label: 'Mostrar numeración de páginas', value: showPageNumbers, setter: setShowPageNumbers },
+                        { label: 'Mostrar sitio web en el pie', value: showWebsiteInPdf, setter: setShowWebsiteInPdf },
+                        { label: 'Mostrar "Generado con WebiBudgets"', value: showFooterBranding, setter: setShowFooterBranding },
+                      ].map(({ label, value, setter }) => (
+                        <label key={label} className="flex items-center gap-3 cursor-pointer group">
+                          <div
+                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${value ? '' : 'bg-slate-200 dark:bg-slate-700'}`}
+                            style={value ? { backgroundColor: colorSystem.primary } : {}}
+                            onClick={() => setter(!value)}
+                          >
+                            <div
+                              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${value ? 'left-4' : 'left-0.5'}`}
+                            />
+                          </div>
+                          <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors select-none">
+                            {label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:sticky lg:top-6">
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Vista previa del documento</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Se actualiza en tiempo real</p>
+                  </div>
+                  <div className="p-4">
+                    <PDFPreview
+                      colors={colorSystem}
+                      watermark={brandingAssets.watermark}
+                      logo={previewLogo}
+                      watermarkOpacity={watermarkOpacity}
+                      showPageNumbers={showPageNumbers}
+                      showWebsiteInPdf={showWebsiteInPdf}
+                      showFooterBranding={showFooterBranding}
+                    />
                   </div>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {activeTab === 'colors' && (
-            <motion.div key="colors" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Sistema de Colores</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Personaliza los colores de marca — los cambios se guardan automáticamente</p>
-                </div>
-                <div className="p-6 space-y-6">
-                  <ColorPicker label="Primary Color" value={colorSystem.primary} onChange={(v) => setColorSystem((p) => ({ ...p, primary: v }))} />
-                  <ColorPicker label="Secondary Color" value={colorSystem.secondary} onChange={(v) => setColorSystem((p) => ({ ...p, secondary: v }))} />
-                  <ColorPicker label="Accent Color" value={colorSystem.accent} onChange={(v) => setColorSystem((p) => ({ ...p, accent: v }))} />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Vista de Colores</h2>
-                </div>
-                <div className="p-6 space-y-5">
-                  <div className="flex gap-3">
-                    {(
-                      [
-                        { id: 'primary', color: colorSystem.primary },
-                        { id: 'secondary', color: colorSystem.secondary },
-                        { id: 'accent', color: colorSystem.accent },
-                      ] as const
-                    ).map(({ id, color }) => (
-                      <div key={id} className="flex-1 h-20 rounded-xl shadow-lg" style={{ backgroundColor: color }} />
-                    ))}
-                  </div>
-                  <div
-                    className="h-24 rounded-xl shadow-lg"
-                    style={{
-                      background: `linear-gradient(135deg, ${colorSystem.primary} 0%, ${colorSystem.secondary} 50%, ${colorSystem.accent} 100%)`,
-                    }}
-                  />
-                  <div className="flex gap-2.5 flex-wrap">
-                    <button type="button" className="px-5 py-2 rounded-lg text-white font-medium text-sm" style={{ backgroundColor: colorSystem.primary }}>
-                      Botón primario
-                    </button>
-                    <button
-                      type="button"
-                      className="px-5 py-2 rounded-lg font-medium text-sm bg-white dark:bg-slate-800"
-                      style={{ border: `2px solid ${colorSystem.secondary}`, color: colorSystem.secondary }}
-                    >
-                      Secundario
-                    </button>
-                    <button type="button" className="px-5 py-2 rounded-lg text-white font-medium text-sm" style={{ backgroundColor: colorSystem.accent }}>
-                      Destacado
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'preview' && (
-            <motion.div key="preview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SidebarPreview colors={colorSystem} logo={previewLogo} />
-                <DashboardPreview colors={colorSystem} />
-                <PDFPreview
-                  colors={colorSystem}
-                  watermark={brandingAssets.watermark}
-                  logo={previewLogo}
-                  watermarkOpacity={watermarkOpacity}
-                  showPageNumbers={showPageNumbers}
-                  showWebsiteInPdf={showWebsiteInPdf}
-                  showFooterBranding={showFooterBranding}
-                />
-                
-                <MobilePreview colors={colorSystem} logo={previewLogo} />
-              </div>
-            </motion.div>
-          )}
-
+          {/* ── PLAN ─────────────────────────────────────────────────────── */}
           {activeTab === 'plan' && (
-            <motion.div key="plan" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <motion.div
+              key="plan"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
               <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                   <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Gestionar Equipo</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestiona los miembros del equipo y sus permisos</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Miembros del equipo y sus permisos</p>
                 </div>
                 <div className="p-6 space-y-4">
                   {teamMembers.length === 0 ? (
@@ -932,13 +1032,21 @@ useEffect(() => {
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 transition-all font-medium"
                   >
                     <Plus className="w-4 h-4" />
-                    Invitar miembro
+                    Ir a gestión de equipo
                   </Link>
                 </div>
               </div>
-              <TeamPlanCard currentUsers={teamMembers.length} maxUsers={maxUsers} colors={colorSystem} />
+
+              {/* ✅ TeamPlanCard con datos reales */}
+              <TeamPlanCard
+                currentUsers={planInfo.activeUsers}
+                maxUsers={planInfo.maxUsers}
+                plan={planInfo.plan}
+                colors={colorSystem}
+              />
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
     </div>

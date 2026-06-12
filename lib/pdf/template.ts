@@ -234,7 +234,7 @@ export function budgetPdfTemplate(
             <strong>${item.productService?.name ?? '—'}</strong><br />
             <span class="muted small">${item.productService?.description || ''}</span>
           </td>
-          <td class="right">${item.quantity ?? 0}</td>
+          <td class="right">${item.quantity ?? 0} ${item.productService?.unit || ''}</td>
           <td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
           <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>
         </tr>
@@ -289,19 +289,19 @@ export function budgetPdfTemplate(
       </tbody>
     </table>
 
-    <h2>Datos de la Instalación</h2>
+    <h2>Datos de Trabajo / Instalación</h2>
     <div class="box avoid-break">
-      Responsable de instalación: <strong>${installationResponsibleLabel}</strong><br />
-      Instalador de referencia: ${budget.installerReference || '—'}
+      Responsable: <strong>${installationResponsibleLabel}</strong><br />
+      Personal de referencia: ${budget.installerReference || '—'}
     </div>
 
     ${(budget.details ?? [])
       .map(
-        (detail: { title: string; content: string }) => `
+        (detail: { title: string; value: string }) => `
     <div class="box avoid-break">
       <strong>${detail.title}</strong>
       <br />
-      ${detail.content}
+      ${detail.value}
     </div>
     `
       )

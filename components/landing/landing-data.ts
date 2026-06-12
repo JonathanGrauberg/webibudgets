@@ -2,12 +2,10 @@ export const dashboardHref = '/auth/login'
 
 export const navLinks = [
   { label: 'Dashboard', href: '#hero' },
-  { label: 'Clientes', href: '#features' },
-  { label: 'Productos', href: '#productos' },
-  { label: 'Presupuestos', href: '#pricing' },
-  { label: 'Vendedores', href: '#testimonials' },
-  { label: 'Stock', href: '#faq' },
-  { label: 'Configuración', href: '#footer' },
+  { label: 'Funciones', href: '#features' },
+  { label: 'Precios', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+  { label: 'Contactanos', href: '#cta' },
 ]
 
 export const sidebarItems = [
@@ -47,12 +45,12 @@ export const features = [
   {
     icon: 'Palette',
     title: 'Identidad de marca',
-    description: 'Personalizá colores, logo y tipografías para que todo refleje tu negocio.',
+    description: 'Personalizá colores, logo y marca de agua para que todo refleje tu negocio.',
   },
   {
-    icon: 'Share2',
-    title: 'Compartí en un clic',
-    description: 'Enviá presupuestos por link o PDF y mantené a tus clientes siempre al día.',
+    icon: 'UsersRound',
+    title: 'Gestión de equipos',
+    description: 'Administrá vendedores, instaladores y usuarios con permisos según cada rol.',
   },
   {
     icon: 'Download',
@@ -63,31 +61,61 @@ export const features = [
 
 export const plans = [
   {
-    name: 'Inicial',
-    description: 'Para emprendedores que empiezan.',
-    price: '$0',
+    name: 'Básico',
+    description: 'Ideal para emprendedores y profesionales.',
+    price: '$6,99',
     period: '/mes',
-    cta: 'Empezar gratis',
+    cta: 'Comenzar',
     featured: false,
-    features: ['Hasta 10 presupuestos', '1 usuario', 'Gestión de clientes', 'Exportar a PDF'],
+    features: [
+      'Hasta 30 presupuestos por mes',
+      '1 usuario',
+      'Gestión de clientes',
+      'Gestión de vendedores',
+      'Gestión de instaladores',
+      'Control de stock',
+      'Exportación PDF',
+      'Branding personalizado',
+      'Soporte por email',
+    ],
   },
+
   {
     name: 'Negocio',
     description: 'Para equipos en crecimiento.',
-    price: '$29',
+    price: '$19,99',
     period: '/mes',
-    cta: 'Probar Negocio',
+    cta: 'Elegir Negocio',
     featured: true,
-    features: ['Presupuestos ilimitados', 'Hasta 5 usuarios', 'Control de stock', 'Identidad de marca', 'Soporte prioritario'],
+    features: [
+      'Presupuestos ilimitados',
+      'Hasta 5 usuarios',
+      'Gestión completa del sistema',
+      'Control de stock',
+      'Branding personalizado',
+      'Roles y permisos',
+      'Soporte prioritario',
+      'Asistencia personalizada',
+    ],
   },
+
   {
     name: 'Empresa',
-    description: 'Para operaciones a gran escala.',
-    price: '$79',
+    description: 'Pensado para empresas con múltiples usuarios.',
+    price: '$49,99',
     period: '/mes',
     cta: 'Contactar ventas',
     featured: false,
-    features: ['Todo en Negocio', 'Usuarios ilimitados', 'Reportes avanzados', 'Acceso por roles', 'Onboarding dedicado'],
+    features: [
+      'Todo lo incluido en Negocio',
+      'Usuarios ilimitados',
+      'Presupuestos ilimitados',
+      'Roles avanzados',
+      'Atención 24/7',
+      'Onboarding dedicado',
+      'Asistencia personalizada',
+      'Implementación acompañada',
+    ],
   },
 ]
 
@@ -141,15 +169,15 @@ export const faqs = [
   },
   {
     question: '¿Puedo personalizar el diseño de mis presupuestos?',
-    answer: 'Sí. Podés ajustar colores, subir tu logo y elegir tipografías para que todo coincida con tu marca.',
+    answer: 'Sí. de eso se trata WebiBudgets, creá tu presupuesto con tu logo, tu marca, tus colores.',
   },
   {
     question: '¿Cuántos usuarios puedo agregar?',
-    answer: 'Depende del plan. El plan Negocio incluye hasta 5 usuarios y el plan Empresa ofrece usuarios ilimitados.',
+    answer: 'Depende del plan. tocá en "Precios" para ver los detalles de cada uno, o contactanos para asesorarte sobre cuál es el mejor para vos.',
   },
   {
     question: '¿Mis datos están seguros?',
-    answer: 'Tus datos se almacenan de forma segura con cifrado y respaldos automáticos para que nunca pierdas información.',
+    answer: 'Tus datos son solo tuyos. tus datos estan cifrados y protegidos. No compartimos tu información con terceros.',
   },
   {
     question: '¿Puedo cancelar cuando quiera?',

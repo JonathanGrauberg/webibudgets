@@ -134,3 +134,37 @@
     @apply bg-background text-foreground;
   }
 }
+ /* Scrollbar moderna */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 999px;
+  border: 2px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.85;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Oculta las flechitas viejas */
+::-webkit-scrollbar-button {
+  display: none;
+}

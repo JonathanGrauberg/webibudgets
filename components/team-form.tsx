@@ -1,3 +1,4 @@
+//components\team-form.tsx
 'use client'
 
 import { useState } from 'react'
@@ -25,7 +26,13 @@ function generatePassword(length = 12): string {
   return result
 }
 
-export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }) {
+export function CreateUserForm({
+  onUserCreated,
+  isAtLimit = false,
+}: {
+  onUserCreated?: () => void
+  isAtLimit?: boolean
+}) {
   const [form, setForm] = useState({ name: '', email: '', role: 'viewer', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -40,6 +47,7 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isAtLimit) return
     setIsSubmitting(true)
     setMessage(null)
     setError(null)
@@ -59,6 +67,9 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}))
+        if (payload?.error === 'plan_limit_reached') {
+          throw new Error('plan_limit_reached')
+        }
         throw new Error(payload?.error || 'Error al crear usuario')
       }
 
@@ -68,14 +79,39 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
       onUserCreated?.()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(msg)
+      setError(msg === 'plan_limit_reached' ? 'plan_limit_reached' : msg)
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // ── Si llegó al límite, mostrar banner en lugar del form ──
+  if (isAtLimit) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center space-y-4">
+        <div className="text-3xl">🔒</div>
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Límite de usuarios alcanzado</p>
+          <p className="mt-1 text-xs text-amber-700 leading-relaxed">
+            Tu plan actual no permite más usuarios activos. Actualizá tu plan para seguir agregando miembros al equipo.
+          </p>
+        </div>
+        <a
+          href="/pricing"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-900 text-white text-xs font-semibold hover:bg-amber-800 transition"
+        >
+          Ver planes disponibles →
+        </a>
+      </div>
+    )
+  }
+
   return (
-    <form onSubmit={onSubmit} className="max-w-md p-6 bg-card rounded-lg border">
+    <form
+      onSubmit={onSubmit}
+      className="max-w-md p-6 bg-card rounded-lg border"
+      autoComplete="off"
+    >
       <h3 className="text-lg font-semibold mb-4">Crear nuevo usuario</h3>
 
       <div className="grid gap-4">
@@ -86,6 +122,7 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Juan Pérez"
+            autoComplete="off"
           />
         </label>
 
@@ -97,6 +134,8 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             placeholder="juan@ejemplo.com"
+            autoComplete="off"
+            name="new-user-email-field"
           />
         </label>
 
@@ -111,6 +150,8 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
               className="flex-1"
+              autoComplete="new-password"
+              name="new-user-password-field"
             />
             <Button type="button" variant="outline" onClick={() => setShowPassword((v) => !v)}>
               {showPassword ? 'Ocultar' : 'Ver'}
@@ -147,9 +188,20 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
             <p className="text-sm text-slate-800">{message}</p>
           </div>
         )}
+
         {error && (
           <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-            <p className="text-sm text-red-800">{error}</p>
+            {error === 'plan_limit_reached' ? (
+              <p className="text-sm text-red-800">
+                Límite de plan alcanzado.{' '}
+                <a href="/pricing" className="underline font-medium">
+                  Actualizá tu plan
+                </a>{' '}
+                para agregar más usuarios.
+              </p>
+            ) : (
+              <p className="text-sm text-red-800">{error}</p>
+            )}
           </div>
         )}
       </div>
@@ -160,9 +212,11 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated?: () => void }
 export function UserCard({
   user,
   onUpdate,
+  isAtLimit = false,
 }: {
   user: User
   onUpdate?: (userId: string, updates: Record<string, unknown>) => Promise<void>
+  isAtLimit?: boolean
 }) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [showActions, setShowActions] = useState(false)
@@ -209,8 +263,8 @@ export function UserCard({
             </span>
             <span
               className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                  user.active ? 'bg-slate-50 text-slate-700' : 'bg-gray-50 text-gray-700'
-                }`}
+                user.active ? 'bg-slate-50 text-slate-700' : 'bg-gray-50 text-gray-700'
+              }`}
             >
               {user.active ? 'Activo' : 'Inactivo'}
             </span>
@@ -227,14 +281,25 @@ export function UserCard({
 
       {showActions && (
         <div className="mt-4 flex flex-col gap-2">
-          <button
-            type="button"
-            disabled={isUpdating}
-            onClick={handleToggleActive}
-            className="px-3 py-1.5 text-sm rounded border hover:bg-accent transition disabled:opacity-50"
-          >
-            {isUpdating ? '...' : user.active ? 'Desactivar' : 'Activar'}
-          </button>
+          {/* Activar bloqueado si está en el límite y el usuario está inactivo */}
+          {!user.active && isAtLimit ? (
+            <div className="px-3 py-2 text-xs rounded border border-amber-200 bg-amber-50 text-amber-800 leading-relaxed">
+              No podés activar este usuario — límite del plan alcanzado.{' '}
+              <a href="/pricing" className="underline font-medium">
+                Actualizá tu plan
+              </a>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={handleToggleActive}
+              className="px-3 py-1.5 text-sm rounded border hover:bg-accent transition disabled:opacity-50"
+            >
+              {isUpdating ? '...' : user.active ? 'Desactivar' : 'Activar'}
+            </button>
+          )}
+
           <button
             type="button"
             disabled={isUpdating}

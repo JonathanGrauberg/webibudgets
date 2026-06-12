@@ -4,7 +4,7 @@ import {
   ArrowRight, Check, FileText, Download,
   Users, Package, Palette, Share2,
   Star, ChevronDown, LayoutGrid, UserCheck,
-  Layers, User, CheckCircle, Clock, LogOut,
+  Layers, User, CheckCircle, Clock, LogOut, UsersRound,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -13,9 +13,37 @@ import {
   sidebarItems, dashboardStats,
 } from './landing-data'
 
-const featureIcons = { FileText, Download, Users, Package, Palette, Share2 } as const
+import { ProductosBanner } from '../productos-banner'
+import Image from "next/image"
+import { useState, useEffect } from 'react';
+
+const featureIcons = { FileText, Download, Users, Package, Palette, Share2, UsersRound} as const
 const sidebarIcons = { LayoutGrid, Users, Package, FileText, UserCheck, Layers, User } as const
 const statIcons = { Users, Package, FileText, CheckCircle, Clock } as const
+
+// 1. Definimos las fuentes (pueden ser clases de Tailwind o fuentes nativas/Google)
+const fonts = [
+  'font-sans', 
+  'font-serif', 
+  'font-mono', 
+  'font-black tracking-tighter' // Podés meter estilos extra acá
+];
+
+// 2. Definimos una paleta de colores llamativos para el dinamismo
+const colors = [
+  'text-amber-500',
+  'text-blue-500',
+  'text-emerald-500',
+  'text-rose-500',
+  'text-violet-500',
+  'text-orange-500'
+];
+
+const whatsappUrl =
+  'https://wa.me/5493436959359?text=' +
+  encodeURIComponent(
+    '👋 Hola WebiBudgets!\n\n🚀 Estoy interesado en probar el sistema de forma gratuita.\n📋 Me gustaría conocer más sobre las funcionalidades y los planes disponibles.'
+  )
 
 interface LandingSectionsProps {
   openFaqIndex: number | null
@@ -24,8 +52,7 @@ interface LandingSectionsProps {
   dashboardLabel: string
 }
 
-/* ── Mock dashboard recreated in CSS (replaceable with PNG) ── */
-import Image from "next/image"
+
 
 function DashboardMock() {
   return (
@@ -47,12 +74,57 @@ function DashboardMock() {
   )
 }
 
+function BrandingMock() {
+  return (
+    <div className="relative flex justify-center overflow-visible">
+      <Image
+        src="/images/webibudgets-branding.png"
+        alt="Branding WebiBudgets"
+        width={1400}
+        height={900}
+        priority
+        className="
+          object-contain
+          scale-[1.45]
+          origin-center
+          translate-y-[5%]
+          drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]
+        "
+      />
+    </div>
+  )
+}
+
+
+// 3. Subcomponente que hace la magia por palabra o frase
+function DynamicText({ text, delay = 2000 }: { text: string; delay?: number }) {
+  const [fontIndex, setFontIndex] = useState(0);
+  const [colorIndex, setColorIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFontIndex((prev) => (prev + 1) % fonts.length);
+      setColorIndex((prev) => (prev + 1) % colors.length);
+    }, delay);
+
+    return () => clearInterval(interval);
+  }, [delay]);
+
+  return (
+    <span className={`transition-all duration-500 ease-in-out ${fonts[fontIndex]} ${colors[colorIndex]}`}>
+      {text}
+    </span>
+  );
+}
+
+
+
 export function LandingSections({
   openFaqIndex,
   setOpenFaqIndex,
   dashboardHref,
   dashboardLabel,
-}: LandingSectionsProps) {
+}: LandingSectionsProps) { 
   return (
     <main className="overflow-x-hidden bg-background text-foreground">
 
@@ -64,19 +136,23 @@ export function LandingSections({
 
           {/* Left copy */}
           <div className="relative z-10">
-            <h1 className="text-6xl font-bold leading-[0.95] tracking-tight text-foreground sm:text-7xl lg:text-8xl">
-              Webi
-              <br />
-              Studio
-            </h1>
-            <p className="mt-6 text-lg text-muted-foreground">
+            <h1 className="
+              text-[clamp(3rem,10vw,6rem)]
+              font-bold
+              leading-[0.85]
+              tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px]
+              text-foreground"
+            >              
+              <span className='text-primary'>.Budgets</span>
+            </h1> 
+            <p className="mt-4 text-lg text-muted-foreground">
               Sistema de gestión para tu negocio
             </p>
             <Link
-              href={dashboardHref}
+              href="#cta"              
               className="mt-10 inline-flex items-center gap-3 rounded-full bg-foreground px-7 py-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98]"
             >
-              {dashboardLabel === 'Dashboard' ? 'Ver Dashboard' : 'Ver Dashboard'}
+              Empezar gratis
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -89,21 +165,40 @@ export function LandingSections({
       </section>
 
       {/* ── PRODUCTOS banner ── */}
-      <section id="productos" className="px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 overflow-hidden rounded-[2.5rem] bg-neutral-950 px-8 py-14 text-neutral-50 sm:flex-row sm:items-end sm:justify-between lg:px-14 lg:py-20">
-          <div>
-            <p className="text-sm text-neutral-400">Sistema de gestión</p>
-            <h2 className="mt-3 text-6xl font-bold tracking-tight sm:text-7xl lg:text-8xl">Productos</h2>
+      <ProductosBanner />
+
+      {/* ── BRANDING SECTION ── */}
+      <section id="hero" className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
+          {/* Black shape on the right */}
+          <div className="pointer-events-none absolute -right-32 top-1/2 hidden h-[640px] w-[640px] -translate-y-1/2 rounded-full bg-neutral-950 lg:block" />
+
+          {/* Left copy */}
+          <div className="relative z-10">
+            <h1 className="
+              text-[clamp(3rem,10vw,6rem)]
+              font-bold
+              leading-[0.85]
+              tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px]
+              text-foreground"
+            >
+              {/* Aplicamos el componente dinámico acá */}
+              <DynamicText text="tu marca" delay={1800} />
+              <br />
+              <DynamicText text="tu identidad" delay={1000} />
+            </h1> 
+            <p className="mt-4 text-lg text-muted-foreground">
+              Mantené la identidad de tu empresa con opciones de personalización y branding.
+            </p>
           </div>
-          <Link
-            href={dashboardHref}
-            className="inline-flex w-fit items-center gap-3 rounded-full bg-neutral-50 px-7 py-4 text-sm font-semibold text-neutral-950 transition hover:opacity-90 active:scale-[0.98]"
-          >
-            Explorar
-            <ArrowRight size={18} />
-          </Link>
+
+          {/* Right mock */}
+          <div className="relative z-10 hidden lg:block">
+            <BrandingMock />
+          </div>
         </div>
       </section>
+
 
       {/* ── FEATURES ── */}
       <section id="features" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -145,7 +240,7 @@ export function LandingSections({
               Precios simples y transparentes
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-              Elegí el plan ideal para tu negocio. Todos incluyen 14 días de prueba gratis.
+              Elegí el plan ideal para tu negocio. El precio que ves es el precio final, sin sorpresas ni cargos ocultos.
             </p>
           </div>
 
@@ -213,98 +308,8 @@ export function LandingSections({
         </div>
       </section>
 
-      {/* ── BRANDING ── */}
-      <section className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-              Tu marca, tu identidad
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-              Personalizá cada aspecto para que coincida con tu marca. Tus presupuestos siempre van a lucir profesionales.
-            </p>
-          </div>
-
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div className="space-y-5">
-              <div className="rounded-3xl border border-border bg-card p-6">
-                <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Colores de marca</h3>
-                <div className="flex gap-3">
-                  {brandSwatches.map((color, i) => (
-                    <div
-                      key={i}
-                      className="h-10 w-10 cursor-pointer rounded-xl border border-border transition-transform hover:scale-110"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border bg-card p-6">
-                <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Subir logo</h3>
-                <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center transition hover:border-foreground/40">
-                  <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
-                  <p className="mb-1 text-sm text-muted-foreground">Arrastrá tu logo o hacé clic para explorar</p>
-                  <p className="text-xs text-muted-foreground/70">PNG, SVG hasta 5MB</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <div className="rounded-3xl border border-border bg-card p-8">
-                <div className="rounded-2xl bg-secondary p-8">
-                  <div className="mb-8 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground text-sm font-bold text-background">A</div>
-                      <div>
-                        <p className="text-sm font-bold text-foreground">Acme Corp</p>
-                        <p className="text-xs text-muted-foreground">acme.com</p>
-                      </div>
-                    </div>
-                    <span className="text-2xl font-bold text-foreground">$2.450</span>
-                  </div>
-                  <div className="mb-6 space-y-2.5 border-t border-border pt-5">
-                    {[
-                      ['Diseño web', '$1.500'],
-                      ['Desarrollo (20hs @ $35/h)', '$700'],
-                      ['Gestión de proyecto', '$250'],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{label}</span>
-                        <span className="text-foreground">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between border-t border-border pt-4 font-bold">
-                    <span className="text-foreground">Total</span>
-                    <span className="text-foreground">$2.450</span>
-                  </div>
-                </div>
-                <Link
-                  href={dashboardHref}
-                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:opacity-90"
-                >
-                  Descargar PDF de muestra
-                  <Download size={16} />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-3xl border border-border bg-card p-5 text-center">
-                  <p className="text-3xl font-bold text-foreground">20+</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Estilos de fuente</p>
-                </div>
-                <div className="rounded-3xl border border-border bg-card p-5 text-center">
-                  <p className="text-3xl font-bold text-foreground">12+</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Plantillas</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TESTIMONIALS ── */}
+      
+      {/* ── TESTIMONIALS ── 
       <section id="testimonials" className="px-4 py-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mb-14 text-center">
@@ -347,7 +352,7 @@ export function LandingSections({
             ))}
           </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* ── FAQ ── */}
       <section id="faq" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -395,17 +400,19 @@ export function LandingSections({
       </section>
 
       {/* ── CTA FINAL ── */}
-      <section className="px-4 py-24 sm:px-6 lg:px-8">
+      <section id="cta" className="px-4 py-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-neutral-950 px-8 py-20 text-center text-neutral-50 lg:px-14">
           <h2 className="text-balance text-5xl font-bold leading-tight tracking-tight sm:text-6xl">
-            Transformá tu negocio hoy mismo.
+            Transformá tu empresa hoy mismo.
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-neutral-400">
-            Sumate a miles de empresas que simplificaron su gestión y ahorran horas cada semana. Empezá tu prueba gratis de 14 días, sin tarjeta de crédito.
+            Sumate a Webibudgets y experimentá la diferencia de una gestión profesional, eficiente y personalizada. ahorrá tiempo, impresioná a tus clientes y hacé crecer tu negocio con la herramienta que se adapta a vos. Deja que Webibudgets sea el aliado que tu empresa necesita para alcanzar el éxito y mantené tu equipo de trabajo, vendedores, clientes y stock en orden y bajo control.
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href={dashboardHref}
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-neutral-50 px-7 py-4 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
             >
               Empezar gratis
@@ -432,7 +439,7 @@ export function LandingSections({
                 </span>
                 <span className="font-bold text-foreground">Webi Studio</span>
               </div>
-              <p className="text-sm text-muted-foreground">Sistema de gestión para tu negocio.</p>
+              <p className="text-sm text-muted-foreground">Sistemas de gestión para tu negocio.</p>
             </div>
             {[
               { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Productos', '#productos']] },

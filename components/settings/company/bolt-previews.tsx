@@ -166,8 +166,8 @@ export function PDFPreview({
       >
         <div>
           <h2
-            className="text-lg font-bold"
-            style={{ color: colors.primary }}
+            className="text-lg font-bold text-black"
+            
           >
             Presupuesto
           </h2>

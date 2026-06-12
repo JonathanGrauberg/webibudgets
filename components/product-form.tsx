@@ -143,7 +143,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <TooltipTrigger asChild>
                   <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                 </TooltipTrigger>
-                <TooltipContent>Unidad de medida (ej: unidad, servicio, visita)</TooltipContent>
+                <TooltipContent>Unidad de medida (ej: Metros, Por persona, Unidades, Litros)</TooltipContent>
               </Tooltip>
             </div>
             <Input

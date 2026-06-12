@@ -40,6 +40,7 @@ type BudgetItemInput = {
   category?: ProductCategory
   quantity: number
   unitPrice: number
+  unit?: string
 }
 
 type Seller = {
@@ -198,6 +199,7 @@ export default function NewBudgetPage() {
           category: product.category as ProductCategory,
           quantity: 1,
           unitPrice: product.price,
+          unit: product.unit,
         },
       ])
     }

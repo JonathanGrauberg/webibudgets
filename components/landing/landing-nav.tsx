@@ -6,7 +6,8 @@ import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { Menu, X } from 'lucide-react'
 import { navLinks } from './landing-data'
-
+import Image from 'next/image'
+ 
 export function LandingNav() {
 const [open, setOpen] = useState(false)
 const [activeIndex, setActiveIndex] = useState(0)
@@ -19,18 +20,26 @@ const dashboardHref = session
 : '/dashboard'
 : '/auth/login'
 
-return ( <header className="sticky top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8"> <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-background/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
-{/* Logo */} <Link href="#hero" className="flex items-center gap-2.5"> <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-background">
-W </span>
+return (
+  <header className="sticky top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
+    <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-background/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
+      {/* Logo */}
+      <Link href="#hero" className="flex items-center gap-2.5">
+        <Image 
+          src="/logos/icono-wb.png" // Reemplaza "tu-logo.png" por el nombre real de tu archivo
+          alt="Logo de la empresa" 
+          width={36}  // El equivalente a h-9 (36px)
+          height={36} // Ajusta el alto según la proporción de tu logo
+          className="object-contain
+          scale-[1.2]" // Evita que el logo se deforme
+          priority // Carga el logo con prioridad por estar en el navbar
+          />
+      
 
 
       <span className="leading-tight">
-        <span className="block text-sm font-bold tracking-tight text-foreground">
-          Webi<span className="text-primary">Budgets</span>
-        </span>
-
-        <span className="block text-[11px] text-muted-foreground">
-          Sistema de gestión empresarial
+        <span className="translate-x-[-8px] block text-[1rem] font-bold tracking-tight text-primary">
+          Budgets 
         </span>
       </span>
     </Link>

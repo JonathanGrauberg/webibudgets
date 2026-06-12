@@ -1,3 +1,4 @@
+//app\api\tenants\users\route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import bcrypt from 'bcryptjs'
@@ -6,7 +7,6 @@ import { headers } from 'next/headers'
 import { ensureInstallerForUser, ensureSellerForUser } from '@/lib/user-profile-sync'
 
 const TENANT_HEADER = 'x-tenant-id'
-
 const MIN_PASSWORD_LENGTH = 8
 
 function generateTempPassword() {
@@ -26,20 +26,34 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const users = await prisma.user.findMany({
-      where: { tenantId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        active: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [users, tenant] = await Promise.all([
+      prisma.user.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          active: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { plan: true, maxUsers: true },
+      }),
+    ])
 
-    return NextResponse.json({ users })
+    const maxUsers = tenant?.maxUsers ?? 5
+    const activeUsers = users.filter((u) => u.active).length
+
+    return NextResponse.json({
+      users,
+      plan: tenant?.plan ?? 'free',
+      maxUsers,
+      activeUsers,
+    })
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
@@ -83,6 +97,19 @@ export async function POST(req: NextRequest) {
         { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` },
         { status: 400 }
       )
+    }
+
+    // ✅ Verificar límite de plan antes de crear
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { maxUsers: true },
+    })
+    const maxUsers = tenant?.maxUsers ?? 5
+    const activeCount = await prisma.user.count({
+      where: { tenantId, active: true },
+    })
+    if (activeCount >= maxUsers) {
+      return NextResponse.json({ error: 'plan_limit_reached' }, { status: 403 })
     }
 
     const existing = await prisma.user.findUnique({
@@ -178,6 +205,21 @@ export async function PUT(req: NextRequest) {
 
     if (!targetUser || targetUser.tenantId !== tenantId) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // ✅ Si están intentando activar un usuario inactivo, verificar límite
+    if (active === true && targetUser.active === false) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { maxUsers: true },
+      })
+      const maxUsers = tenant?.maxUsers ?? 5
+      const activeCount = await prisma.user.count({
+        where: { tenantId, active: true },
+      })
+      if (activeCount >= maxUsers) {
+        return NextResponse.json({ error: 'plan_limit_reached' }, { status: 403 })
+      }
     }
 
     const updateData: any = {}

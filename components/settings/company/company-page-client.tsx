@@ -74,7 +74,15 @@ export default function CompanyPageClient({ initialBranding }: { initialBranding
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
-                <PdfPreview branding={branding} />
+                <PdfPreview
+                  colors={{
+                    primary: branding.primaryColor,
+                    secondary: branding.secondaryColor,
+                    accent: branding.accentColor,
+                  }}
+                  logo={branding.logoUrl}
+                  watermark={branding.watermarkUrl}
+                />
               </div>
 
               <div>

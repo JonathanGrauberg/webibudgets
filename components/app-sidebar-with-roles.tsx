@@ -38,15 +38,16 @@ type Branding = {
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
+  faviconUrl?: string | null
 }
 
 // Genera el gradiente de fondo a partir del color primario de la empresa
-function buildSidebarStyle(primaryColor?: string | null): React.CSSProperties {
-  const base = primaryColor ?? '#1e1065'
+function buildSidebarStyle(
+  primaryColor?: string | null
+): React.CSSProperties {
   return {
-    background: `linear-gradient(160deg, ${base}ee 0%, ${base}bb 60%, ${base}99 100%)`,
-    position: 'relative',
-    overflow: 'hidden',
+    backgroundColor:
+      primaryColor || '#0a0a0a',
   }
 }
 
@@ -64,19 +65,18 @@ function SidebarContent({
   const visibleSettings = getVisibleSettingsItems(userRole)
 
   return (
-    <div className="flex h-full w-full flex-col text-white" style={buildSidebarStyle(branding?.primaryColor)}>
+    <div
+      className="flex h-full w-full flex-col text-white"
+      style={buildSidebarStyle(branding?.primaryColor)}
+    >
 
-      {/* Orbs decorativos */}
-      <div className="pointer-events-none absolute -left-12 -top-12 h-48 w-48 rounded-full blur-[70px]"
-        style={{ background: `${branding?.primaryColor ?? '#6366f1'}88` }} />
-      <div className="pointer-events-none absolute -bottom-8 -right-8 h-40 w-40 rounded-full blur-[60px]"
-        style={{ background: `${branding?.accentColor ?? branding?.primaryColor ?? '#8b5cf6'}66` }} />
+      
 
       {/* Header */}
-      <div className="relative z-10 flex h-16 items-center gap-3 border-b border-white/10 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/15 backdrop-blur-sm">
+      <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
           <Image
-            src={branding?.logoUrl ?? '/placeholder-logo.png'}
+            src={branding?.faviconUrl ?? '/placeholder-logo.png'}
             alt={branding?.name ?? 'WebiBudgets'}
             width={24}
             height={24}
@@ -109,18 +109,26 @@ function SidebarContent({
             <Tooltip key={item.name} delayDuration={300}>
               <TooltipTrigger asChild>
                 <Link
-                  href={item.href}
-                  onClick={() => closeMenu?.()}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive
-                      ? 'border border-white/15 bg-white/15 text-white backdrop-blur-sm'
-                      : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-                  )}
-                >
-                  <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white/90')} />
-                  <span className="truncate">{item.name}</span>
-                </Link>
+  href={item.href}
+  onClick={() => closeMenu?.()}
+  style={
+    isActive
+      ? {
+          backgroundColor:
+            branding?.accentColor ?? 'rgba(255,255,255,.12)',
+        }
+      : undefined
+  }
+  className={cn(
+    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+    isActive
+      ? 'text-white'
+      : 'text-white/60 hover:bg-white/5 hover:text-white'
+  )}
+>
+  <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white')} />
+  <span className="truncate">{item.name}</span>
+</Link>
               </TooltipTrigger>
               <TooltipContent side="right">{item.tooltip}</TooltipContent>
             </Tooltip>
@@ -146,18 +154,26 @@ function SidebarContent({
             <Tooltip key={item.name} delayDuration={300}>
               <TooltipTrigger asChild>
                 <Link
-                  href={item.href}
-                  onClick={() => closeMenu?.()}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive
-                      ? 'border border-white/15 bg-white/15 text-white backdrop-blur-sm'
-                      : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{item.name}</span>
-                </Link>
+  href={item.href}
+  onClick={() => closeMenu?.()}
+  style={
+    isActive
+      ? {
+          backgroundColor:
+            branding?.accentColor ?? 'rgba(255,255,255,.12)',
+        }
+      : undefined
+  }
+  className={cn(
+    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+    isActive
+      ? 'text-white'
+      : 'text-white/60 hover:bg-white/5 hover:text-white'
+  )}
+>
+  <Icon className="h-4 w-4 shrink-0" />
+  <span className="truncate">{item.name}</span>
+</Link>
               </TooltipTrigger>
               <TooltipContent side="right">{item.tooltip}</TooltipContent>
             </Tooltip>
@@ -216,7 +232,7 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
         </div>
 
         {/* Desktop sidebar */}
-        <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 lg:flex">
+        <aside className="hidden h-full w-64 shrink-0 lg:flex">
           <SidebarContent branding={branding} userRole={userRole} />
         </aside>
       </>
