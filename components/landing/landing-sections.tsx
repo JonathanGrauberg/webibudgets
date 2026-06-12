@@ -275,7 +275,12 @@ export function LandingSections({
                 </div>
 
                 <Link
-                  href={dashboardHref}
+      href={
+        plan.name === 'Básico'    ? '/register?plan=starter' :
+        plan.name === 'Negocio'   ? '/register?plan=team'    :
+        plan.name === 'Empresa'   ? '/register?plan=business':
+        '/register'
+      }
                   className={
                     plan.featured
                       ? 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-50 py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90'

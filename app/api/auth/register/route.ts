@@ -38,7 +38,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null)
     const { companyName, email, password, plan: rawPlan } = body ?? {}
 
-    // Validaciones básicas
     if (!companyName || !email || !password) {
       return NextResponse.json({ error: 'Todos los campos son requeridos' }, { status: 400 })
     }
@@ -55,7 +54,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
     }
 
-    // Verificar que el email no esté en uso
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
@@ -65,13 +63,12 @@ export async function POST(req: NextRequest) {
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Crear tenant + usuario owner en una transacción
-    const { tenant, user } = await prisma.$transaction(async (tx) => {
+    const { tenant } = await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           name: companyName,
           slug,
-          plan: 'free', // siempre arranca en free trial
+          plan: 'free',
           maxUsers: resolveMaxUsers('free'),
           trialEndsAt: resolveTrialEndsAt('free'),
           active: true,
@@ -86,31 +83,24 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      const user = await tx.user.create({
+      await tx.user.create({
         data: {
           name: companyName,
           email,
           password: hashedPassword,
-          role: 'owner',
+          role: 'admin', // ✅ admin, nunca owner — owner es solo el creador del sistema
           tenantId: tenant.id,
           active: true,
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          tenantId: true,
-          role: true,
-        },
       })
 
-      return { tenant, user }
+      return { tenant }
     })
 
     return NextResponse.json({
       ok: true,
       tenantId: tenant.id,
-      plan,           // el plan que eligió (para redirigir a MP si es pago)
+      plan,
       trialEndsAt: tenant.trialEndsAt,
     })
   } catch (err) {

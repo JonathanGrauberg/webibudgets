@@ -1,9 +1,9 @@
 'use client'
 // app/(public)/register/RegisterForm.tsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { PLAN_LIMITS, type PlanKey } from '@/lib/plan'
 
@@ -12,6 +12,8 @@ const MIN_PASSWORD_LENGTH = 8
 export default function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { data: session, status } = useSession()
+
   const planParam = (searchParams.get('plan') ?? 'free') as PlanKey
   const selectedPlan = PLAN_LIMITS[planParam] ?? PLAN_LIMITS.free
   const isPaidPlan = planParam !== 'free'
@@ -23,6 +25,22 @@ export default function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
+
+  // Si ya está logueado, redirigir al dashboard
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/dashboard')
+    }
+  }, [status, router])
+
+  // Mientras verifica sesión, no mostrar nada
+  if (status === 'loading' || status === 'authenticated') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Cargando...</div>
+      </div>
+    )
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,7 +71,7 @@ export default function RegisterForm() {
       })
 
       if (signInRes?.error) {
-        throw new Error('Cuenta creada, pero error al iniciar sesión. Intentá desde /auth/login')
+        throw new Error('Cuenta creada. Iniciá sesión en /auth/login')
       }
 
       // 3. Si eligió plan pago → ir a MercadoPago
@@ -69,7 +87,7 @@ export default function RegisterForm() {
         const checkoutData = await checkoutRes.json()
 
         if (!checkoutRes.ok || !checkoutData.checkoutUrl) {
-          // Si falla MP, igual dejamos entrar — el trial cubre
+          // Si falla MP, igual entramos — el trial cubre
           router.push('/dashboard?subscription=pending')
           return
         }
@@ -78,7 +96,7 @@ export default function RegisterForm() {
         return
       }
 
-      // 4. Plan free → directo al dashboard
+      // 4. Plan free → dashboard con bienvenida
       router.push('/dashboard?welcome=1')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
@@ -96,7 +114,9 @@ export default function RegisterForm() {
             W
           </div>
           <p className="text-lg font-semibold text-foreground">Redirigiendo a MercadoPago...</p>
-          <p className="text-sm text-muted-foreground">Tu cuenta ya fue creada. Completá el pago para activar el plan {selectedPlan.label}.</p>
+          <p className="text-sm text-muted-foreground">
+            Tu cuenta ya fue creada. Completá el pago para activar el plan {selectedPlan.label}.
+          </p>
         </div>
       </div>
     )
@@ -104,7 +124,6 @@ export default function RegisterForm() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
-      {/* Decorativos */}
       <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04]" />
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-foreground/[0.04]" />
 
@@ -119,10 +138,10 @@ export default function RegisterForm() {
           <p className="mb-6 text-sm text-muted-foreground">
             {isPaidPlan
               ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes`
-              : '14 días gratis, sin tarjeta'}
+              : '14 días gratis, sin tarjeta de crédito'}
           </p>
 
-          {/* Plan badge */}
+          {/* Badge del plan elegido */}
           {isPaidPlan && (
             <div className="mb-6 rounded-xl border border-border bg-secondary px-4 py-3">
               <p className="text-xs font-semibold text-foreground">{selectedPlan.label}</p>
@@ -131,7 +150,7 @@ export default function RegisterForm() {
           )}
 
           {error && (
-            <div className="mb-5 flex items-start gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground">
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -219,12 +238,11 @@ export default function RegisterForm() {
 
           {isPaidPlan && (
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Después del registro vas a ser redirigido a MercadoPago para completar el pago.
+              Serás redirigido a MercadoPago para completar el pago de forma segura.
             </p>
           )}
         </div>
 
-        {/* Link a pricing */}
         <p className="mt-4 text-center text-xs text-muted-foreground">
           <Link href="/pricing" className="underline underline-offset-2">
             Ver todos los planes
