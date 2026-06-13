@@ -65,7 +65,7 @@ export default function CreateTenantForm() {
             Admin
           </p>
           <h1 className="text-4xl font-black tracking-tighter text-black leading-none">
-            Nuevo tenant
+            Nuevo <span className="text-primary">tenant</span>
           </h1>
           <p className="mt-2 text-sm text-zinc-400">
             Creá una empresa cliente con su usuario administrador inicial.

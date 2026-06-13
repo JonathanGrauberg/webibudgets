@@ -110,9 +110,9 @@ export default function RegisterForm() {
     return (
       <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
         <div className="text-center space-y-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-foreground text-lg font-bold text-background mx-auto">
-            W
-          </div>
+          <h1 className="text-4xl font-black tracking-tighter text-black leading-none">
+            Webi <span className="text-primary">Budgets</span>
+          </h1>
           <p className="text-lg font-semibold text-foreground">Redirigiendo a MercadoPago...</p>
           <p className="text-sm text-muted-foreground">
             Tu cuenta ya fue creada. Completá el pago para activar el plan {selectedPlan.label}.
@@ -130,11 +130,14 @@ export default function RegisterForm() {
       <div className="relative z-10 w-full max-w-sm">
         <div className="rounded-3xl border border-border bg-card p-10 shadow-xl">
           {/* Logo */}
-          <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-foreground text-lg font-bold text-background">
-            W
-          </div>
+          <Link
+            href="/"
+            className="text-4xl font-black tracking-tighter text-primary leading-none"
+          >
+            .Budgets
+          </Link>
 
-          <h1 className="mb-1 text-2xl font-semibold text-foreground">Crear cuenta</h1>
+          <h1 className="mt-5 mb-5 text-sm font-semibold text-foreground">Crear cuenta</h1>
           <p className="mb-6 text-sm text-muted-foreground">
             {isPaidPlan
               ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes`

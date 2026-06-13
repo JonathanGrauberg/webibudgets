@@ -9,15 +9,20 @@ const plans = [
   { key: 'team',     ...PLAN_LIMITS.team },
   { key: 'business', ...PLAN_LIMITS.business },
 ] as const
-
+ 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav mínimo */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-sm font-bold text-background">
-          W
-        </div>
+        
+          <Link
+            href="/"
+            className="text-4xl font-black tracking-tighter text-primary leading-none"
+          >
+            .Budgets
+          </Link>
+        
         <div className="flex items-center gap-4">
           <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition">
             Iniciar sesión

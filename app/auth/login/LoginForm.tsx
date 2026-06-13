@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -56,11 +57,14 @@ export default function LoginPage() {
         className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl"
       >
         {/* Logo mark */}
-        <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-foreground text-lg font-bold text-background">
-          W
-        </div>
+        <Link
+            href="/"
+            className="text-4xl font-black tracking-tighter text-primary leading-none"
+          >
+            .Budgets
+          </Link>
 
-        <h1 className="mb-1 text-2xl font-semibold text-foreground">Iniciar sesión</h1>
+        <h1 className="mb-5 mt-5 text-sm font-semibold text-foreground">Iniciar sesión</h1>
         <p className="mb-8 text-sm text-muted-foreground">Accedé a tu panel de presupuestos</p>
 
         {error && (

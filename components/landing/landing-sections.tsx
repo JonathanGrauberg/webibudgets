@@ -1,5 +1,6 @@
 'use client'
 
+//components\landing\landing-sections.tsx
 import {
   ArrowRight, Check, FileText, Download,
   Users, Package, Palette, Share2,
@@ -149,7 +150,7 @@ export function LandingSections({
               Sistema de gestión para tu negocio
             </p>
             <Link
-              href="#cta"              
+              href="/register?plan=free"
               className="mt-10 inline-flex items-center gap-3 rounded-full bg-foreground px-7 py-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98]"
             >
               Empezar gratis
@@ -415,9 +416,7 @@ export function LandingSections({
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/register?plan=free"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-neutral-50 px-7 py-4 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
             >
               Empezar gratis
