@@ -63,7 +63,7 @@ export const plans = [
   {
     name: 'Básico',
     description: 'Ideal para emprendedores y profesionales.',
-    price: '$6,99',
+    price: '$6,990',
     period: '/mes',
     cta: 'Comenzar',
     featured: false,
@@ -83,7 +83,7 @@ export const plans = [
   {
     name: 'Negocio',
     description: 'Para equipos en crecimiento.',
-    price: '$19,99',
+    price: '$19,990',
     period: '/mes',
     cta: 'Elegir Negocio',
     featured: true,
@@ -102,7 +102,7 @@ export const plans = [
   {
     name: 'Empresa',
     description: 'Pensado para empresas con múltiples usuarios.',
-    price: '$49,99',
+    price: '$49,990',
     period: '/mes',
     cta: 'Contactar ventas',
     featured: false,

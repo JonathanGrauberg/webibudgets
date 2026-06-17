@@ -59,7 +59,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
     }
 
-    const plan = isValidPlan(rawPlan) && rawPlan !== 'free' ? rawPlan : 'free'
+    // Solo aceptar planes públicos con trial (starter o team)
+    // business no tiene trial → no puede registrarse solo, debe contactar
+    const validPublicPlans = ['starter', 'team'] as const
+    type PublicPlan = typeof validPublicPlans[number]
+    const plan: PublicPlan = validPublicPlans.includes(rawPlan as PublicPlan)
+      ? (rawPlan as PublicPlan)
+      : 'starter' // fallback seguro
+
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
 
@@ -68,9 +75,9 @@ export async function POST(req: NextRequest) {
         data: {
           name: companyName,
           slug,
-          plan: 'free',
-          maxUsers: resolveMaxUsers('free'),
-          trialEndsAt: resolveTrialEndsAt('free'),
+          plan,
+          maxUsers: resolveMaxUsers(plan),
+          trialEndsAt: resolveTrialEndsAt(plan), // 14 días desde ahora
           active: true,
           ...DEFAULT_BRANDING,
         },
@@ -88,7 +95,7 @@ export async function POST(req: NextRequest) {
           name: companyName,
           email,
           password: hashedPassword,
-          role: 'admin', // ✅ admin, nunca owner — owner es solo el creador del sistema
+          role: 'admin', // nunca owner — owner es solo el creador del sistema
           tenantId: tenant.id,
           active: true,
         },

@@ -1,3 +1,4 @@
+//app\(dashboard)\layout.tsx
 import React from 'react'
 import { SidebarWrapper } from '@/components/sidebar-wrapper'
 import { BrandingProvider } from '@/components/branding-provider'

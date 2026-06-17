@@ -1,4 +1,4 @@
-//app\(dashboard)\settings\team\page.tsx
+// app/(dashboard)/settings/team/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,6 +8,7 @@ import { CreateUserForm, UserCard } from '@/components/team-form'
 import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 import { Spinner } from '@/components/ui/spinner'
 import { useBranding } from '@/components/branding-provider'
+import { getPlanConfig, trialDaysRemaining, isInTrial, type PlanKey } from '@/lib/plan'
 
 type User = {
   id: string
@@ -22,31 +23,26 @@ type PlanInfo = {
   plan: string
   maxUsers: number
   activeUsers: number
+  trialEndsAt: string | null
 }
 
-// Role badge — neutral pill, black for owner/admin
+// ── Helpers visuales ────────────────────────────────────────────
+
 function RoleBadge({ role }: { role: string }) {
   const isPrivileged = role === 'owner' || role === 'admin'
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase ${
-        isPrivileged
-          ? 'bg-black text-white'
-          : 'bg-zinc-100 text-zinc-500 border border-zinc-200'
-      }`}
-    >
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase ${
+      isPrivileged ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-500 border border-zinc-200'
+    }`}>
       {role}
     </span>
   )
 }
 
-// Status dot
 function StatusDot({ active }: { active: boolean }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-500' : 'bg-zinc-300'}`}
-      />
+      <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
       <span className={`text-xs ${active ? 'text-zinc-600' : 'text-zinc-400'}`}>
         {active ? 'Activo' : 'Inactivo'}
       </span>
@@ -54,14 +50,8 @@ function StatusDot({ active }: { active: boolean }) {
   )
 }
 
-// User initials avatar
 function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
   return (
     <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold shrink-0 select-none">
       {initials}
@@ -69,28 +59,22 @@ function Avatar({ name }: { name: string }) {
   )
 }
 
-// Plan limit banner — se muestra arriba de la lista cuando está cerca del límite
 function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
   const { activeUsers, maxUsers, plan } = planInfo
+  const config = getPlanConfig(plan)
   const atLimit = activeUsers >= maxUsers
   const nearLimit = activeUsers >= maxUsers - 1 && !atLimit
-
   if (!atLimit && !nearLimit) return null
-
   return (
-    <div
-      className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
-        atLimit
-          ? 'border-red-200 bg-red-50 text-red-800'
-          : 'border-amber-200 bg-amber-50 text-amber-800'
-      }`}
-    >
+    <div className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+      atLimit ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+    }`}>
       <span className="text-base mt-0.5">{atLimit ? '🔒' : '⚠️'}</span>
       <div className="flex-1">
         {atLimit ? (
           <>
             <span className="font-semibold">Límite alcanzado.</span>{' '}
-            Tu plan <span className="font-medium capitalize">{plan}</span> permite hasta{' '}
+            Tu plan <span className="font-medium">{config.label}</span> permite hasta{' '}
             <span className="font-medium">{maxUsers} usuarios activos</span>.{' '}
             No podés crear ni reactivar usuarios hasta que liberes un slot o actualices tu plan.
           </>
@@ -98,23 +82,158 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
           <>
             <span className="font-semibold">Casi en el límite.</span>{' '}
             Tenés {activeUsers} de {maxUsers} usuarios activos en tu plan{' '}
-            <span className="font-medium capitalize">{plan}</span>.
+            <span className="font-medium">{config.label}</span>.
           </>
         )}
       </div>
-      <a
-        href="/pricing"
-        className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-          atLimit
-            ? 'bg-red-800 text-white hover:bg-red-700'
-            : 'bg-amber-800 text-white hover:bg-amber-700'
-        }`}
-      >
+      <a href="/pricing" className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+        atLimit ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-amber-800 text-white hover:bg-amber-700'
+      }`}>
         Ver planes →
       </a>
     </div>
   )
 }
+
+// ── Plan card (sección superior) ─────────────────────────────────
+
+function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialFinalized: () => void }) {
+  const config = getPlanConfig(planInfo.plan)
+  const inTrial = isInTrial(planInfo.plan, planInfo.trialEndsAt)
+  const daysLeft = trialDaysRemaining(planInfo.trialEndsAt)
+  const [isActivating, setIsActivating] = useState(false)
+
+  const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
+
+  async function handleActivateNow() {
+    // Redirige al checkout de MercadoPago del plan actual
+    const plan = planInfo.plan as PlanKey
+    const mpPlanId = config.mpPlanId
+    if (!mpPlanId) {
+      window.location.href = '/pricing'
+      return
+    }
+    setIsActivating(true)
+    try {
+      const res = await fetch('/api/subscriptions/create', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      })
+      if (!res.ok) throw new Error('Error al crear suscripción')
+      const data = await res.json()
+      if (data.init_point) {
+        window.location.href = data.init_point
+      }
+    } catch {
+      window.location.href = '/pricing'
+    } finally {
+      setIsActivating(false)
+    }
+  }
+
+  return (
+    <div className={`mb-10 rounded-2xl border p-6 ${
+      inTrial ? 'border-amber-200 bg-amber-50' : 'border-zinc-200 bg-white'
+    }`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-1">
+            Tu plan actual
+          </p>
+          <div className="flex items-center gap-3">
+            <h3 className="text-2xl font-black tracking-tight text-black">{config.label}</h3>
+            {inTrial && (
+              <span className="rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                Prueba gratuita
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-sm text-zinc-600">
+            <span>👥 {maxUsersLabel} usuario{planInfo.maxUsers !== 1 ? 's' : ''}</span>
+            {config.maxBudgetsPerMonth && (
+              <span>📄 Hasta {config.maxBudgetsPerMonth} presupuestos/mes</span>
+            )}
+            {!config.maxBudgetsPerMonth && (
+              <span>📄 Presupuestos ilimitados</span>
+            )}
+          </div>
+        </div>
+
+        {/* Acciones del plan */}
+        <div className="flex flex-col gap-2 sm:items-end shrink-0">
+          {inTrial ? (
+            <>
+              {/* Contador de días */}
+              <div className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-center">
+                <p className="text-2xl font-black text-amber-700">{daysLeft}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-600">
+                  día{daysLeft !== 1 ? 's' : ''} restante{daysLeft !== 1 ? 's' : ''}
+                </p>
+              </div>
+              {/* Botón activar ahora */}
+              <button
+                onClick={handleActivateNow}
+                disabled={isActivating}
+                className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {isActivating ? 'Redirigiendo...' : '⚡ Activar plan ahora'}
+              </button>
+              <a
+                href="/pricing"
+                className="text-center rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+              >
+                Cambiar plan
+              </a>
+              <p className="text-[11px] text-zinc-400 text-right max-w-[180px]">
+                Podés cambiar a un plan superior o inferior antes de que termine la prueba.
+              </p>
+            </>
+          ) : (
+            <a
+              href="/pricing"
+              className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+            >
+              Cambiar plan
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de progreso de usuarios */}
+      {planInfo.maxUsers < 9999 && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-medium text-zinc-500">Usuarios activos</p>
+            <p className="text-xs font-semibold text-zinc-700">
+              {planInfo.activeUsers} / {planInfo.maxUsers}
+            </p>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                planInfo.activeUsers >= planInfo.maxUsers
+                  ? 'bg-red-500'
+                  : planInfo.activeUsers >= planInfo.maxUsers - 1
+                  ? 'bg-amber-400'
+                  : 'bg-emerald-500'
+              }`}
+              style={{ width: `${Math.min(100, (planInfo.activeUsers / planInfo.maxUsers) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {inTrial && (
+        <p className="mt-4 text-xs text-amber-700 border-t border-amber-200 pt-3">
+          Si querés cambiar a un plan superior, el efecto es inmediato al pagar. Si querés bajar de plan durante un período ya pagado, el cambio aplica al vencimiento del período actual.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Página principal ─────────────────────────────────────────────
 
 export default function TeamPage() {
   const { data: session, status } = useSession()
@@ -122,21 +241,21 @@ export default function TeamPage() {
   const { branding } = useBranding()
 
   const [users, setUsers] = useState<User[]>([])
-  const [planInfo, setPlanInfo] = useState<PlanInfo>({ plan: 'free', maxUsers: 5, activeUsers: 0 })
+  const [planInfo, setPlanInfo] = useState<PlanInfo>({
+    plan: 'starter',
+    maxUsers: 1,
+    activeUsers: 0,
+    trialEndsAt: null,
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  const isManager =
-    session?.user?.role === 'owner' || session?.user?.role === 'admin'
-
+  const isManager = session?.user?.role === 'owner' || session?.user?.role === 'admin'
   const isAtLimit = planInfo.activeUsers >= planInfo.maxUsers
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login')
-      return
-    }
+    if (status === 'unauthenticated') { router.push('/auth/login'); return }
     if (status !== 'authenticated' || !isManager) return
     fetchUsers()
   }, [status, isManager, router])
@@ -149,9 +268,10 @@ export default function TeamPage() {
       const data = await res.json()
       setUsers(data.users)
       setPlanInfo({
-        plan: data.plan ?? 'free',
-        maxUsers: data.maxUsers ?? 5,
+        plan: data.plan ?? 'starter',
+        maxUsers: data.maxUsers ?? 1,
         activeUsers: data.activeUsers ?? 0,
+        trialEndsAt: data.trialEndsAt ?? null,
       })
     } catch (err: any) {
       setError(err?.message ?? 'Error loading users')
@@ -164,36 +284,28 @@ export default function TeamPage() {
     try {
       setError(null)
       setMessage(null)
-
       const res = await fetch('/api/tenants/users', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ userId, ...updates }),
       })
-
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}))
-        // Mensaje específico para límite de plan
         if (payload?.error === 'plan_limit_reached') {
           throw new Error('No podés activar este usuario: límite del plan alcanzado. Actualizá tu plan en /pricing.')
         }
         throw new Error(payload?.error || 'Error updating user')
       }
-
       const payload = await res.json()
       if (payload.tempPassword) {
-        setMessage(
-          `Contraseña temporal: ${payload.tempPassword}. Compartila con el usuario.`
-        )
+        setMessage(`Contraseña temporal: ${payload.tempPassword}. Compartila con el usuario.`)
       }
-
       await fetchUsers()
     } catch (err: any) {
       setError(err?.message ?? 'Error updating user')
     }
   }
 
-  // — Loading —
   if (status === 'loading' || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8f8f6]">
@@ -202,7 +314,6 @@ export default function TeamPage() {
     )
   }
 
-  // — Sin permisos —
   if (!isManager) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8f8f6] p-6">
@@ -216,10 +327,12 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen bg-[#f8f8f6]">
       <PageBreadcrumbs />
-
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
 
-        {/* ── Hero header ──────────────────────────────────────────── */}
+        {/* ── Plan card ── */}
+        <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+
+        {/* ── Hero header ── */}
         <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-baseline gap-3">
@@ -236,41 +349,29 @@ export default function TeamPage() {
               </div>
             </div>
           </div>
-
-          {/* right side: section label */}
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 pb-3">
             Gestión del equipo
           </p>
         </div>
 
-        {/* thin divider */}
         <div className="mb-8 h-px bg-zinc-200" />
 
-        {/* ── Alerts ───────────────────────────────────────────────── */}
+        {/* ── Alerts ── */}
         {error && (
           <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42z" />
-            </svg>
             {error}
           </div>
         )}
-
         {message && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
-            <svg className="h-4 w-4 mt-0.5 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
-            </svg>
             <span className="font-mono text-xs leading-relaxed">{message}</span>
           </div>
         )}
 
-        {/* ── Main grid ────────────────────────────────────────────── */}
+        {/* ── Grid ── */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
 
-          {/* ── Formulario nuevo usuario ── */}
+          {/* Formulario */}
           <div className="lg:col-span-1">
             <div className="sticky top-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
@@ -280,27 +381,23 @@ export default function TeamPage() {
             </div>
           </div>
 
-          {/* ── Lista de usuarios ── */}
+          {/* Lista */}
           <div className="lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
                 Usuarios del espacio
               </p>
-              {/* Contador dinámico con color según proximidad al límite */}
-              <span
-                className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
-                  isAtLimit
-                    ? 'border-red-200 bg-red-50 text-red-700'
-                    : planInfo.activeUsers >= planInfo.maxUsers - 1
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-zinc-200 bg-white text-zinc-500'
-                }`}
-              >
-                {planInfo.activeUsers} activos / {planInfo.maxUsers} del plan
+              <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
+                isAtLimit
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : planInfo.activeUsers >= planInfo.maxUsers - 1
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-zinc-200 bg-white text-zinc-500'
+              }`}>
+                {planInfo.activeUsers} activos / {planInfo.maxUsers === 9999 ? '∞' : planInfo.maxUsers} del plan
               </span>
             </div>
 
-            {/* Banner de límite */}
             <PlanLimitBanner planInfo={planInfo} />
 
             {users.length === 0 ? (
@@ -311,24 +408,16 @@ export default function TeamPage() {
             ) : (
               <div className="space-y-2">
                 {users.map((user, idx) => (
-                  <div
-                    key={user.id}
-                    className="group rounded-2xl border border-zinc-200 bg-white px-5 py-4 transition-shadow hover:shadow-md"
-                  >
-                    {/* Top row: avatar + name + role + status */}
+                  <div key={user.id} className="group rounded-2xl border border-zinc-200 bg-white px-5 py-4 transition-shadow hover:shadow-md">
                     <div className="flex items-center gap-4">
                       <Avatar name={user.name} />
-
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-black truncate">
-                            {user.name}
-                          </span>
+                          <span className="text-sm font-semibold text-black truncate">{user.name}</span>
                           <RoleBadge role={user.role} />
                         </div>
                         <p className="mt-0.5 text-xs text-zinc-400 truncate">{user.email}</p>
                       </div>
-
                       <div className="hidden sm:flex items-center gap-4 shrink-0">
                         <StatusDot active={user.active} />
                         <span className="text-[11px] font-mono text-zinc-200 select-none w-5 text-right">
@@ -336,8 +425,6 @@ export default function TeamPage() {
                         </span>
                       </div>
                     </div>
-
-                    {/* Expandable actions */}
                     <div className="mt-3 border-t border-zinc-100 pt-3">
                       <UserCard user={user} onUpdate={handleUpdateUser} isAtLimit={isAtLimit} />
                     </div>

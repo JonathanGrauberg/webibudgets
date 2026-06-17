@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { Check } from 'lucide-react'
 import { PLAN_LIMITS } from '@/lib/plan'
+import PricingCards from './PricingCards'
 
 const plans = [
   { key: 'free',     ...PLAN_LIMITS.free },
@@ -51,67 +52,7 @@ export default function PricingPage() {
         </div>
 
         {/* Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {plans.map((plan) => (
-            <div
-              key={plan.key}
-              className={`relative rounded-3xl border p-7 flex flex-col ${
-                plan.featured
-                  ? 'border-foreground bg-foreground text-background shadow-2xl scale-[1.02]'
-                  : 'border-border bg-card'
-              }`}
-            >
-              {plan.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-background text-foreground text-[11px] font-bold px-3 py-1 border border-border shadow-sm">
-                    Más popular
-                  </span>
-                </div>
-              )}
-
-              <div className="mb-6">
-                <p className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${plan.featured ? 'text-background/60' : 'text-muted-foreground'}`}>
-                  {plan.label}
-                </p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black tracking-tight">
-                    {plan.key === 'free' ? 'Gratis' : plan.price}
-                  </span>
-                  {plan.key !== 'free' && (
-                    <span className={`text-sm ${plan.featured ? 'text-background/60' : 'text-muted-foreground'}`}>
-                      /mes
-                    </span>
-                  )}
-                </div>
-                <p className={`mt-2 text-xs leading-relaxed ${plan.featured ? 'text-background/70' : 'text-muted-foreground'}`}>
-                  {plan.description}
-                </p>
-              </div>
-
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm">
-                    <Check className={`h-4 w-4 shrink-0 mt-0.5 ${plan.featured ? 'text-background' : 'text-foreground'}`} />
-                    <span className={plan.featured ? 'text-background/90' : 'text-foreground'}>
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={plan.key === 'free' ? '/register' : `/register?plan=${plan.key}`}
-                className={`block w-full rounded-full py-3 text-center text-sm font-semibold transition ${
-                  plan.featured
-                    ? 'bg-background text-foreground hover:opacity-90'
-                    : 'bg-foreground text-background hover:opacity-90'
-                }`}
-              >
-                {plan.key === 'free' ? 'Empezar gratis' : `Elegir ${plan.label}`}
-              </Link>
-            </div>
-          ))}
-        </div>
+        <PricingCards />
 
         {/* FAQ mínimo */}
         <div className="mt-20 max-w-2xl mx-auto space-y-6">

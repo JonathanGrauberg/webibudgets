@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    
     const [users, tenant] = await Promise.all([
       prisma.user.findMany({
         where: { tenantId },
@@ -41,18 +42,19 @@ export async function GET(req: NextRequest) {
       }),
       prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { plan: true, maxUsers: true },
+        select: { plan: true, maxUsers: true, trialEndsAt: true }, // <-- agregar trialEndsAt
       }),
     ])
-
-    const maxUsers = tenant?.maxUsers ?? 5
+ 
+    const maxUsers = tenant?.maxUsers ?? 1
     const activeUsers = users.filter((u) => u.active).length
-
+ 
     return NextResponse.json({
       users,
-      plan: tenant?.plan ?? 'free',
+      plan: tenant?.plan ?? 'starter',
       maxUsers,
       activeUsers,
+      trialEndsAt: tenant?.trialEndsAt ? tenant.trialEndsAt.toISOString() : null, // <-- nuevo
     })
   } catch (error) {
     console.error('Error fetching users:', error)

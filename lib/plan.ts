@@ -1,54 +1,50 @@
-// lib/plan.ts
-// Fuente única de verdad para límites, lógica y IDs de MercadoPago
+// lib/plan.ts — fuente única de verdad para límites, trials e IDs de MercadoPago
 
 export type PlanKey = 'free' | 'starter' | 'team' | 'business'
 
 export type PlanLimit = {
   label: string
   description: string
-  price: string           // display
-  priceARS: number        // número para mostrar
+  price: string
+  priceARS: number
   maxUsers: number | null // null = ilimitado
   maxBudgetsPerMonth: number | null // null = ilimitado
-  trialDays: number       // 0 = no tiene trial
-  mpPlanId: string | null // ID del plan en MercadoPago
+  trialDays: number // 0 = sin trial
+  mpPlanId: string | null
   featured?: boolean
+  isPublic: boolean // false = solo interno (free)
   features: string[]
 }
 
 export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   free: {
-    label: 'Prueba gratuita',
-    description: '14 días para explorar WebiBudgets sin costo.',
+    label: 'Sin plan',
+    description: 'Tenant sin plan asignado o con acceso bloqueado.',
     price: 'Gratis',
     priceARS: 0,
-    maxUsers: 1,
+    maxUsers: 0, // bloqueado
     maxBudgetsPerMonth: null,
-    trialDays: 14,
+    trialDays: 0,
     mpPlanId: null,
-    features: [
-      '14 días de prueba',
-      '1 usuario',
-      'Gestión de clientes',
-      'Exportación PDF',
-      'Branding personalizado',
-    ],
+    isPublic: false,
+    features: [],
   },
   starter: {
     label: 'Básico',
-    description: 'Ideal para emprendedores y profesionales.',
+    description: 'Ideal para emprendedores y profesionales independientes.',
     price: '$6.990',
     priceARS: 6990,
     maxUsers: 1,
     maxBudgetsPerMonth: 30,
-    trialDays: 0,
-    mpPlanId: process.env.MP_PLAN_STARTER ?? '4fe9b94e2950460cad39bb3453f92f07',
+    trialDays: 14,
+    mpPlanId: process.env.MP_PLAN_STARTER ?? null,
+    isPublic: true,
     features: [
-      'Hasta 30 presupuestos por mes',
+      '14 días de prueba gratis',
       '1 usuario',
+      'Hasta 30 presupuestos por mes',
       'Gestión de clientes',
-      'Gestión de vendedores',
-      'Gestión de instaladores',
+      'Gestión de vendedores e instaladores',
       'Control de stock',
       'Exportación PDF',
       'Branding personalizado',
@@ -62,12 +58,14 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     priceARS: 19990,
     maxUsers: 5,
     maxBudgetsPerMonth: null,
-    trialDays: 0,
-    mpPlanId: process.env.MP_PLAN_TEAM ?? '420a7c88098f4ae8b18ab84849821e9e',
+    trialDays: 14,
+    mpPlanId: process.env.MP_PLAN_TEAM ?? null,
+    isPublic: true,
     featured: true,
     features: [
-      'Presupuestos ilimitados',
+      '14 días de prueba gratis',
       'Hasta 5 usuarios',
+      'Presupuestos ilimitados',
       'Gestión completa del sistema',
       'Control de stock',
       'Branding personalizado',
@@ -78,13 +76,14 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   },
   business: {
     label: 'Empresa',
-    description: 'Pensado para empresas con múltiples usuarios.',
+    description: 'Pensado para empresas con múltiples usuarios y alto volumen.',
     price: '$49.990',
     priceARS: 49990,
-    maxUsers: null,
+    maxUsers: null, // ilimitado
     maxBudgetsPerMonth: null,
     trialDays: 0,
-    mpPlanId: process.env.MP_PLAN_BUSINESS ?? '793353f2bc564fa39bfe259daccb4231',
+    mpPlanId: process.env.MP_PLAN_BUSINESS ?? null,
+    isPublic: true,
     features: [
       'Todo lo incluido en Negocio',
       'Usuarios ilimitados',
@@ -98,6 +97,12 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   },
 }
 
+// Solo los planes que se muestran al público en /pricing
+export const PUBLIC_PLANS = (Object.entries(PLAN_LIMITS) as [PlanKey, PlanLimit][])
+  .filter(([, config]) => config.isPublic)
+  .map(([value, config]) => ({ value, ...config }))
+
+// Todos los planes para selects internos (admin)
 export const PLAN_OPTIONS = (Object.entries(PLAN_LIMITS) as [PlanKey, PlanLimit][]).map(
   ([value, config]) => ({ value, label: config.label, description: config.description })
 )
@@ -106,17 +111,24 @@ export function isValidPlan(plan: unknown): plan is PlanKey {
   return typeof plan === 'string' && plan in PLAN_LIMITS
 }
 
-export function getPlanConfig(plan: string | null | undefined): PlanLimit {
-  return PLAN_LIMITS[(plan as PlanKey) ?? 'free'] ?? PLAN_LIMITS.free
+export function normalizePlan(plan: string | null | undefined): PlanKey {
+  if (!plan) return 'free'
+  if (plan in PLAN_LIMITS) return plan as PlanKey
+  return 'free'
 }
 
-/** maxUsers para Prisma: null → 9999 (ilimitado) */
+export function getPlanConfig(plan: string | null | undefined): PlanLimit {
+  return PLAN_LIMITS[normalizePlan(plan)]
+}
+
+/** maxUsers para Prisma: null → 9999 (ilimitado), free/0 → 0 (bloqueado) */
 export function resolveMaxUsers(plan: string): number {
   const config = getPlanConfig(plan)
-  return config.maxUsers ?? 9999
+  if (config.maxUsers === null) return 9999
+  return config.maxUsers
 }
 
-/** trialEndsAt: solo para free */
+/** trialEndsAt: solo para planes con trialDays > 0 */
 export function resolveTrialEndsAt(plan: string, from: Date = new Date()): Date | null {
   const config = getPlanConfig(plan)
   if (config.trialDays === 0) return null
@@ -125,22 +137,43 @@ export function resolveTrialEndsAt(plan: string, from: Date = new Date()): Date 
   return d
 }
 
+/** Días restantes de trial (null si no aplica) */
+export function trialDaysRemaining(trialEndsAt: Date | string | null | undefined): number | null {
+  if (!trialEndsAt) return null
+  const diff = new Date(trialEndsAt).getTime() - Date.now()
+  if (diff <= 0) return 0
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+/** ¿El tenant está en trial activo? */
+export function isInTrial(plan: string | null, trialEndsAt: Date | string | null | undefined): boolean {
+  const config = getPlanConfig(plan)
+  if (config.trialDays === 0) return false
+  if (!trialEndsAt) return false
+  return new Date(trialEndsAt) > new Date()
+}
+
+/** ¿El trial expiró? */
+export function isTrialExpired(plan: string | null, trialEndsAt: Date | string | null | undefined): boolean {
+  const config = getPlanConfig(plan)
+  if (config.trialDays === 0) return false
+  if (!trialEndsAt) return false
+  return new Date(trialEndsAt) <= new Date()
+}
+
 /** ¿El tenant tiene acceso activo? */
 export function isTenantActive(tenant: {
   plan: string | null
-  trialEndsAt: Date | null
+  trialEndsAt: Date | string | null
   active: boolean
 }): boolean {
   if (!tenant.active) return false
   const config = getPlanConfig(tenant.plan)
+  // free = siempre bloqueado (sin plan asignado)
+  if (tenant.plan === 'free' || !tenant.plan) return false
+  // sin trial → acceso directo (pagó)
   if (config.trialDays === 0) return true
+  // con trial → verificar que no expiró
   if (!tenant.trialEndsAt) return false
-  return new Date() < new Date(tenant.trialEndsAt)
-}
-
-/** Días restantes de trial */
-export function trialDaysRemaining(trialEndsAt: Date | null): number | null {
-  if (!trialEndsAt) return null
-  const diff = new Date(trialEndsAt).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  return new Date(tenant.trialEndsAt) > new Date()
 }

@@ -1,8 +1,8 @@
-//components\admin\admin-tenants-table.tsx
+// components/admin/admin-tenants-table.tsx
 'use client'
 
 import { useState } from 'react'
-import { PLAN_OPTIONS, PLAN_LIMITS, type PlanKey } from '@/lib/plan'
+import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
 
 interface TenantRow {
   id: string
@@ -16,9 +16,10 @@ interface TenantRow {
 }
 
 interface EditState {
-  plan: string
+  plan: PlanKey
+  originalPlan: PlanKey
   maxUsers: string
-  trialEndsAt: string // yyyy-MM-dd para <input type="date">, "" si null
+  trialEndsAt: string
   active: boolean
 }
 
@@ -28,23 +29,32 @@ function toDateInputValue(iso: string | null): string {
 }
 
 function planLabel(plan: string | null) {
-  if (!plan) return 'free'
-  const opt = PLAN_OPTIONS.find((p) => p.value === plan)
-  return opt?.label ?? plan
+  return PLAN_LIMITS[normalizePlan(plan)].label
+}
+
+function maxUsersDisplay(n: number | null) {
+  if (n === null || n === 9999) return 'Ilimitado'
+  if (n === 0) return 'Bloqueado'
+  return String(n)
 }
 
 export default function AdminTenantsTable({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function startEdit(t: TenantRow) {
+    const plan = normalizePlan(t.plan)
     setEditingId(t.id)
+    setConfirmDeleteId(null)
     setEdit({
-      plan: t.plan || 'free',
-      maxUsers: t.maxUsers != null ? String(t.maxUsers) : '',
+      plan,
+      originalPlan: plan,
+      maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan].maxUsers ?? 9999),
       trialEndsAt: toDateInputValue(t.trialEndsAt),
       active: t.active,
     })
@@ -62,13 +72,15 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
     setIsSaving(true)
     setError(null)
 
+    const planChanged = edit.plan !== edit.originalPlan
+
     try {
       const response = await fetch('/api/admin/tenants', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           id: editingId,
-          plan: edit.plan,
+          ...(planChanged ? { plan: edit.plan } : {}),
           maxUsers: edit.maxUsers === '' ? undefined : Number(edit.maxUsers),
           trialEndsAt: edit.trialEndsAt === '' ? null : edit.trialEndsAt,
           active: edit.active,
@@ -80,28 +92,44 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
         throw new Error(payload?.error || 'Error actualizando tenant')
       }
 
-      const data = await response.json()
-      const updated = data.tenant
+      const { tenant: updated } = await response.json()
 
       setTenants((prev) =>
         prev.map((t) =>
           t.id === editingId
-            ? {
-                ...t,
-                plan: updated.plan,
-                maxUsers: updated.maxUsers,
-                trialEndsAt: updated.trialEndsAt,
-                active: updated.active,
-              }
+            ? { ...t, plan: updated.plan, maxUsers: updated.maxUsers, trialEndsAt: updated.trialEndsAt, active: updated.active }
             : t
         )
       )
-
       cancelEdit()
     } catch (err: any) {
       setError(err?.message ?? 'Error desconocido')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function softDelete(id: string) {
+    setIsDeleting(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/admin/tenants', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Error desactivando tenant')
+      }
+      setTenants((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, active: false } : t))
+      )
+      setConfirmDeleteId(null)
+    } catch (err: any) {
+      setError(err?.message ?? 'Error desconocido')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -128,12 +156,14 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
         <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
           {tenants.map((tenant) => {
             const isEditing = editingId === tenant.id
+            const isConfirmingDelete = confirmDeleteId === tenant.id
 
             return (
-              <tr key={tenant.id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
+              <tr key={tenant.id} className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'opacity-50'}`}>
                 <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{tenant.name}</td>
-                <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{tenant.slug}</td>
+                <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
 
+                {/* Plan */}
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                   {isEditing && edit ? (
                     <select
@@ -141,15 +171,11 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       onChange={(e) => {
                         const newPlan = e.target.value as PlanKey
                         const limits = PLAN_LIMITS[newPlan]
-                        setEdit((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                plan: newPlan,
-                                maxUsers: limits.maxUsers != null ? String(limits.maxUsers) : prev.maxUsers,
-                              }
-                            : prev
-                        )
+                        setEdit((prev) => prev ? {
+                          ...prev,
+                          plan: newPlan,
+                          maxUsers: limits.maxUsers != null ? String(limits.maxUsers) : '9999',
+                        } : prev)
                       }}
                       className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
                     >
@@ -158,10 +184,13 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       ))}
                     </select>
                   ) : (
-                    planLabel(tenant.plan)
+                    <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>
+                      {planLabel(tenant.plan)}
+                    </span>
                   )}
                 </td>
 
+                {/* Max usuarios */}
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                   {isEditing && edit ? (
                     <input
@@ -172,10 +201,11 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
                     />
                   ) : (
-                    tenant.maxUsers ?? '—'
+                    maxUsersDisplay(tenant.maxUsers)
                   )}
                 </td>
 
+                {/* Trial hasta */}
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                   {isEditing && edit ? (
                     <input
@@ -185,33 +215,37 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
                     />
                   ) : tenant.trialEndsAt ? (
-                    new Date(tenant.trialEndsAt).toLocaleDateString()
+                    new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
                   ) : (
                     '—'
                   )}
                 </td>
 
-                <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                {/* Estado */}
+                <td className="px-6 py-4 text-sm">
                   {isEditing && edit ? (
-                    <label className="inline-flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={edit.active}
                         onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
+                        className="w-4 h-4"
                       />
-                      Activo
+                      <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
                     </label>
-                  ) : tenant.active ? (
-                    'Activo'
                   ) : (
-                    'Inactivo'
+                    <span className={`font-medium ${tenant.active ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                      {tenant.active ? 'Activo' : 'Inactivo'}
+                    </span>
                   )}
                 </td>
 
+                {/* Creado */}
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                  {new Date(tenant.createdAt).toLocaleDateString()}
+                  {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
                 </td>
 
+                {/* Acciones */}
                 <td className="px-6 py-4 text-right text-sm">
                   {isEditing ? (
                     <div className="flex justify-end gap-2">
@@ -225,18 +259,46 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       <button
                         onClick={cancelEdit}
                         disabled={isSaving}
-                        className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 dark:border-slate-700 dark:text-slate-300"
+                        className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
                       >
                         Cancelar
                       </button>
                     </div>
+                  ) : isConfirmingDelete ? (
+                    <div className="flex justify-end items-center gap-2">
+                      <span className="text-xs text-red-600 font-medium">¿Desactivar?</span>
+                      <button
+                        onClick={() => softDelete(tenant.id)}
+                        disabled={isDeleting}
+                        className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {isDeleting ? '...' : 'Confirmar'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        disabled={isDeleting}
+                        className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                      >
+                        No
+                      </button>
+                    </div>
                   ) : (
-                    <button
-                      onClick={() => startEdit(tenant)}
-                      className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 dark:border-slate-700 dark:text-slate-300"
-                    >
-                      Editar
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => startEdit(tenant)}
+                        className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                      >
+                        Editar
+                      </button>
+                      {tenant.active && (
+                        <button
+                          onClick={() => { setConfirmDeleteId(tenant.id); setEditingId(null); setEdit(null) }}
+                          className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          Desactivar
+                        </button>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>

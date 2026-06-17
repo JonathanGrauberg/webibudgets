@@ -4,6 +4,15 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { isOwnerRole } from '@/lib/admin'
 
+const PUBLIC_PREFIXES = [
+  '/auth',
+  '/register',
+  '/pricing',
+  '/api/auth',
+  '/api/webhooks',
+  '/api/cron', // cron interno
+]
+
 const PROTECTED_PREFIXES = [
   '/admin',
   '/dashboard',
@@ -14,15 +23,6 @@ const PROTECTED_PREFIXES = [
   '/sellers',
   '/stock',
   '/installers',
-]
-
-// Rutas públicas que nunca requieren auth
-const PUBLIC_PREFIXES = [
-  '/auth',
-  '/register',
-  '/pricing',
-  '/api/auth',
-  '/api/webhooks', // webhooks de MP nunca llevan token
 ]
 
 function isPublic(pathname: string): boolean {
@@ -50,6 +50,7 @@ export async function middleware(req: NextRequest) {
     headers.set('x-tenant-id', String(token.tenantId))
   }
 
+  // Sin token → redirigir a login
   if (isProtected(pathname) && !token) {
     if (pathname.startsWith('/api')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -63,10 +64,45 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (isAdminRoute(pathname) && token && !isOwnerRole(token.role as string | undefined)) {
-    const url = req.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+  if (token && isProtected(pathname)) {
+    const role = token.role as string | undefined
+    const tenantActive = token.tenantActive as boolean | undefined
+    const trialEndsAt = token.trialEndsAt as string | null | undefined
+    const isSystemOwner = isOwnerRole(role) && isAdminRoute(pathname)
+
+    // Chequeo fresco de trial: si el token dice que hay trialEndsAt
+    // y ya pasó, bloqueamos aunque tenantActive sea true en el token
+    // (puede estar desactualizado si el cron todavía no corrió)
+    const trialExpiredNow = trialEndsAt
+      ? new Date(trialEndsAt) <= new Date()
+      : false
+
+    const blocked = !isSystemOwner && (tenantActive === false || trialExpiredNow)
+
+    if (blocked) {
+      if (pathname.startsWith('/api')) {
+        return new Response(
+          JSON.stringify({
+            error: trialExpiredNow ? 'trial_expired' : 'tenant_inactive',
+          }),
+          { status: 403, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      const url = req.nextUrl.clone()
+      url.pathname = '/auth/login'
+      url.searchParams.set(
+        'error',
+        trialExpiredNow ? 'trial_expired' : 'tenant_inactive'
+      )
+      return NextResponse.redirect(url)
+    }
+
+    // Solo owners pueden acceder a /admin
+    if (isAdminRoute(pathname) && !isOwnerRole(role)) {
+      const url = req.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return NextResponse.next({ request: { headers } })

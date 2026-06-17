@@ -1,11 +1,10 @@
-//lib\auth.ts
+// lib/auth.ts
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import NextAuth, { type NextAuthOptions, type Session } from 'next-auth'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
-import type { User as PrismaUser } from '@prisma/client'
-import type { JWT } from 'next-auth/jwt'
+import { isTrialExpired } from './plan'
 
 type AuthUser = {
   id: string
@@ -13,6 +12,8 @@ type AuthUser = {
   name: string | null
   tenantId: string
   role: string
+  tenantActive: boolean
+  trialEndsAt: string | null
 }
 
 export const authOptions: NextAuthOptions = {
@@ -29,14 +30,31 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: {
+            tenant: {
+              select: { active: true, plan: true, trialEndsAt: true },
+            },
+          },
         })
 
-        if (!user) return null
-
-        if (!user.password) return null
+        if (!user || !user.password) return null
 
         const match = await bcrypt.compare(credentials.password, user.password)
         if (!match) return null
+
+        // Bloquear si el usuario está inactivo
+        if (!user.active) return null
+
+        // Owners del sistema (plan business) siempre pueden entrar
+        const isSystemOwner = user.role === 'owner' && user.tenant?.plan === 'business'
+
+        if (!isSystemOwner) {
+          // Bloquear si el tenant está inactivo
+          if (!user.tenant?.active) return null
+
+          // Bloquear si el trial venció
+          if (isTrialExpired(user.tenant?.plan, user.tenant?.trialEndsAt)) return null
+        }
 
         return {
           id: user.id,
@@ -44,6 +62,10 @@ export const authOptions: NextAuthOptions = {
           name: user.name ?? null,
           tenantId: user.tenantId,
           role: user.role,
+          tenantActive: user.tenant?.active ?? false,
+          trialEndsAt: user.tenant?.trialEndsAt
+            ? user.tenant.trialEndsAt.toISOString()
+            : null,
         }
       },
     }),
@@ -56,6 +78,8 @@ export const authOptions: NextAuthOptions = {
         token.tenantId = user.tenantId
         token.role = user.role
         token.id = token.sub ?? user.id
+        token.tenantActive = user.tenantActive
+        token.trialEndsAt = user.trialEndsAt
       }
       return token
     },
@@ -66,6 +90,8 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).tenantId = token.tenantId
         ;(session.user as any).role = token.role
         ;(session.user as any).id = token.id
+        ;(session.user as any).tenantActive = token.tenantActive
+        ;(session.user as any).trialEndsAt = token.trialEndsAt
       }
       return session
     },

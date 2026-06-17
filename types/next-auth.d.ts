@@ -1,3 +1,4 @@
+// types/next-auth.d.ts
 import NextAuth from 'next-auth'
 
 declare module 'next-auth' {
@@ -7,6 +8,8 @@ declare module 'next-auth' {
     name: string | null
     role: string
     tenantId: string
+    tenantActive: boolean
+    trialEndsAt: string | null
   }
 
   interface Session {
@@ -16,6 +19,8 @@ declare module 'next-auth' {
       name: string | null
       role: string
       tenantId: string
+      tenantActive: boolean
+      trialEndsAt: string | null
     }
   }
 }
@@ -28,5 +33,7 @@ declare module 'next-auth/jwt' {
     name: string | null
     role: string
     tenantId: string
+    tenantActive: boolean
+    trialEndsAt: string | null
   }
 }

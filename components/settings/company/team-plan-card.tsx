@@ -1,3 +1,4 @@
+//components\settings\company\team-plan-card.tsx
 'use client'
 
 import React from 'react'
