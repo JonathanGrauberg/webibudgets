@@ -24,41 +24,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
-    // El Payload mínimo y exacto. Sin auto_recurring para que no pida tarjeta por código.
-    const requestBody: any = {
-      preapproval_plan_id: config.mpPlanId, // Hereda precio, moneda, frecuencia y tipo web
-      back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
-      external_reference: tenantId,
-    }
-
+    // Construimos la URL oficial de Mercado Pago para suscripciones de forma directa.
+    // Le pasamos por Query Parameters el external_reference y el email para que MP los capture.
+    const baseUrl = 'https://www.mercadopago.com.ar/subscriptions/checkout'
+    
+    const checkoutUrl = new URL(baseUrl)
+    checkoutUrl.searchParams.append('preapproval_plan_id', config.mpPlanId)
+    checkoutUrl.searchParams.append('external_reference', tenantId) // Clave para tu Webhook
+    
     if (token?.email) {
-      requestBody.payer_email = token.email
+      checkoutUrl.searchParams.append('payer_email', token.email)
     }
 
-    console.log('[checkout] Enviando petición limpia a MP:', JSON.stringify(requestBody, null, 2))
+    console.log('[checkout] Generada URL Directa de MP exitosamente:', checkoutUrl.toString())
 
-    const mpResponse = await fetch('https://api.mercadopago.com/preapproval', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    const mpData = await mpResponse.json().catch(() => ({}))
-
-    if (!mpResponse.ok) {
-      console.error('[checkout] MP error detallado:', mpData)
-      return NextResponse.json({ 
-        error: 'Error al crear la suscripción en MercadoPago',
-        details: mpData 
-      }, { status: 500 })
-    }
-
+    // Devolvemos la URL al frontend exactamente igual que antes para que no rompa nada
     return NextResponse.json({
-      checkoutUrl: mpData.init_point,
-      subscriptionId: mpData.id,
+      checkoutUrl: checkoutUrl.toString(),
+      subscriptionId: `DIRECT-${config.mpPlanId}`, // ID temporal referencial
     })
   } catch (err) {
     console.error('[checkout]', err)
