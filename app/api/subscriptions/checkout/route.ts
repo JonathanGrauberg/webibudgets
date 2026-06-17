@@ -24,23 +24,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
-    // Construimos el body de forma limpia
+    // El Payload mínimo y exacto. Sin auto_recurring para que no pida tarjeta por código.
     const requestBody: any = {
-      preapproval_plan_id: config.mpPlanId,
+      preapproval_plan_id: config.mpPlanId, // Hereda precio, moneda, frecuencia y tipo web
       back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
       external_reference: tenantId,
-      auto_recurring: {
-        transaction_amount: config.priceARS,
-        currency_id: 'ARS'
-      }
     }
 
-    // Solo agregar el email si realmente existe y no es un string vacío
     if (token?.email) {
       requestBody.payer_email = token.email
     }
 
-    console.log('[checkout] Enviando a MP:', JSON.stringify(requestBody, null, 2))
+    console.log('[checkout] Enviando petición limpia a MP:', JSON.stringify(requestBody, null, 2))
 
     const mpResponse = await fetch('https://api.mercadopago.com/preapproval', {
       method: 'POST',

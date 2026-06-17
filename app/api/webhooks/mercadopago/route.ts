@@ -1,7 +1,7 @@
 // app/api/webhooks/mercadopago/route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getPlanConfig, isValidPlan, resolveMaxUsers } from '@/lib/plan'
+import { resolveMaxUsers } from '@/lib/plan'
 
 // MP manda el evento y nosotros consultamos la suscripción para obtener el estado real
 async function fetchSubscription(subscriptionId: string) {
@@ -12,13 +12,12 @@ async function fetchSubscription(subscriptionId: string) {
   return res.json()
 }
 
-// Mapeo de plan MP → planKey interno
-// El reason del plan de MP contiene "Básico", "Negocio", "Empresarial"
+// Mapeo de plan MP → planKey interno (Se alimenta 100% del .env cargado en producción)
 function planKeyFromMpPlanId(mpPlanId: string): string | null {
   const map: Record<string, string> = {
-    [process.env.MP_PLAN_STARTER ?? '013e97360fdb4a8c87c8a72ba9f15636']: 'starter',
-    [process.env.MP_PLAN_TEAM    ?? '00d8a5d4167646d780267ccb99fe23a1']: 'team',
-    [process.env.MP_PLAN_BUSINESS ?? '800f4b8345774aa58000b9959018c19f']: 'business',
+    [process.env.MP_PLAN_STARTER  ?? '']: 'starter',
+    [process.env.MP_PLAN_TEAM     ?? '']: 'team',
+    [process.env.MP_PLAN_BUSINESS ?? '']: 'business',
   }
   return map[mpPlanId] ?? null
 }
@@ -27,48 +26,47 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
 
-    // MP manda distintos tipos de notificación
-    // El que nos importa es "subscription_preapproval"
+    // MP manda distintos tipos de notificación (Preapproval es para suscripciones)
     const type = body?.type ?? body?.action
     const resourceId = body?.data?.id ?? body?.id
 
-    console.log('[webhook/mp] type:', type, 'id:', resourceId)
+    console.log('[webhook/mp] Recibido evento tipo:', type, 'ID:', resourceId)
 
     if (!resourceId) {
-      return NextResponse.json({ ok: true }) // MP a veces manda pings vacíos
+      return NextResponse.json({ ok: true }) // Evita procesar pings vacíos de validación
     }
 
-    // Traer la suscripción real desde MP
+    // Traer la suscripción en tiempo real desde MP
     const subscription = await fetchSubscription(resourceId)
     if (!subscription) {
-      console.warn('[webhook/mp] suscripción no encontrada:', resourceId)
+      console.warn('[webhook/mp] Suscripción no encontrada en MP API:', resourceId)
       return NextResponse.json({ ok: true })
     }
 
     const {
-      status,           // authorized | pending | paused | cancelled
+      status, // authorized | pending | paused | cancelled
       external_reference: tenantId,
       preapproval_plan_id: mpPlanId,
       id: subscriptionId,
     } = subscription
 
     if (!tenantId) {
-      console.warn('[webhook/mp] sin external_reference, ignorando')
+      console.warn('[webhook/mp] El evento no contiene external_reference (tenantId). Ignorando.')
       return NextResponse.json({ ok: true })
     }
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } })
     if (!tenant) {
-      console.warn('[webhook/mp] tenant no encontrado:', tenantId)
+      console.warn('[webhook/mp] Tenant especificado no existe en la DB:', tenantId)
       return NextResponse.json({ ok: true })
     }
 
     const planKey = planKeyFromMpPlanId(mpPlanId)
 
     if (status === 'authorized') {
-      // Pago aprobado → activar plan
+      // Pago aprobado con éxito o suscripción activa -> Activar Plan Premium
       if (!planKey) {
-        console.warn('[webhook/mp] plan desconocido para mpPlanId:', mpPlanId)
+        console.warn('[webhook/mp] Mapeo de plan fallido. El ID de MP no coincide con el .env:', mpPlanId)
         return NextResponse.json({ ok: true })
       }
 
@@ -77,40 +75,37 @@ export async function POST(req: NextRequest) {
         data: {
           plan: planKey,
           maxUsers: resolveMaxUsers(planKey),
-          trialEndsAt: null,       // ya no está en trial
+          trialEndsAt: null, // Fin del período de prueba
           mpSubscriptionId: subscriptionId,
-          active: true,
+          active: true, // Cuenta totalmente operativa
         },
       })
 
-      console.log(`[webhook/mp] tenant ${tenantId} actualizado a plan ${planKey}`)
+      console.log(`[webhook/mp] ✅ Tenant ${tenantId} actualizado exitosamente al plan: ${planKey}`)
 
     } else if (status === 'cancelled' || status === 'paused') {
-      // Suscripción cancelada → volver a free (sin trial)
+      // La suscripción se cayó, se pausó por falta de fondos o el cliente la canceló
       await prisma.tenant.update({
         where: { id: tenantId },
         data: {
           plan: 'free',
           maxUsers: 1,
-          trialEndsAt: null,       // trial ya no aplica si canceló
+          trialEndsAt: null,
           mpSubscriptionId: subscriptionId,
-          active: status !== 'cancelled', // si canceló, desactivar
+          active: true, // Mantenemos la cuenta activa para que no lo rebote el Login, pero en plan Free
         },
       })
 
-      console.log(`[webhook/mp] tenant ${tenantId} suscripción ${status}`)
+      console.log(`[webhook/mp] ⚠️ Tenant ${tenantId} bajado a plan free debido a estado: ${status}`)
     }
 
-    // Siempre devolver 200 a MP para que no reintente
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[webhook/mp]', err)
-    // Igual devolvemos 200 para que MP no haga retry infinito
-    return NextResponse.json({ ok: true })
+    console.error('[webhook/mp] Error crítico en procesamiento:', err)
+    return NextResponse.json({ ok: true }) // Siempre 200 para mitigar loops de reintentos fallidos de MP
   }
 }
 
-// MP también manda GET para verificar el endpoint
 export async function GET() {
-  return NextResponse.json({ ok: true, service: 'WebiBudgets MP Webhook' })
+  return NextResponse.json({ ok: true, service: 'WebiBudgets MP Webhook Activo' })
 }

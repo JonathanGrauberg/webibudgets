@@ -10,7 +10,9 @@ const plansToCreate = [
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      type: "recurring" // 👈 CLAVE: Define que es una suscripción con checkout de MP
+      transaction_amount: 6990, // 👈 El precio va acá
+      currency_id: "ARS",
+      type: "recurring" // 👈 Define que es por Checkout Web (Link)
     }
   },
   {
@@ -18,6 +20,8 @@ const plansToCreate = [
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
+      transaction_amount: 19990,
+      currency_id: "ARS",
       type: "recurring"
     }
   },
@@ -26,6 +30,8 @@ const plansToCreate = [
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
+      transaction_amount: 49990,
+      currency_id: "ARS",
       type: "recurring"
     }
   }
@@ -37,7 +43,7 @@ async function createPlans() {
     return;
   }
 
-  console.log("🚀 Creando planes compatibles con Checkout público en Mercado Pago...");
+  console.log("🚀 Generando planes definitivos (Precio + Checkout Web)...");
 
   for (const plan of plansToCreate) {
     try {
@@ -57,10 +63,10 @@ async function createPlans() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log(`\n   ✅ "${plan.reason}" creado con éxito.`);
-        console.log(`   👉 Reemplazar en tu .env: ${data.id}`);
+        console.log(`\n   ✅ "${plan.reason}" creado.`);
+        console.log(`   👉 ID: ${data.id}`);
       } else {
-        console.error(`❌ Error en "${plan.reason}":`, data);
+        console.error(`❌ Error:`, data);
       }
     } catch (error) {
       console.error(`❌ Error de red:`, error);
