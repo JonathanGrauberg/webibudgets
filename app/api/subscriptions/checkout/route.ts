@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null)
     const { plan, tenantId: bodyTenantId } = body ?? {}
 
-    // Puede venir autenticado (desde settings) o sin token (justo después del registro)
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
     const tenantId = (token?.tenantId as string | undefined) ?? bodyTenantId
 
@@ -25,17 +24,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
-    // El objeto mínimo y necesario para que genere la redirección correcta
+    // El payload exacto para suscripciones con redirección externa
     const requestBody = {
       preapproval_plan_id: config.mpPlanId,
       back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
-      external_reference: tenantId, // El puente clave hacia tu Webhook
-      payer_email: token?.email ?? undefined // Opcional: si lo tenés a mano le pre-rellena el email al cliente en MP
+      external_reference: tenantId,
+      payer_email: token?.email ?? undefined,
+      auto_recurring: {
+        transaction_amount: config.priceARS, // El precio se define dinámicamente aquí
+        currency_id: 'ARS'
+      }
     }
 
     console.log('[checkout] Enviando a MP:', requestBody)
 
-    // Crear preferencia de suscripción en MP vinculada al Plan Maestro
     const mpResponse = await fetch('https://api.mercadopago.com/preapproval', {
       method: 'POST',
       headers: {
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      checkoutUrl: mpData.init_point, // Redirigí a tu frontend a este link
+      checkoutUrl: mpData.init_point, // URL mágica sin fricciones de tarjeta
       subscriptionId: mpData.id,
     })
   } catch (err) {

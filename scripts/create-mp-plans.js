@@ -1,15 +1,16 @@
 // scripts/create-mp-plans.js
-require('dotenv').config(); 
+require('dotenv').config();
+
 const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const BACK_URL = process.env.NEXTAUTH_URL || 'http://budgets.webistudio.net'; 
+const BACK_URL = 'https://budgets.webistudio.net'; 
+
 const plansToCreate = [
   {
     reason: "Plan Básico",
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: 6990,
-      currency_id: "ARS"
+      type: "recurring" // 👈 CLAVE: Define que es una suscripción con checkout de MP
     }
   },
   {
@@ -17,8 +18,7 @@ const plansToCreate = [
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: 19990,
-      currency_id: "ARS"
+      type: "recurring"
     }
   },
   {
@@ -26,19 +26,18 @@ const plansToCreate = [
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: 49990,
-      currency_id: "ARS"
+      type: "recurring"
     }
   }
 ];
 
 async function createPlans() {
   if (!ACCESS_TOKEN) {
-    console.error("❌ Error: MP_ACCESS_TOKEN no está definido en el .env");
+    console.error("❌ Error: MP_ACCESS_TOKEN no está definido.");
     return;
   }
 
-  console.log("🚀 Iniciando creación de planes en Mercado Pago...");
+  console.log("🚀 Creando planes compatibles con Checkout público en Mercado Pago...");
 
   for (const plan of plansToCreate) {
     try {
@@ -49,22 +48,22 @@ async function createPlans() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-        reason: plan.reason,
-        auto_recurring: plan.auto_recurring,
-        back_url: `${BACK_URL}/dashboard?subscription=success`
+          reason: plan.reason,
+          auto_recurring: plan.auto_recurring,
+          back_url: `${BACK_URL}/dashboard?subscription=success`
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        console.log(`\n   Plan creado con éxito: "${plan.reason}"`);
-        console.log(`   👉 ID del Plan (Guardar en tu .env): ${data.id}`);
+        console.log(`\n   ✅ "${plan.reason}" creado con éxito.`);
+        console.log(`   👉 Reemplazar en tu .env: ${data.id}`);
       } else {
-        console.error(`❌ Error al crear "${plan.reason}":`, data);
+        console.error(`❌ Error en "${plan.reason}":`, data);
       }
     } catch (error) {
-      console.error(`❌ Error de red en "${plan.reason}":`, error);
+      console.error(`❌ Error de red:`, error);
     }
   }
 }

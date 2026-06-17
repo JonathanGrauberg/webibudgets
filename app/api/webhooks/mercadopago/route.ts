@@ -16,9 +16,9 @@ async function fetchSubscription(subscriptionId: string) {
 // El reason del plan de MP contiene "Básico", "Negocio", "Empresarial"
 function planKeyFromMpPlanId(mpPlanId: string): string | null {
   const map: Record<string, string> = {
-    [process.env.MP_PLAN_STARTER ?? '021cdc6557c84e5bb1a71acf029fc423']: 'starter',
-    [process.env.MP_PLAN_TEAM    ?? '7b3c5fd4f38349018abbed437ecc508b']: 'team',
-    [process.env.MP_PLAN_BUSINESS ?? 'dd476255e032458eb6be88c03eb3c4e6']: 'business',
+    [process.env.MP_PLAN_STARTER ?? '013e97360fdb4a8c87c8a72ba9f15636']: 'starter',
+    [process.env.MP_PLAN_TEAM    ?? '00d8a5d4167646d780267ccb99fe23a1']: 'team',
+    [process.env.MP_PLAN_BUSINESS ?? '800f4b8345774aa58000b9959018c19f']: 'business',
   }
   return map[mpPlanId] ?? null
 }
