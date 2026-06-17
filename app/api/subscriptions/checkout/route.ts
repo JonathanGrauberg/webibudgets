@@ -24,19 +24,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
-    // El payload exacto para suscripciones con redirección externa
-    const requestBody = {
+    // Construimos el body de forma limpia
+    const requestBody: any = {
       preapproval_plan_id: config.mpPlanId,
       back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
       external_reference: tenantId,
-      payer_email: token?.email ?? undefined,
       auto_recurring: {
-        transaction_amount: config.priceARS, // El precio se define dinámicamente aquí
+        transaction_amount: config.priceARS,
         currency_id: 'ARS'
       }
     }
 
-    console.log('[checkout] Enviando a MP:', requestBody)
+    // Solo agregar el email si realmente existe y no es un string vacío
+    if (token?.email) {
+      requestBody.payer_email = token.email
+    }
+
+    console.log('[checkout] Enviando a MP:', JSON.stringify(requestBody, null, 2))
 
     const mpResponse = await fetch('https://api.mercadopago.com/preapproval', {
       method: 'POST',
@@ -50,12 +54,15 @@ export async function POST(req: NextRequest) {
     const mpData = await mpResponse.json().catch(() => ({}))
 
     if (!mpResponse.ok) {
-      console.error('[checkout] MP error:', mpData)
-      return NextResponse.json({ error: 'Error al crear la suscripción en MercadoPago' }, { status: 500 })
+      console.error('[checkout] MP error detallado:', mpData)
+      return NextResponse.json({ 
+        error: 'Error al crear la suscripción en MercadoPago',
+        details: mpData 
+      }, { status: 500 })
     }
 
     return NextResponse.json({
-      checkoutUrl: mpData.init_point, // URL mágica sin fricciones de tarjeta
+      checkoutUrl: mpData.init_point,
       subscriptionId: mpData.id,
     })
   } catch (err) {
