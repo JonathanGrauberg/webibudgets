@@ -50,8 +50,9 @@ function StatusDot({ active }: { active: boolean }) {
   )
 }
 
+// Corregido el tipado implícito en split de Avatar
 function Avatar({ name }: { name: string }) {
-  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  const initials = (name ?? '').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
   return (
     <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold shrink-0 select-none">
       {initials}
@@ -106,26 +107,35 @@ function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialF
   const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
 
   async function handleActivateNow() {
-    // Redirige al checkout de MercadoPago del plan actual
     const plan = planInfo.plan as PlanKey
-    const mpPlanId = config.mpPlanId
-    if (!mpPlanId) {
+    
+    // Si no tiene un ID de plan configurado (ej: plan free), lo mandamos a ver planes
+    if (!config.mpPlanId) {
       window.location.href = '/pricing'
       return
     }
+
     setIsActivating(true)
     try {
-      const res = await fetch('/api/subscriptions/create', {
+      // 🚀 Apunta a tu endpoint de checkout limpio y unificado
+      const res = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
-      if (!res.ok) throw new Error('Error al crear suscripción')
+      
+      if (!res.ok) throw new Error('Error al iniciar flujo de checkout')
+      
       const data = await res.json()
-      if (data.init_point) {
-        window.location.href = data.init_point
+      
+      if (data.checkoutUrl) {
+        // Redirección inmediata a la pasarela directa de Mercado Pago
+        window.location.href = data.checkoutUrl
+      } else {
+        window.location.href = '/pricing'
       }
-    } catch {
+    } catch (err) {
+      console.error('[handleActivateNow]', err)
       window.location.href = '/pricing'
     } finally {
       setIsActivating(false)
@@ -177,7 +187,7 @@ function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialF
                 disabled={isActivating}
                 className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
               >
-                {isActivating ? 'Redirigiendo...' : '⚡ Activar plan ahora'}
+                {isActivating ? 'Redirigiendo a MercadoPago...' : '⚡ Activar plan ahora'}
               </button>
               <a
                 href="/pricing"
