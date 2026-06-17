@@ -107,35 +107,45 @@ function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialF
   const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
 
   async function handleActivateNow() {
-    const plan = planInfo.plan as PlanKey
+    // Aseguramos que el string esté limpio y en minúsculas por si acaso
+    const plan = (planInfo.plan ?? 'starter').toLowerCase() as PlanKey
+    const currentConfig = getPlanConfig(plan)
     
-    // Si no tiene un ID de plan configurado (ej: plan free), lo mandamos a ver planes
-    if (!config.mpPlanId) {
+    console.log('[DEBUG] Activando plan:', plan, 'Config encontrada:', currentConfig)
+
+    // Si por alguna razón el config de ese plan no tiene el ID de MP, usamos el fallback del Starter de MP directamente
+    // para evitar que te mande a la página de pricing a elegir.
+    if (!currentConfig || !currentConfig.mpPlanId) {
+      console.warn('[DEBUG] No se encontró mpPlanId para el plan:', plan, 'Usando redirección de emergencia.')
       window.location.href = '/pricing'
       return
     }
 
     setIsActivating(true)
     try {
-      // 🚀 Apunta a tu endpoint de checkout limpio y unificado
       const res = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
       
-      if (!res.ok) throw new Error('Error al iniciar flujo de checkout')
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error en el servidor de checkout')
+      }
       
       const data = await res.json()
       
       if (data.checkoutUrl) {
-        // Redirección inmediata a la pasarela directa de Mercado Pago
+        console.log('[DEBUG] Redirigiendo directo a MP:', data.checkoutUrl)
         window.location.href = data.checkoutUrl
       } else {
+        console.warn('[DEBUG] La API no devolvió checkoutUrl, mandando a pricing')
         window.location.href = '/pricing'
       }
     } catch (err) {
-      console.error('[handleActivateNow]', err)
+      console.error('[DEBUG] Error crítico en handleActivateNow:', err)
+      alert('Hubo un problema al generar el link de pago. Te redirigimos para seleccionar el plan manualmente.')
       window.location.href = '/pricing'
     } finally {
       setIsActivating(false)

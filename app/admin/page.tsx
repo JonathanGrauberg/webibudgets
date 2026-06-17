@@ -6,7 +6,7 @@ export default async function AdminPage() {
   const totalUsers = await prisma.user.count()
 
   return (
-    <div className="min-h-screen bg-[#f8f8f6]">
+    <div className="min-h-screen bg-background overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 sm:py-10 space-y-6 sm:space-y-10">
 
         {/* ── Hero header ── */}
@@ -15,8 +15,8 @@ export default async function AdminPage() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5 sm:mb-2">
               Panel Admin
             </p>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-black leading-none">
-              Webi<span className="text-primary">Budgets</span>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-primary leading-none">
+              .budgets
             </h1>
             <p className="mt-1.5 sm:mt-2 text-sm text-zinc-400 hidden sm:block">
               Gestioná tenants, usuarios y onboarding de clientes.

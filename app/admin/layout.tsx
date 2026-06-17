@@ -15,14 +15,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
 
   return (
-    <div className="min-h-screen bg-[#f8f8f6] text-black">
+    <div className="min-h-screen bg-background text-black overflow-hidden">
+      
       <header className="sticky top-0 z-40 border-b border-zinc-200 bg-[#f8f8f6]/90 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4">
         <div className="mx-auto flex items-center justify-between gap-4 max-w-7xl">
 
           {/* Brand */}
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-black text-black tracking-tighter">Webi</span>
-            <span className="text-primary font-black text-lg">.</span>
+            <span className="text-lg font-black text-primary tracking-tighter">.budgets</span>
             <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
               Admin
             </span>
