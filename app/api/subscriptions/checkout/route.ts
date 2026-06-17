@@ -25,36 +25,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
-    // Crear preferencia de suscripción en MP
+    // El objeto mínimo y necesario para que genere la redirección correcta
+    const requestBody = {
+      preapproval_plan_id: config.mpPlanId,
+      back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
+      external_reference: tenantId, // El puente clave hacia tu Webhook
+      payer_email: token?.email ?? undefined // Opcional: si lo tenés a mano le pre-rellena el email al cliente en MP
+    }
+
+    console.log('[checkout] Enviando a MP:', requestBody)
+
+    // Crear preferencia de suscripción en MP vinculada al Plan Maestro
     const mpResponse = await fetch('https://api.mercadopago.com/preapproval', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        preapproval_plan_id: config.mpPlanId,
-        back_url: `${process.env.NEXTAUTH_URL}/dashboard?subscription=success`,
-        external_reference: tenantId, // ← clave: así el webhook sabe qué tenant actualizar
-        auto_recurring: {
-          frequency: 1,
-          frequency_type: 'months',
-          transaction_amount: config.priceARS,
-          currency_id: 'ARS',
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    const mpData = await mpResponse.json().catch(() => ({}))
+
     if (!mpResponse.ok) {
-      const mpError = await mpResponse.json().catch(() => ({}))
-      console.error('[checkout] MP error:', mpError)
+      console.error('[checkout] MP error:', mpData)
       return NextResponse.json({ error: 'Error al crear la suscripción en MercadoPago' }, { status: 500 })
     }
 
-    const mpData = await mpResponse.json()
-
     return NextResponse.json({
-      checkoutUrl: mpData.init_point,
+      checkoutUrl: mpData.init_point, // Redirigí a tu frontend a este link
       subscriptionId: mpData.id,
     })
   } catch (err) {
