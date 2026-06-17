@@ -1,7 +1,7 @@
 // scripts/create-mp-plans.js
 require('dotenv').config(); 
 const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const BACK_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'; 
+const BACK_URL = process.env.NEXTAUTH_URL || 'http://budgets.webistudio.net'; 
 const plansToCreate = [
   {
     reason: "Plan Básico",
