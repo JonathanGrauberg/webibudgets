@@ -1,3 +1,4 @@
+//app\api\sellers\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
-    // Validación mínima (podés endurecer después)
+    // 1. Validación mínima de campos
     if (!data?.name || !data?.lastName) {
       return NextResponse.json(
         { error: 'name y lastName son obligatorios' },
@@ -35,6 +36,28 @@ export async function POST(request: Request) {
       )
     }
 
+    // 2. 🚨 CONTROL DE LÍMITE: Buscar el plan/maxUsers del Tenant
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { maxUsers: true },
+    })
+    
+    const maxUsers = tenant?.maxUsers ?? 5 // Fallback seguro de 5 por las dudas
+
+    // 3. Contar los usuarios activos reales en la tabla User
+    const activeUsersCount = await prisma.user.count({
+      where: { tenantId, active: true },
+    })
+
+    // 4. Si ya alcanzó o superó el límite, rebotamos con el código que entiende tu front
+    if (activeUsersCount >= maxUsers) {
+      return NextResponse.json(
+        { error: 'plan_limit_reached', message: 'Alcanzaste el límite de usuarios permitidos en tu plan.' }, 
+        { status: 403 }
+      )
+    }
+
+    // 5. Si tiene cupo, procedemos a crear el vendedor normalmente
     const seller = await prisma.seller.create({
       data: tenantCreateData(
         {

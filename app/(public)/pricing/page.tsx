@@ -1,13 +1,16 @@
-// app/(public)/pricing/page.tsx
+// app/(public)/pricing/page.tsx 
 import Link from 'next/link'
-import { getServerSession } from 'next-auth' // 👈 Importamos la sesión del lado del servidor
-import { authOptions } from '@/lib/auth' // Adjustá esta ruta según dónde tengas tus authOptions
-import { PLAN_LIMITS } from '@/lib/plan'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth' 
 import PricingCards from './PricingCards'
+import { ArrowLeft } from 'lucide-react'
 
 export default async function PricingPage() {
-  // Obtenemos la sesión en el servidor de forma ultra veloz
   const session = await getServerSession(authOptions).catch(() => null)
+  
+  // Extraemos el plan actual desde la sesión. 
+  // (Asumo que tu objeto session.user contiene el plan o tenantPlan, adaptalo si se llama distinto, ej: session.user.plan)
+  const currentPlan = session?.user?.plan || null
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,15 +25,15 @@ export default async function PricingPage() {
         
         <div className="flex items-center gap-4">
           {session ? (
-            // Si el usuario ya está logueado, le mostramos un acceso directo a su panel
+            // Si viene desde adentro del sistema, un botón elegante de volver atrás
             <Link 
               href="/dashboard" 
-              className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-zinc-50 transition"
             >
-              Ir al Dashboard →
+              <ArrowLeft className="h-4 w-4" />
+              Volver al Dashboard
             </Link>
           ) : (
-            // Si es un visitante anónimo, ve el flujo clásico
             <>
               <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition">
                 Iniciar sesión
@@ -56,17 +59,19 @@ export default async function PricingPage() {
             Simple y transparente
           </h1>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            Empezá gratis por 14 días. Sin tarjeta de crédito.
+            {session 
+              ? 'Mejorá tu plan en cualquier momento para expandir los límites de tu equipo.'
+              : 'Empezá gratis por 14 días. Sin tarjeta de crédito.'
+            }
           </p>
         </div>
 
-        {/* Cards */}
-        <PricingCards />
+        {/* Pasamos el plan actual como prop a las tarjetas cliente */}
+        <PricingCards currentPlan={currentPlan} />
 
         {/* FAQ mínimo */}
         <div className="mt-20 max-w-2xl mx-auto space-y-6">
           <h2 className="text-2xl font-bold text-center text-foreground">Preguntas frecuentes</h2>
-
           {[
             {
               q: '¿Necesito tarjeta para el período de prueba?',

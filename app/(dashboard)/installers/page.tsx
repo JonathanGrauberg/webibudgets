@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,8 +26,20 @@ import {
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Plus, Trash2, Mail, Phone, MapPin, Wrench } from 'lucide-react'
+import { 
+  Pencil, 
+  Plus, 
+  Trash2, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Wrench, 
+  AlertCircle, 
+  Sparkles, 
+  ArrowUpRight 
+} from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
+import { PLAN_LIMITS } from '@/lib/plan'
 
 type Installer = {
   id: string
@@ -48,6 +62,8 @@ const emptyForm = {
 }
 
 export default function InstallersPage() {
+  const router = useRouter()
+  const { data: session } = useSession()
   const { canEdit } = usePermissions()
   const canEditInstallers = canEdit('installers')
 
@@ -56,9 +72,27 @@ export default function InstallersPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
 
   const [open, setOpen] = useState(false)
+  const [openUpgrade, setOpenUpgrade] = useState(false) // 🚨 Modal de upgrade premium
   const [editing, setEditing] = useState<Installer | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
+
+  const tenantLimits = useMemo(() => {
+  const planKey = (session?.user as any)?.plan || 'starter'
+  const limits = PLAN_LIMITS[planKey as keyof typeof PLAN_LIMITS]
+  
+  // Si es starter, queremos que sea 0 estrictamente. 
+  // Evaluamos con una condición limpia:
+  let maxInstallers = 0
+  if (planKey === 'business') maxInstallers = 999 // Ilimitado
+  else if (planKey === 'pro') maxInstallers = 5    // O el número que tengas en tu PRO
+  else maxInstallers = 0                          // Starter = 0
+
+  return {
+      plan: planKey,
+      maxInstallers,
+    }
+  }, [session])
 
   const fetchInstallers = async () => {
     setLoading(true)
@@ -76,7 +110,24 @@ export default function InstallersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeInactive])
 
+  const activeCount = useMemo(
+    () => installers.filter((i) => i.active).length,
+    [installers]
+  )
+
+  // ¿Llegamos al tope máximo permitido?
+  const isLimitReached = useMemo(() => {
+    if (tenantLimits.plan === 'business') return false
+    // Si el máximo permitido es 0, ya está alcanzado desde el primer momento
+    return activeCount >= tenantLimits.maxInstallers
+  }, [activeCount, tenantLimits])
+
+  // 3. Interceptar el click en CUALQUIER intento de creación
   const openCreate = () => {
+    if (isLimitReached) {
+      setOpenUpgrade(true)
+      return
+    }
     setEditing(null)
     setForm({ ...emptyForm })
     setOpen(true)
@@ -116,7 +167,15 @@ export default function InstallersPage() {
         body: JSON.stringify(payload),
       })
 
-      if (!res.ok) throw new Error('Failed to save installer')
+      if (!res.ok) {
+        const errorData = await res.json()
+        if (errorData.error === 'plan_limit_reached') {
+          setOpen(false)
+          setOpenUpgrade(true)
+          return
+        }
+        throw new Error('Failed to save installer')
+      }
 
       setOpen(false)
       await fetchInstallers()
@@ -138,21 +197,32 @@ export default function InstallersPage() {
     await fetchInstallers()
   }
 
-  const activeCount = useMemo(
-    () => installers.filter((i) => i.active).length,
-    [installers]
-  )
-
   return (
     <div className="min-h-screen">
       <PageHeader
         title="Instaladores"
-        description={`Activos: ${activeCount}`}
+        description="Gestioná los equipos técnicos y profesionales que ejecutan tus obras."
       >
         {canEditInstallers && (
-          <Button onClick={openCreate} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo instalador
+          <Button 
+            onClick={openCreate} 
+            className={`w-full sm:w-auto transition-all duration-300 ${
+              isLimitReached 
+                ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-md' 
+                : 'bg-primary text-white'
+            }`}
+          >
+            {isLimitReached ? (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Expandir límite
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo instalador
+              </>
+            )}
           </Button>
         )}
       </PageHeader>
@@ -160,7 +230,21 @@ export default function InstallersPage() {
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Listado</CardTitle>
+            <div className="space-y-1">
+              <CardTitle>Listado</CardTitle>
+              {/* Contenedor fino del indicador de activos */}
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                Activos en lista: {activeCount}
+                {isLimitReached && (
+                  <span className="inline-flex items-center text-amber-600 cursor-help group relative">
+                    <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
+                    <span className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-950 text-white text-[11px] font-normal p-2 rounded-lg shadow-xl whitespace-nowrap z-50 border border-zinc-800">
+                      Plan {tenantLimits.plan.toUpperCase()}: Límite alcanzado ({activeCount}/{tenantLimits.maxInstallers})
+                    </span>
+                  </span>
+                )}
+              </p>
+            </div>
 
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Ver inactivos</span>
@@ -173,12 +257,39 @@ export default function InstallersPage() {
 
           <CardContent className="p-0">
             {loading ? (
-              <div className="py-10 text-center text-muted-foreground">
+              <div className="py-10 text-center text-muted-foreground text-sm">
                 Cargando...
               </div>
             ) : installers.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground">
-                No hay instaladores
+              /* Empty State comercial si se llegó al tope y no hay más visibles */
+              <div className="py-16 px-4 text-center max-w-sm mx-auto flex flex-col items-center gap-4">
+                <div className="p-4 rounded-full bg-muted text-muted-foreground">
+                  <Wrench className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground">No hay instaladores activos</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isLimitReached 
+                      ? `Alcanzaste el tope de tu plan actual (${tenantLimits.maxInstallers}). Expandí tu plan para cargar más personal técnico.`
+                      : 'Empezá registrando los técnicos y cuadrillas que realizan los armados en calle.'
+                    }
+                  </p>
+                </div>
+                {isLimitReached ? (
+                  <Button 
+                    size="sm" 
+                    className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-md" 
+                    onClick={() => setOpenUpgrade(true)}
+                  >
+                    Expandir plan para activar <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  canEditInstallers && (
+                    <Button size="sm" onClick={openCreate}>
+                      <Plus className="mr-1.5 h-4 w-4" /> Registrar el primero
+                    </Button>
+                  )
+                )}
               </div>
             ) : (
               <>
@@ -192,7 +303,6 @@ export default function InstallersPage() {
                             <p className="font-medium text-card-foreground">
                               {i.name} {i.lastName}
                             </p>
-
                             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                               <Wrench className="h-4 w-4 shrink-0" />
                               <span>Instalador</span>
@@ -202,8 +312,8 @@ export default function InstallersPage() {
                           <Badge
                             className={
                               i.active
-                                ? 'bg-slate-100 text-slate-800'
-                                : 'bg-muted text-muted-foreground'
+                                ? 'bg-zinc-100 text-zinc-800 border-transparent shadow-none'
+                                : 'bg-muted text-muted-foreground border-transparent shadow-none'
                             }
                           >
                             {i.active ? 'Activo' : 'Inactivo'}
@@ -282,15 +392,19 @@ export default function InstallersPage() {
                             <TableCell>{i.city || '—'}</TableCell>
 
                             <TableCell className="text-sm text-muted-foreground">
-                              {i.email || i.phone || '—'}
+                              <div className="flex flex-col gap-0.5">
+                                {i.phone && <span className="text-foreground">{i.phone}</span>}
+                                {i.email && <span>{i.email}</span>}
+                                {!i.phone && !i.email && <span>—</span>}
+                              </div>
                             </TableCell>
 
                             <TableCell className="text-center">
                               <Badge
                                 className={
                                   i.active
-                                    ? 'bg-slate-100 text-slate-800'
-                                    : 'bg-muted text-muted-foreground'
+                                    ? 'bg-zinc-100 text-zinc-800 border-transparent shadow-none'
+                                    : 'bg-muted text-muted-foreground border-transparent shadow-none'
                                 }
                               >
                                 {i.active ? 'Activo' : 'Inactivo'}
@@ -325,93 +439,146 @@ export default function InstallersPage() {
         </Card>
       </div>
 
+      {/* FORMULARIO TRADICIONAL DE CREACIÓN/EDICIÓN */}
       {canEditInstallers && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? 'Editar instalador' : 'Nuevo instalador'}
-            </DialogTitle>
-          </DialogHeader>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editing ? 'Editar instalador' : 'Nuevo instalador'}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Apellido *</Label>
-              <Input
-                value={form.lastName}
-                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Teléfono *</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Ciudad</Label>
-              <Input
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div>
-                <p className="text-sm font-medium">Activo</p>
-                <p className="text-xs text-muted-foreground">
-                  Si lo desactivás, no se puede asignar a nuevos presupuestos
-                </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nombre *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
 
-              <Switch
-                checked={form.active}
-                onCheckedChange={(v) => setForm({ ...form, active: v })}
-              />
+              <div className="space-y-2">
+                <Label>Apellido *</Label>
+                <Input
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Teléfono *</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Ciudad</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Activo</p>
+                  <p className="text-xs text-muted-foreground">
+                    Si lo desactivás, no se puede asignar a nuevos presupuestos
+                  </p>
+                </div>
+
+                <Switch
+                  checked={form.active}
+                  onCheckedChange={(v) => {
+                    // Si intenta encenderlo y ya llegó o pasó el límite...
+                    if (v === true && isLimitReached) {
+                      // 1. Si está editando a un tipo que YA estaba activo, dejamos que siga activo.
+                      // 2. Pero si estaba INACTIVO e intenta volver a activarlo, lo frenamos en seco:
+                      if (!editing || !editing.active) {
+                        setOpen(false)        // Cerramos el modal de edición
+                        setOpenUpgrade(true)  // Le abrimos el cartel premium de expansión
+                        return
+                      }
+                    }
+                    
+                    // Si tiene cupo o lo está apagando, el flujo sigue normal
+                    setForm({ ...form, active: v })
+                  }}
+                />
+              </div>
             </div>
+
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
+                Cancelar
+              </Button>
+
+              <Button
+                onClick={onSave}
+                disabled={
+                  saving ||
+                  !form.name.trim() ||
+                  !form.lastName.trim() ||
+                  !form.phone.trim()
+                }
+                className="w-full sm:w-auto"
+              >
+                {saving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* 🚨 MODAL PREMIUM DE UPGRADE DE LÍMITES */}
+      <Dialog open={openUpgrade} onOpenChange={setOpenUpgrade}>
+        <DialogOverlay className="bg-black/80 backdrop-blur-[4px]" />
+        <DialogContent className="sm:max-w-md text-center p-6 gap-0">
+          <div className="mx-auto h-12 w-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-between p-3 mb-4">
+            <Sparkles className="h-6 w-6 fill-amber-100" />
+          </div>
+          
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black tracking-tight text-center">
+              Límite de instaladores alcanzado
+            </DialogTitle>
+          </DialogHeader>
+          
+          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+            Tu plan <span className="font-bold text-foreground uppercase">{tenantLimits.plan}</span> te permite gestionar un tope máximo de <span className="font-bold text-foreground">{tenantLimits.maxInstallers} instaladores</span> activos en simultáneo.
+          </p>
+
+          <div className="bg-zinc-50 border rounded-xl p-4 my-5 text-left text-xs text-zinc-600 space-y-2">
+            <p className="font-medium text-zinc-900">¿Qué podés hacer?</p>
+            <p>• Tips: podes agregarlo en las notas del presupuesto.</p>
+            <p>• Escalar tu plan para contar con soporte multiplaza y mayor volumen.</p>
           </div>
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
-              Cancelar
-            </Button>
-
-            <Button
-              onClick={onSave}
-              disabled={
-                saving ||
-                !form.name.trim() ||
-                !form.lastName.trim() ||
-                !form.phone.trim()
-              }
-              className="w-full sm:w-auto"
+          <DialogFooter className="flex-col gap-2 sm:flex-col mt-2">
+            <Button 
+              onClick={() => router.push('/pricing')} 
+              className="w-full bg-gray-200 hover:bg-primary text-primary hover:text-white font-semibold gap-1.5 shadow-md shadow-indigo-600/10"
             >
-              {saving ? 'Guardando...' : 'Guardar'}
+              Ver planes de expansión <ArrowUpRight className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" onClick={() => setOpenUpgrade(false)} className="w-full text-zinc-500 hover:text-white text-xs">
+              Entendido, volver luego
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
+import { PLAN_LIMITS } from '@/lib/plan'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -9,6 +10,37 @@ export async function PATCH(request: Request, { params }: Params) {
     const tenantId = await getTenantIdFromRequest(request)
     const { id } = await params
     const data = await request.json()
+
+    // 🚨 CONTROL DE LÍMITES AL REACTIVAR UN INACTIVO
+    if (data.active === true) {
+      // Validamos si actualmente está INACTIVO antes de dejarlo pasar
+      const currentInstaller = await prisma.installer.findFirst({
+        where: tenantWhereId(id, tenantId),
+        select: { active: true }
+      })
+
+      if (currentInstaller && !currentInstaller.active) {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { plan: true }
+        })
+        const currentPlan = tenant?.plan || 'starter'
+        const limits = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS]
+        const maxAllowed = typeof (limits as any).maxInstallers === 'number' 
+          ? (limits as any).maxInstallers 
+          : ((limits as any).maxUsers ?? 0); // Si no existe, por defecto es 0
+
+        if (currentPlan !== 'business') {
+          const activeCount = await prisma.installer.count({
+            where: { tenantId, active: true }
+          })
+
+          if (activeCount >= maxAllowed) {
+            return NextResponse.json({ error: 'plan_limit_reached' }, { status: 403 })
+          }
+        }
+      }
+    }
 
     const result = await prisma.installer.updateMany({
       where: tenantWhereId(id, tenantId),

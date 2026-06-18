@@ -1,3 +1,4 @@
+//app\api\sellers\[id]\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -8,7 +9,7 @@ export async function PATCH(
 ) {
   try {
     const tenantId = await getTenantIdFromRequest(request)
-    const { id } = await context.params // ✅ ESTE ES EL FIX REAL
+    const { id } = await context.params
 
     if (!id) {
       return NextResponse.json({ error: 'Missing ID' }, { status: 400 })
@@ -16,6 +17,37 @@ export async function PATCH(
 
     const data = await request.json()
 
+    // 1. 🚨 CONTROL DE LÍMITE EN REACTIVACIÓN
+    if (data.active === true) {
+      // Buscamos el estado actual del vendedor antes de actualizarlo
+      const currentSeller = await prisma.seller.findFirst({
+        where: tenantWhereId(id, tenantId),
+        select: { active: true }
+      })
+
+      // Si estaba INACTIVO y lo quieren pasar a ACTIVO, hay que chequear el cupo
+      if (currentSeller && currentSeller.active === false) {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { maxUsers: true },
+        })
+        
+        const maxUsers = tenant?.maxUsers ?? 5
+
+        const activeUsersCount = await prisma.user.count({
+          where: { tenantId, active: true },
+        })
+
+        if (activeUsersCount >= maxUsers) {
+          return NextResponse.json(
+            { error: 'plan_limit_reached', message: 'No podés activar este vendedor porque superás el límite de tu plan.' }, 
+            { status: 403 }
+          )
+        }
+      }
+    }
+
+    // 2. Si pasa el control (o no estaba activando a nadie), actualizamos
     const updateResult = await prisma.seller.updateMany({
       where: tenantWhereId(id, tenantId),
       data: {
@@ -43,7 +75,6 @@ export async function PATCH(
     return NextResponse.json(seller)
   } catch (error: any) {
     console.error('Update seller error FULL:', error)
-
     return NextResponse.json(
       {
         error: error?.message || 'Unknown error',

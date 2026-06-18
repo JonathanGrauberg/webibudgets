@@ -14,6 +14,7 @@ type AuthUser = {
   role: string
   tenantActive: boolean
   trialEndsAt: string | null
+  plan: string // 👈 1. Agregamos el tipo acá
 }
 
 export const authOptions: NextAuthOptions = {
@@ -66,6 +67,7 @@ export const authOptions: NextAuthOptions = {
           trialEndsAt: user.tenant?.trialEndsAt
             ? user.tenant.trialEndsAt.toISOString()
             : null,
+          plan: user.tenant?.plan || 'starter', // 👈 2. Lo inyectamos en el objeto que retorna el login
         }
       },
     }),
@@ -80,6 +82,7 @@ export const authOptions: NextAuthOptions = {
         token.id = token.sub ?? user.id
         token.tenantActive = user.tenantActive
         token.trialEndsAt = user.trialEndsAt
+        token.plan = user.plan // 👈 3. Lo metemos en el JWT
       }
       return token
     },
@@ -92,6 +95,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).id = token.id
         ;(session.user as any).tenantActive = token.tenantActive
         ;(session.user as any).trialEndsAt = token.trialEndsAt
+        ;(session.user as any).plan = token.plan // 👈 4. Lo exponemos en la sesión final del cliente
       }
       return session
     },
