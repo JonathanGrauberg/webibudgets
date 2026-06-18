@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut } from 'next-auth/react' // 👈 Importamos el método nativo de NextAuth
 
 const navLinks = [
   { href: '/admin', label: 'Inicio' },
@@ -50,6 +51,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               Ver como cliente →
             </Link>
+
+            {/* 🚪 Botón Cerrar Sesión para Desktop */}
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="ml-1 rounded-full border border-red-200 bg-red-50 px-3.5 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              Cerrar sesión
+            </button>
           </nav>
 
           {/* Mobile: client link + hamburger */}
@@ -83,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Mobile dropdown */}
         {menuOpen && (
-          <div className="sm:hidden mt-2 border-t border-zinc-200 pt-3 pb-1 space-y-0.5">
+          <div className="sm:hidden mt-2 border-t border-zinc-200 pt-3 pb-1 space-y-1.5">
             {navLinks.map(({ href, label }) => (
               <Link
                 key={href}
@@ -101,6 +111,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 )}
               </Link>
             ))}
+            
+            <div className="h-px bg-zinc-200 my-1" />
+
+            {/* 🚪 Botón Cerrar Sesión para Mobile */}
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="flex w-full items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              <span>Cerrar sesión</span>
+              <span className="text-xs opacity-60">🚪</span>
+            </button>
           </div>
         )}
       </header>

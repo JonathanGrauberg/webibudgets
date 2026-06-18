@@ -106,51 +106,45 @@ function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialF
 
   const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
 
-  async function handleActivateNow() {
-    // Aseguramos que el string esté limpio y en minúsculas por si acaso
-    const plan = (planInfo.plan ?? 'starter').toLowerCase() as PlanKey
-    const currentConfig = getPlanConfig(plan)
-    
-    console.log('[DEBUG] Activando plan:', plan, 'Config encontrada:', currentConfig)
+async function handleActivateNow(e: React.MouseEvent<HTMLButtonElement>) {
+  // Evitamos recargas accidentales del navegador o submits si está dentro de un form
+  e.preventDefault();
+  e.stopPropagation();
 
-    // Si por alguna razón el config de ese plan no tiene el ID de MP, usamos el fallback del Starter de MP directamente
-    // para evitar que te mande a la página de pricing a elegir.
-    if (!currentConfig || !currentConfig.mpPlanId) {
-      console.warn('[DEBUG] No se encontró mpPlanId para el plan:', plan, 'Usando redirección de emergencia.')
-      window.location.href = '/pricing'
+  const plan = planInfo.plan as PlanKey
+
+  setIsActivating(true)
+  try {
+    const res = await fetch('/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    })
+    
+    const data = await res.json().catch(() => ({}))
+    
+    if (!res.ok) {
+      // Dejamos un log silencioso en consola por si falla algo en el backend en producción
+      console.error('Error devuelto por el Backend:', data.error || data)
       return
     }
-
-    setIsActivating(true)
-    try {
-      const res = await fetch('/api/subscriptions/checkout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Error en el servidor de checkout')
-      }
-      
-      const data = await res.json()
-      
-      if (data.checkoutUrl) {
-        console.log('[DEBUG] Redirigiendo directo a MP:', data.checkoutUrl)
-        window.location.href = data.checkoutUrl
-      } else {
-        console.warn('[DEBUG] La API no devolvió checkoutUrl, mandando a pricing')
-        window.location.href = '/pricing'
-      }
-    } catch (err) {
-      console.error('[DEBUG] Error crítico en handleActivateNow:', err)
-      alert('Hubo un problema al generar el link de pago. Te redirigimos para seleccionar el plan manualmente.')
-      window.location.href = '/pricing'
-    } finally {
-      setIsActivating(false)
+    
+    // Mapeamos la URL que devuelva tu API de Mercado Pago
+    const targetUrl = data.checkoutUrl || data.init_point
+    
+    if (targetUrl) {
+      // Redirección inmediata y limpia a la pasarela de pago
+      window.location.href = targetUrl
+    } else {
+      console.error('El backend respondió OK pero no envió ninguna URL. Respuesta:', data)
     }
+
+  } catch (err) {
+    console.error('Error crítico en el cliente al intentar redirigir:', err)
+  } finally {
+    setIsActivating(false)
   }
+}
 
   return (
     <div className={`mb-10 rounded-2xl border p-6 ${
@@ -193,7 +187,8 @@ function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialF
               </div>
               {/* Botón activar ahora */}
               <button
-                onClick={handleActivateNow}
+                type="button" 
+                onClick={(e) => handleActivateNow(e)} 
                 disabled={isActivating}
                 className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
               >
