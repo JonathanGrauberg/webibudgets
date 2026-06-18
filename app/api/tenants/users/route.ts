@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Tenant not identified' }, { status: 400 })
   }
 
+  
+
   const user = await prisma.user.findUnique({
     where: { id: token.sub },
   })
@@ -160,8 +162,13 @@ export async function POST(req: NextRequest) {
         await ensureInstallerForUser(tx, profileInput)
       }
 
+      
+
       return created
     })
+
+
+    
 
     return NextResponse.json({
       user: newUser,

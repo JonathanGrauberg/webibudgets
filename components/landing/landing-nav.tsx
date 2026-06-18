@@ -25,21 +25,9 @@ return (
     <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-background/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
       {/* Logo */}
       <Link href="#hero" className="flex items-center gap-2.5">
-        <Image 
-          src="/logos/icono-wb.png" // Reemplaza "tu-logo.png" por el nombre real de tu archivo
-          alt="Logo de la empresa" 
-          width={36}  // El equivalente a h-9 (36px)
-          height={36} // Ajusta el alto según la proporción de tu logo
-          className="object-contain
-          scale-[1.2]" // Evita que el logo se deforme
-          priority // Carga el logo con prioridad por estar en el navbar
-          />
-      
-
-
       <span className="leading-tight">
-        <span className="translate-x-[-8px] block text-[1rem] font-bold tracking-tight text-primary">
-          Budgets 
+        <span className=" block text-xl font-bold tracking-tight text-primary">
+          .Budgets 
         </span>
       </span>
     </Link>

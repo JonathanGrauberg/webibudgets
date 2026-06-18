@@ -1,3 +1,4 @@
+//app\api\budgets\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'
@@ -55,6 +56,40 @@ export async function POST(request: Request) {
     }
     if (!Array.isArray(data?.items) || data.items.length === 0) {
       return NextResponse.json({ error: 'items are required' }, { status: 400 })
+    }
+
+    // ===================================================
+    // 🚨 CONTROL DE LÍMITE DE PRESUPUESTOS MENSUALES
+    // ===================================================
+    const tenantData = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true }
+    })
+    const currentPlan = tenantData?.plan || 'starter'
+
+    if (currentPlan === 'starter') {
+      const maxMonthlyBudgets = 30
+
+      // Calculamos el inicio del mes actual en la zona horaria del servidor
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+
+      // Contamos cuántos presupuestos se crearon este mes
+      const monthlyBudgetsCount = await prisma.budget.count({
+        where: {
+          tenantId,
+          createdAt: {
+            gte: startOfMonth
+          }
+        }
+      })
+
+      if (monthlyBudgetsCount >= maxMonthlyBudgets) {
+        return NextResponse.json(
+          { error: 'plan_limit_reached', message: 'Alcanzaste el límite de 30 presupuestos mensuales para el plan Starter.' },
+          { status: 403 }
+        )
+      }
     }
 
     // ===============================

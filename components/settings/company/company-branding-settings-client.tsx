@@ -1,4 +1,3 @@
-//components\settings\company\company-branding-settings-client.tsx
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -18,6 +17,7 @@ import {
   Save,
   Plus,
   Loader2,
+  FileText,
 } from 'lucide-react'
 
 import type { Branding } from '@/lib/branding'
@@ -33,9 +33,15 @@ import {
   MobilePreview,
   type ColorSystem,
 } from '@/components/settings/company/bolt-previews'
+import { useSession } from 'next-auth/react'
+
+// ✅ Importamos el componente desde su archivo externo aislado
+import TeamPlanCard from '@/components/settings/company/team-plan-card'
 
 export type CompanyBrandingSettingsClientProps = {
   initialBranding?: Branding
+  currentBudgets?: number 
+  maxBudgets?: number     
 }
 
 type CompanyInfo = {
@@ -184,93 +190,7 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
   )
 }
 
-function TeamPlanCard({
-  currentUsers,
-  maxUsers,
-  plan,
-  colors,
-}: {
-  currentUsers: number
-  maxUsers: number
-  plan: string
-  colors: ColorSystem
-}) {
-  const usagePercent = maxUsers > 0 ? Math.min(100, (currentUsers / maxUsers) * 100) : 0
-  const isAtLimit = currentUsers >= maxUsers
-
-  return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700 relative">
-      <div
-        className="absolute top-0 left-0 right-0 h-1"
-        style={{ background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.accent} 100%)` }}
-      />
-      <div className="px-4 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="p-2.5 rounded-xl"
-              style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)` }}
-            >
-              <Crown className="w-5 h-5" style={{ color: getContrastColor(colors.primary) }} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Plan de Equipo</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{plan}</p>
-            </div>
-          </div>
-          <span
-            className="px-3 py-1 rounded-full text-xs font-medium"
-            style={
-              isAtLimit
-                ? { backgroundColor: '#fef2f2', color: '#b91c1c' }
-                : { backgroundColor: `${colors.accent}15`, color: colors.accent }
-            }
-          >
-            {isAtLimit ? 'Límite' : 'Activo'}
-          </span>
-        </div>
-
-        <div className="space-y-3 mb-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-slate-500" />
-              <span className="text-slate-600 dark:text-slate-400">Miembros activos</span>
-            </div>
-            <span className={`font-medium ${isAtLimit ? 'text-red-600' : 'text-slate-900 dark:text-slate-50'}`}>
-              {currentUsers} / {maxUsers}
-            </span>
-          </div>
-          <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <motion.div
-              className="absolute left-0 top-0 h-full rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${usagePercent}%` }}
-              transition={{ duration: 0.5 }}
-              style={{ backgroundColor: isAtLimit ? '#ef4444' : colors.primary }}
-            />
-          </div>
-          {isAtLimit && (
-            <p className="text-xs text-red-600">
-              Límite alcanzado.{' '}
-              <a href="/pricing" className="underline font-medium">
-                Actualizá tu plan
-              </a>{' '}
-              para agregar más miembros.
-            </p>
-          )}
-        </div>
-
-        <Link
-          href="/settings/team"
-          className="block w-full py-2.5 rounded-lg font-medium text-center transition-all"
-          style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)`, color: getContrastColor(colors.primary) }}
-        >
-          Gestionar Equipo
-        </Link>
-      </div>
-    </div>
-  )
-}
+// 🚨 AQUÍ SE REMOVIÓ LA FUNCIÓN LOCAL POR COMPLETO PORQUE AHORA USA LA IMPORTADA 🚨
 
 // ─── Compact asset row ────────────────────────────────────────────────────────
 function CompactAssetRow({
@@ -339,19 +259,48 @@ function CompactAssetRow({
   )
 }
 
-export default function CompanyBrandingSettingsClient({ initialBranding }: CompanyBrandingSettingsClientProps) {
+
+
+export default function CompanyBrandingSettingsClient({ 
+  initialBranding,
+  currentBudgets = 0,
+  maxBudgets = 30
+}: CompanyBrandingSettingsClientProps) {
+  
+  const { data: session } = useSession() // 🚨 Traemos los datos del usuario logueado
+  
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
 
   const [activeTab, setActiveTab] = useState('company')
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    name: effective.name ?? '',
-    email: (initialBranding as any)?.email ?? '',
-    phone: (initialBranding as any)?.phone ?? '',
-    address: (initialBranding as any)?.address ?? '',
-    website: (initialBranding as any)?.website ?? '',
-    description: (initialBranding as any)?.description ?? '',
+  
+  // 🚨 CONFIGURACIÓN INTELIGENTE DE VALORES INICIALES
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
+    // Si no hay datos comerciales guardados en la BD, usamos los datos de su cuenta como sugerencia
+    const dbName = effective.name ?? ''
+    const dbEmail = (initialBranding as any)?.email ?? ''
+    
+    return {
+      name: dbName || session?.user?.name || '', // Si está vacío en la BD, usa el de su sesión
+      email: dbEmail || session?.user?.email || '', // Si está vacío en la BD, usa el mail con el que inició sesión
+      phone: (initialBranding as any)?.phone ?? '',
+      address: (initialBranding as any)?.address ?? '',
+      website: (initialBranding as any)?.website ?? '',
+      description: (initialBranding as any)?.description ?? '',
+    }
   })
+
+  // 🚨 ATENCIÓN: Si la sesión tarda un milisegundo en cargar, podemos rellenar los campos en un useEffect 
+  // solo si el usuario todavía no escribió nada por su cuenta.
+  useEffect(() => {
+    if (session?.user) {
+      setCompanyInfo(prev => ({
+        ...prev,
+        name: prev.name || session.user?.name || '',
+        email: prev.email || session.user?.email || '',
+      }))
+    }
+  }, [session])
 
   const [brandingAssets, setBrandingAssets] = useState<BrandingAssets>({
     logo: effective.logoUrl ?? null,
@@ -359,10 +308,12 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
     watermark: effective.watermarkUrl ?? null,
     sidebarIcon: effective.sidebarIconUrl ?? null,
   })
+  
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>((initialBranding as any)?.watermarkOpacity ?? 0.06)
   const [showPageNumbers, setShowPageNumbers] = useState<boolean>((initialBranding as any)?.showPageNumbers ?? true)
   const [showWebsiteInPdf, setShowWebsiteInPdf] = useState<boolean>((initialBranding as any)?.showWebsiteInPdf ?? true)
   const [showFooterBranding, setShowFooterBranding] = useState<boolean>((initialBranding as any)?.showFooterBranding ?? false)
+  
   const [colorSystem, setColorSystem] = useState<ColorSystem>({
     primary: effective.primaryColor ?? '#0ea5e9',
     secondary: effective.secondaryColor ?? '#64748b',
@@ -385,21 +336,26 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
       }
     )
   )
-  const [savedName, setSavedName] = useState(effective.name ?? '')
+  
+  // Usamos el nombre resuelto (el de la BD o el de la sesión) para mantener consistencia con los snapshots de autoguardado
+  const resolvedInitialName = effective.name || session?.user?.name || ''
+  const [savedName, setSavedName] = useState(resolvedInitialName)
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [isSavingName, setIsSavingName] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [nameSaveMessage, setNameSaveMessage] = useState<string | null>(null)
 
-  const [savedCompanySnapshot, setSavedCompanySnapshot] = useState<string>(JSON.stringify({
-    name: effective.name ?? '',
-    email: (initialBranding as any)?.email ?? '',
-    phone: (initialBranding as any)?.phone ?? '',
-    address: (initialBranding as any)?.address ?? '',
-    website: (initialBranding as any)?.website ?? '',
-    description: (initialBranding as any)?.description ?? '',
-  }))
+  const [savedCompanySnapshot, setSavedCompanySnapshot] = useState<string>(() => {
+    return JSON.stringify({
+      name: effective.name || session?.user?.name || '',
+      email: (initialBranding as any)?.email || session?.user?.email || '',
+      phone: (initialBranding as any)?.phone ?? '',
+      address: (initialBranding as any)?.address ?? '',
+      website: (initialBranding as any)?.website ?? '',
+      description: (initialBranding as any)?.description ?? '',
+    })
+  })
   const [isSavingCompany, setIsSavingCompany] = useState(false)
   const [companySaveMessage, setCompanySaveMessage] = useState<string | null>(null)
 
@@ -652,6 +608,11 @@ export default function CompanyBrandingSettingsClient({ initialBranding }: Compa
   }, [])
 
   const handleSaveCompany = async () => {
+      // 🛡️ Escudo de seguridad: Si no hay nombre o son solo espacios, frenamos acá.
+      if (!companyInfo.name || companyInfo.name.trim() === '') {
+        setSaveError('El nombre de la empresa es obligatorio.')
+        return
+      }
     setIsSavingCompany(true)
     setSaveError(null)
     setCompanySaveMessage(null)
