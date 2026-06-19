@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Todos los campos son requeridos' }, { status: 400 })
     }
 
-    // 🔒 NORMALIZACIÓN TOTAL DEL EMAIL EN BACKEND (Anti-Mayúsculas)
     const email = rawEmail.trim().toLowerCase()
 
     if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
@@ -61,11 +60,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
     }
 
-    const validPublicPlans = ['starter', 'team'] as const
+// 🌟 NORMALIZACIÓN INTELIGENTE DEL PLAN
+    const validPublicPlans = ['starter', 'team', 'business'] as const
     type PublicPlan = typeof validPublicPlans[number]
+    
+    // Guardamos si el origen real del usuario fue el flujo gratuito
+    const isFreeFlow = rawPlan === 'free' || !rawPlan
+
+    // Para la base de datos, el plan de prueba será 'starter' (Básico) o 'team' (Negocio)
     const plan: PublicPlan = validPublicPlans.includes(rawPlan as PublicPlan)
       ? (rawPlan as PublicPlan)
-      : 'starter'
+      : 'starter' // Si vino 'free', le asignamos 'starter' para que tenga sus 14 días y 1 usuario
 
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
           slug,
           plan,
           maxUsers: resolveMaxUsers(plan),
-          trialEndsAt: resolveTrialEndsAt(plan),
+          trialEndsAt: resolveTrialEndsAt(plan), // Esto le da los 14 días perfectos de tu lib/plan.ts
           active: true,
           ...DEFAULT_BRANDING,
         },
@@ -93,7 +98,7 @@ export async function POST(req: NextRequest) {
       await tx.user.create({
         data: {
           name: companyName,
-          email, // Se guarda impecable en minúsculas
+          email,
           password: hashedPassword,
           role: 'admin',
           tenantId: tenant.id,
@@ -107,7 +112,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       tenantId: tenant.id,
-      plan,
+      plan: plan,
+      isFreeTrialUser: isFreeFlow, // 👈 Le avisamos al cliente de dónde vino
       trialEndsAt: tenant.trialEndsAt,
     })
   } catch (err) {

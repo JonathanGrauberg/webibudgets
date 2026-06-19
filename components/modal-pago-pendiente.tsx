@@ -15,9 +15,13 @@ export function ModalPagoPendiente() {
   const [error, setError] = useState<string | null>(null)
 
   const subParam = searchParams.get('subscription')
+  const userPlan = (session?.user as any)?.plan
+
+  // 🌟 Determinamos si es un usuario que entró a probar gratis de buena fe
+  // Si no tiene un flag de "pago pendiente" de MercadoPago y tiene días de prueba, es Free Trial.
+  const isFreeTrialUser = subParam !== 'pending' && diasRestantes > 0
 
   useEffect(() => {
-    // 1. Calcular los días restantes usando la fecha real de fin de trial
     if (session?.user && 'trialEndsAt' in session.user && session.user.trialEndsAt) {
       const fechaFinTrial = new Date(session.user.trialEndsAt as string)
       const hoy = new Date()
@@ -26,21 +30,25 @@ export function ModalPagoPendiente() {
       setDiasRestantes(Math.max(0, restantes))
     }
 
-    // 2. Control de la regla de las 24 horas usando localStorage
     const ultimaVezVisto = localStorage.getItem('webibudgets_trial_modal_last_seen')
     const ahora = new Date().getTime()
     const veinticuatroHoras = 24 * 60 * 60 * 1000
-
     const yaPasaron24Horas = !ultimaVezVisto || (ahora - parseInt(ultimaVezVisto)) > veinticuatroHoras
 
-    // 3. Condición para mostrar: si viene de MercadoPago O si ya pasaron 24hs
-    if (subParam === 'pending' || yaPasaron24Horas) {
+    // Reglas para mostrar el modal
+    if (subParam === 'pending') {
+      // Si MercadoPago explícitamente falló, se muestra sí o sí
+      setIsOpen(true)
+    } else if (diasRestantes <= 0 && userPlan !== 'business') {
+      // Si se terminaron los días de prueba, bloqueo total y se muestra
+      setIsOpen(true)
+    } else if (yaPasaron24Horas) {
+      // Recordatorio amigable cada 24 horas
       setIsOpen(true)
       localStorage.setItem('webibudgets_trial_modal_last_seen', ahora.toString())
     }
-  }, [subParam, session])
+  }, [subParam, session, diasRestantes, userPlan])
 
-  // ⚡ Función idéntica para re-intentar el pago en MercadoPago dinámicamente
   async function handleActivateNow() {
     if (!session?.user) return
     
@@ -48,13 +56,14 @@ export function ModalPagoPendiente() {
     setError(null)
 
     try {
-      const currentPlan = (session.user as any).plan ?? 'starter'
       const tenantId = (session.user as any).tenantId
+      // Si por esas casualidades el plan es nulo, mandamos 'starter' por defecto
+      const planToPay = userPlan ?? 'starter'
 
       const res = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan: currentPlan, tenantId }),
+        body: JSON.stringify({ plan: planToPay, tenantId }),
       })
 
       const data = await res.json()
@@ -63,7 +72,6 @@ export function ModalPagoPendiente() {
         throw new Error(data?.error ?? 'No se pudo generar el enlace de pago')
       }
 
-      // Redirigimos directo al checkout de MercadoPago
       window.location.href = data.checkoutUrl
     } catch (err) {
       console.error('[modal-checkout]', err)
@@ -78,25 +86,35 @@ export function ModalPagoPendiente() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl transition-all scale-in duration-200">
         
-        {/* Icono Cohete */}
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-black mb-4 text-xl">
-          🚀
+          {isFreeTrialUser ? '🚀' : '💳'}
         </div>
 
-        {/* Título dinámico */}
+        {/* 🌟 Título Inteligente */}
         <h3 className="text-xl font-black tracking-tight text-zinc-900 leading-tight">
-          {diasRestantes > 0 
-            ? `¡Tu prueba sigue activa! Te quedan ${diasRestantes} ${diasRestantes === 1 ? 'día' : 'días'}`
-            : 'Tu período de prueba ha finalizado'
+          {isFreeTrialUser 
+            ? `¡Tu prueba gratuita está activa! Quedan ${diasRestantes} días`
+            : diasRestantes > 0 
+              ? `¡Tu período de prueba sigue activo! Te quedan ${diasRestantes} días`
+              : 'Tu período de prueba ha finalizado'
           }
         </h3>
         
+        {/* 🌟 Descripción Inteligente */}
         <p className="mt-2.5 text-sm text-zinc-500 leading-relaxed">
-          Notamos que el pago en MercadoPago quedó pendiente, ¡pero no pasa nada! Podés seguir usando WebiBudgets normalmente para armar tus presupuestos.
+          {isFreeTrialUser ? (
+            <>
+              ¡Te damos la bienvenida a bordo! Queremos que exprimas WebiBudgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días de gracia.
+            </>
+          ) : (
+            <>
+              Notamos que el pago en MercadoPago quedó pendiente, ¡pero no pasa nada! Podés seguir usando WebiBudgets normalmente para armar tus presupuestos.
+            </>
+          )}
         </p>
 
         <p className="mt-3 text-xs text-zinc-600 bg-zinc-50 border border-zinc-200/60 rounded-xl p-3 font-medium">
-          🔒 <span className="font-bold text-black">Quedate tranquilo:</span> Cuando decidas activar tu plan, mantenés absolutamente todos tus datos, clientes y presupuestos intactos tal cual los venías usando.
+          🔒 <span className="font-bold text-black">Quedate tranquilo:</span> Cuando decidas activar tu plan definitivo, mantenés absolutamente todos tus datos, clientes y presupuestos intactos tal cual los venías usando.
         </p>
 
         {error && (
@@ -106,7 +124,6 @@ export function ModalPagoPendiente() {
         )}
 
         <div className="mt-6 flex flex-col gap-2">
-          {/* Botón de Acción Principal (Ir a MercadoPago) */}
           <button
             type="button"
             disabled={isActivating}
@@ -114,19 +131,12 @@ export function ModalPagoPendiente() {
             className="w-full rounded-xl bg-black py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isActivating ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Redirigiendo...
-              </>
+              'Redirigiendo a MercadoPago...'
             ) : (
-              '⚡ Activar mi plan ahora'
+              isFreeTrialUser ? '⚡ Asegurar mi plan Básico (\$6.990)' : '⚡ Activar mi plan ahora'
             )}
           </button>
           
-          {/* Botón Secundario (Cerrar modal e ir al Dashboard) */}
           <button
             type="button"
             disabled={isActivating}
@@ -136,7 +146,7 @@ export function ModalPagoPendiente() {
             }}
             className="w-full text-center rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
           >
-            Continuar al Dashboard por ahora →
+            {isFreeTrialUser ? 'Ir a mi cuenta gratis por ahora →' : 'Continuar al Dashboard por ahora →'}
           </button>
         </div>
       </div>

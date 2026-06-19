@@ -1,36 +1,39 @@
 'use client'
 
-//components\landing\landing-sections.tsx
 import {
   ArrowRight, Check, FileText, Download,
-  Users, Package, Palette, Share2,
-  Star, ChevronDown, LayoutGrid, UserCheck,
+  Users, Package, Palette, Share2, HelpCircle,
+  ChevronDown, LayoutGrid, UserCheck,
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
-  brandStats, brandSwatches, features,
-  faqs, plans, testimonials,
-  sidebarItems, dashboardStats,
+  features, faqs, plans,
 } from './landing-data'
 
 import { ProductosBanner } from '../productos-banner'
 import Image from "next/image"
 import { useState, useEffect } from 'react';
 
-const featureIcons = { FileText, Download, Users, Package, Palette, Share2, UsersRound} as const
-const sidebarIcons = { LayoutGrid, Users, Package, FileText, UserCheck, Layers, User } as const
-const statIcons = { Users, Package, FileText, CheckCircle, Clock } as const
+// 1. Mapeamos TODOS los iconos que tenías en tu archivo original
+const featureIcons = { 
+  FileText, 
+  Download, 
+  Users, 
+  Package, 
+  Palette, 
+  Share2, 
+  UsersRound,
+  HelpCircle 
+} as const
 
-// 1. Definimos las fuentes (pueden ser clases de Tailwind o fuentes nativas/Google)
 const fonts = [
   'font-sans', 
   'font-serif', 
   'font-mono', 
-  'font-black tracking-tighter' // Podés meter estilos extra acá
+  'font-black tracking-tighter'
 ];
 
-// 2. Definimos una paleta de colores llamativos para el dinamismo
 const colors = [
   'text-amber-500',
   'text-blue-500',
@@ -43,7 +46,7 @@ const colors = [
 const whatsappUrl =
   'https://wa.me/5493436959359?text=' +
   encodeURIComponent(
-    '👋 Hola WebiBudgets!\n\n🚀 Estoy interesado en probar el sistema de forma gratuita.\n📋 Me gustaría conocer más sobre las funcionalidades y los planes disponibles.'
+    '👋 ¡Hola WebiBudgets!\n\n🚀 Estoy interesado en el Plan Empresa (Corporativo).\n📋 Me gustaría coordinar una demo y conocer las opciones de integración personalizada.'
   )
 
 interface LandingSectionsProps {
@@ -52,8 +55,6 @@ interface LandingSectionsProps {
   dashboardHref: string
   dashboardLabel: string
 }
-
-
 
 function DashboardMock() {
   return (
@@ -64,12 +65,7 @@ function DashboardMock() {
         width={1400}
         height={900}
         priority
-        className="
-          object-contain
-          scale-[1.35]
-          origin-center
-          drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]
-        "
+        className="object-contain scale-[1.35] origin-center drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]"
       />
     </div>
   )
@@ -84,20 +80,12 @@ function BrandingMock() {
         width={1400}
         height={900}
         priority
-        className="
-          object-contain
-          scale-[1.45]
-          origin-center
-          translate-y-[5%]
-          drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]
-        "
+        className="object-contain scale-[1.45] origin-center translate-y-[5%] drop-shadow-[0_40px_80px_rgba(0,0,0,0.25)]"
       />
     </div>
   )
 }
 
-
-// 3. Subcomponente que hace la magia por palabra o frase
 function DynamicText({ text, delay = 2000 }: { text: string; delay?: number }) {
   const [fontIndex, setFontIndex] = useState(0);
   const [colorIndex, setColorIndex] = useState(0);
@@ -118,13 +106,9 @@ function DynamicText({ text, delay = 2000 }: { text: string; delay?: number }) {
   );
 }
 
-
-
 export function LandingSections({
   openFaqIndex,
   setOpenFaqIndex,
-  dashboardHref,
-  dashboardLabel,
 }: LandingSectionsProps) { 
   return (
     <main className="overflow-x-hidden bg-background text-foreground">
@@ -132,18 +116,10 @@ export function LandingSections({
       {/* ── HERO ── */}
       <section id="hero" className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
-          {/* Black shape on the right */}
           <div className="pointer-events-none absolute -right-32 top-1/2 hidden h-[640px] w-[640px] -translate-y-1/2 rounded-full bg-neutral-950 lg:block" />
 
-          {/* Left copy */}
           <div className="relative z-10">
-            <h1 className="
-              text-[clamp(3rem,10vw,6rem)]
-              font-bold
-              leading-[0.85]
-              tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px]
-              text-foreground"
-            >              
+            <h1 className="text-[clamp(3rem,10vw,6rem)] font-bold leading-[0.85] tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px] text-foreground">              
               <span className='text-primary'>.Budgets</span>
             </h1> 
             <p className="mt-4 text-lg text-muted-foreground">
@@ -158,32 +134,22 @@ export function LandingSections({
             </Link>
           </div>
 
-          {/* Right mock */}
           <div className="relative z-10 hidden lg:block">
             <DashboardMock />
           </div>
         </div>
       </section>
 
-      {/* ── PRODUCTOS banner ── */}
+      {/* ── PRODUCTOS BANNER ── */}
       <ProductosBanner />
 
       {/* ── BRANDING SECTION ── */}
-      <section id="hero" className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <section className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
-          {/* Black shape on the right */}
           <div className="pointer-events-none absolute -right-32 top-1/2 hidden h-[640px] w-[640px] -translate-y-1/2 rounded-full bg-neutral-950 lg:block" />
 
-          {/* Left copy */}
           <div className="relative z-10">
-            <h1 className="
-              text-[clamp(3rem,10vw,6rem)]
-              font-bold
-              leading-[0.85]
-              tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px]
-              text-foreground"
-            >
-              {/* Aplicamos el componente dinámico acá */}
+            <h1 className="text-[clamp(3rem,10vw,6rem)] font-bold leading-[0.85] tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px] text-foreground">
               <DynamicText text="tu marca" delay={1800} />
               <br />
               <DynamicText text="tu identidad" delay={1000} />
@@ -193,13 +159,11 @@ export function LandingSections({
             </p>
           </div>
 
-          {/* Right mock */}
           <div className="relative z-10 hidden lg:block">
             <BrandingMock />
           </div>
         </div>
       </section>
-
 
       {/* ── FEATURES ── */}
       <section id="features" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -215,7 +179,9 @@ export function LandingSections({
 
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, i) => {
-              const Icon = featureIcons[feature.icon as keyof typeof featureIcons]
+              // 🛡️ Salvaguarda: si el icono no existe en el objeto, usa FileText por defecto para no crashear
+              const Icon = featureIcons[feature.icon as keyof typeof featureIcons] || FileText
+              
               return (
                 <div
                   key={i}
@@ -246,119 +212,82 @@ export function LandingSections({
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((plan, i) => (
-              <div
-                key={i}
-                className={
-                  plan.featured
-                    ? 'relative rounded-3xl bg-neutral-950 p-8 text-neutral-50 shadow-xl md:scale-105'
-                    : 'relative rounded-3xl border border-border bg-card p-8 text-card-foreground'
-                }
-              >
-                {plan.featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-50 px-4 py-1 text-xs font-bold text-neutral-950">
-                    Más popular
-                  </div>
-                )}
+            {plans.map((plan, i) => {
+              const isBusiness = plan.name === 'Empresa'
+              const planHref = 
+                plan.name === 'Básico'  ? '/register?plan=starter' :
+                plan.name === 'Negocio' ? '/register?plan=team' :
+                '/register?plan=free'
 
-                <h3 className="text-xl font-bold">{plan.name}</h3>
-                <p className={plan.featured ? 'mt-1 text-sm text-neutral-400' : 'mt-1 text-sm text-muted-foreground'}>
-                  {plan.description}
-                </p>
-
-                <div className="mb-8 mt-6">
-                  <span className="text-5xl font-bold">{plan.price}</span>
-                  {plan.period && (
-                    <span className={plan.featured ? 'ml-2 text-sm text-neutral-400' : 'ml-2 text-sm text-muted-foreground'}>
-                      {plan.period}
-                    </span>
-                  )}
-                </div>
-
-                <Link
-      href={
-        plan.name === 'Básico'    ? '/register?plan=starter' :
-        plan.name === 'Negocio'   ? '/register?plan=team'    :
-        plan.name === 'Empresa'   ? '/register?plan=business':
-        '/register'
-      }
-                  className={
-                    plan.featured
-                      ? 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-50 py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90'
-                      : 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90'
-                  }
-                >
-                  {plan.cta}
-                  <ArrowRight size={16} />
-                </Link>
-
+              return (
                 <div
+                  key={i}
                   className={
                     plan.featured
-                      ? 'space-y-3 border-t border-neutral-800 pt-6'
-                      : 'space-y-3 border-t border-border pt-6'
+                      ? 'relative rounded-3xl bg-neutral-950 p-8 text-neutral-50 shadow-xl md:scale-105'
+                      : 'relative rounded-3xl border border-border bg-card p-8 text-card-foreground'
                   }
                 >
-                  {plan.features.map((f, j) => (
-                    <div key={j} className="flex items-start gap-3">
-                      <Check size={16} className="mt-0.5 shrink-0" />
-                      <span className={plan.featured ? 'text-sm text-neutral-300' : 'text-sm text-muted-foreground'}>
-                        {f}
-                      </span>
+                  {plan.featured && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-50 px-4 py-1 text-xs font-bold text-neutral-950">
+                      Más popular
                     </div>
-                  ))}
+                  )}
+
+                  <h3 className="text-xl font-bold">{plan.name}</h3>
+                  <p className={plan.featured ? 'mt-1 text-sm text-neutral-400' : 'mt-1 text-sm text-muted-foreground'}>
+                    {plan.description}
+                  </p>
+
+                  <div className="mb-8 mt-6">
+                    <span className="text-5xl font-bold">{plan.price}</span>
+                    {plan.period && (
+                      <span className={plan.featured ? 'ml-2 text-sm text-neutral-400' : 'ml-2 text-sm text-muted-foreground'}>
+                        {plan.period}
+                      </span>
+                    )}
+                  </div>
+
+                  {isBusiness ? (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90"
+                    >
+                      {plan.cta}
+                      <ArrowRight size={16} />
+                    </a>
+                  ) : (
+                    <Link
+                      href={planHref}
+                      className={
+                        plan.featured
+                          ? 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-50 py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90'
+                          : 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90'
+                      }
+                    >
+                      {plan.cta}
+                      <ArrowRight size={16} />
+                    </Link>
+                  )}
+
+                  <div className={plan.featured ? 'space-y-3 border-t border-neutral-800 pt-6' : 'space-y-3 border-t border-border pt-6'}>
+                    {plan.features.map((f, j) => (
+                      <div key={j} className="flex items-start gap-3">
+                        <Check size={16} className="mt-0.5 shrink-0" />
+                        <span className={plan.featured ? 'text-sm text-neutral-300' : 'text-sm text-muted-foreground'}>
+                          {f}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
-
-      
-      {/* ── TESTIMONIALS ── 
-      <section id="testimonials" className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-              Lo que dicen nuestros clientes
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-              Miles de empresas ya simplificaron su gestión con Webi Studio.
-            </p>
-          </div>
-
-          <div className="mb-12 grid gap-5 md:grid-cols-2">
-            {testimonials.map((t, i) => (
-              <div key={i} className="rounded-3xl border border-border bg-card p-7">
-                <div className="mb-4 flex gap-1">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <Star key={j} size={16} className="fill-foreground text-foreground" />
-                  ))}
-                </div>
-                <p className="mb-6 text-sm leading-relaxed text-muted-foreground">{t.content}</p>
-                <div className="flex items-center gap-3 border-t border-border pt-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
-                    {t.image}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role} · {t.company}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-3">
-            {brandStats.map((stat, i) => (
-              <div key={i} className="rounded-3xl bg-neutral-950 p-8 text-center text-neutral-50">
-                <p className="mb-2 text-4xl font-bold">{stat.value}</p>
-                <p className="text-sm text-neutral-400">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>*/}
 
       {/* ── FAQ ── */}
       <section id="faq" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -412,7 +341,7 @@ export function LandingSections({
             Transformá tu empresa hoy mismo.
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-neutral-400">
-            Sumate a Webibudgets y experimentá la diferencia de una gestión profesional, eficiente y personalizada. ahorrá tiempo, impresioná a tus clientes y hacé crecer tu negocio con la herramienta que se adapta a vos. Deja que Webibudgets sea el aliado que tu empresa necesita para alcanzar el éxito y mantené tu equipo de trabajo, vendedores, clientes y stock en orden y bajo control.
+            Sumate a Webibudgets y experimentá la diferencia de una gestión profesional, eficiente y personalizada. Ahorrá tiempo, impresioná a tus clientes y hacé crecer tu negocio con la herramienta que se adapta a vos.
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
@@ -446,7 +375,7 @@ export function LandingSections({
               <p className="text-sm text-muted-foreground">Sistemas de gestión para tu negocio.</p>
             </div>
             {[
-              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Productos', '#productos']] },
+              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing']] },
               { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#']] },
               { title: 'Legal', links: [['Privacidad', '#'], ['Términos', '#']] },
             ].map((col) => (
