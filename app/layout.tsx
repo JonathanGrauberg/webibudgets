@@ -14,8 +14,8 @@ const inter = Inter({
 
 
 export const metadata: Metadata = {
-  title: 'WebiBudgets - Gestión de presupuestos',
-  description: 'WebiBudgets: gestión simple de presupuestos y clientes para pymes.',
+  title: '.Budgets - Gestión de presupuestos',
+  description: '.Budgets: gestión simple de presupuestos y clientes para pymes.',
   generator: 'Webi',
   icons: {
     icon: [
@@ -33,6 +33,34 @@ export const metadata: Metadata = {
       },
     ],
     apple: '/favico.ico',
+  },
+
+  openGraph: {
+    title: 'WebiBudgets: Tu Gestión de Presupuestos al Instante', // Título diferente o igual
+    description: 'Simplifica tus números. Controla tus presupuestos y clientes sin vueltas.', // Descripción más vendedora
+    url: 'https://budgets.webistudio.net',
+    siteName: 'WebiBudgets',
+    // 🌟 LA IMAGEN CRUCIAL PARA WHATSAPP 🌟
+    // WhatsApp prefiere imágenes cuadradas (al menos 300x300px, máx 1MB).
+    // Si usas una imagen rectangular normal (como la de Facebook, 1200x630), WhatsApp la cortará.
+    // Lo ideal es tener una imagen OG cuadrada específica para WhatsApp.
+    images: [
+      {
+        url: 'https://budgets.webistudio.net/og-whatsapp.png', // Imagen de 300x300 o similar, en /public
+        width: 300,
+        height: 300,
+        alt: 'WebiBudgets - Logo',
+      },
+      // Puedes incluir la versión estándar rectangular también
+      {
+        url: 'https://budgets.webistudio.net/og-image.png', // 1200x630, en /public
+        width: 1200,
+        height: 630,
+        alt: 'WebiBudgets - Dashboard',
+      },
+    ],
+    locale: 'es_AR', // Tu localidad principal
+    type: 'website',
   },
 }
 
