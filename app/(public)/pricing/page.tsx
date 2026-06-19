@@ -27,11 +27,28 @@ export default async function PricingPage() {
           {session ? (
             // Si viene desde adentro del sistema, un botón elegante de volver atrás
             <Link 
-              href="/dashboard" 
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-zinc-50 transition"
+              href="/dashboard"
+              className="
+                /* 📱 EN CELULAR: Se ubica de manera absoluta justo abajo del Navbar superior (h-16) */
+                absolute top-20 left-4 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50
+                
+                /* 💻 EN COMPUTADORA (lg): Vuelve a su lugar y diseño original en el flujo de la pantalla */
+                lg:static lg:h-auto lg:w-auto lg:rounded-xl lg:px-4 lg:py-2 lg:text-sm lg:font-medium lg:shadow-none
+              "
             >
-              <ArrowLeft className="h-4 w-4" />
-              Volver al Dashboard
+              {/* Icono de la flecha */}
+              <svg 
+                className="h-4 w-4 lg:mr-2" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor" 
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+
+              {/* Texto visible solo en computadoras */}
+              <span className="hidden lg:inline">Volver al Dashboard</span>
             </Link>
           ) : (
             <>

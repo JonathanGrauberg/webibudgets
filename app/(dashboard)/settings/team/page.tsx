@@ -65,9 +65,55 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
   const config = getPlanConfig(plan)
   const atLimit = activeUsers >= maxUsers
   const nearLimit = activeUsers >= maxUsers - 1 && !atLimit
+
+  // 🇦🇷 Estado local para manejar si el usuario cerró el cartel
+  const [isVisible, setIsVisible] = useState(true)
+
+  // Si el usuario le dio a la X, ocultamos el banner por completo
+  if (!isVisible) return null
+
+  // 🚀 CASO PLAN STARTER (1 Usuario): Mensaje sutil con opción de cerrar
+  if (maxUsers === 1) {
+    return (
+      <div className="relative mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 pr-10 text-xs text-zinc-600 shadow-sm transition-all animate-in fade-in duration-200">
+        <div className="flex items-start gap-2.5">
+          <span className="text-sm mt-0.5">🚀</span>
+          <div className="max-w-[85%] sm:max-w-none">
+            <span className="font-semibold text-black">Estás usando tu espacio personal.</span>{' '}
+            Tu plan <span className="font-medium text-zinc-900">{config.label}</span> incluye 1 usuario. 
+            Si necesitas sumar socios, vendedores o instaladores, podés expandir tu equipo cuando quieras.
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3 shrink-0 mt-2 sm:mt-0">
+          <a 
+            href="/pricing" 
+            className="text-center bg-black text-white hover:bg-zinc-800 px-3 py-1.5 rounded-lg font-semibold transition"
+          >
+            Sumar miembros →
+          </a>
+        </div>
+
+        {/* ❌ Botón para cerrar el cartel arriba a la derecha */}
+        <button
+          type="button"
+          onClick={() => setIsVisible(false)}
+          className="absolute top-3 right-3 text-zinc-400 hover:text-zinc-600 p-1 rounded-lg transition-colors"
+          aria-label="Cerrar aviso"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    )
+  }
+
+  // 🔒 Caso contrata planes más altos y llegó al límite estricto
   if (!atLimit && !nearLimit) return null
+
   return (
-    <div className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+    <div className={`relative mb-6 flex items-start gap-3 rounded-xl border p-4 pr-10 text-sm transition-all ${
       atLimit ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'
     }`}>
       <span className="text-base mt-0.5">{atLimit ? '🔒' : '⚠️'}</span>
@@ -92,6 +138,18 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
       }`}>
         Ver planes →
       </a>
+
+      {/* ❌ También le dejamos la X a este por las dudas */}
+      <button
+        type="button"
+        onClick={() => setIsVisible(false)}
+        className="absolute top-3 right-3 opacity-60 hover:opacity-100 p-1 rounded-lg transition-opacity"
+        aria-label="Cerrar aviso"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   )
 }
@@ -342,36 +400,33 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen bg-[#f8f8f6]">
       <PageBreadcrumbs />
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-
-        {/* ── Plan card ── */}
-        <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:py-10 sm:px-6 lg:px-8">
 
         {/* ── Hero header ── */}
-        <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-6 sm:mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-baseline gap-3">
-              <span className="text-[64px] font-black leading-none tracking-tighter text-black">
+              <span className="text-4xl sm:text-[64px] font-black leading-none tracking-tighter text-black">
                 {users.length}
               </span>
               <div className="pb-1">
-                <p className="text-xl font-bold text-black leading-tight">
+                <p className="text-lg sm:text-xl font-bold text-black leading-tight">
                   {users.length === 1 ? 'miembro' : 'miembros'}
                 </p>
-                <p className="text-sm text-zinc-400">
+                <p className="text-xs sm:text-sm text-zinc-400">
                   {planInfo.activeUsers} activo{planInfo.activeUsers !== 1 ? 's' : ''} · {users.length - planInfo.activeUsers} inactivo{users.length - planInfo.activeUsers !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 pb-3">
+          <p className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-zinc-400 pb-3">
             Gestión del equipo
           </p>
         </div>
 
-        <div className="mb-8 h-px bg-zinc-200" />
+        <div className="mb-6 h-px bg-zinc-200" />
 
-        {/* ── Alerts ── */}
+        {/* ── Alerts de Sistema Críticas (Errores de acción) ── */}
         {error && (
           <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -383,10 +438,13 @@ export default function TeamPage() {
           </div>
         )}
 
-        {/* ── Grid ── */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* 🛠️ REORDENAMIENTO ESTRUCTURAL EN GRID:
+            📱 Celular: flex-col-reverse (¡La lista de usuarios pasa ARRIBA del formulario!).
+            💻 Escritorio: lg:grid lg:grid-cols-3 (Diseño estándar paralelo).
+        */}
+        <div className="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-3">
 
-          {/* Formulario */}
+          {/* Bloque Formulario: En celular queda abajo, ideal para no molestar la lectura */}
           <div className="lg:col-span-1">
             <div className="sticky top-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
@@ -394,25 +452,31 @@ export default function TeamPage() {
               </p>
               <CreateUserForm onUserCreated={fetchUsers} isAtLimit={isAtLimit} />
             </div>
+
+            {/* 📱 EN CELULAR: El PlanCard gigante se muda acá abajo de todo para no asustar */}
+            <div className="mt-8 lg:hidden">
+              <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+            </div>
           </div>
 
-          {/* Lista */}
+          {/* Bloque Lista de Usuarios: ¡Prioridad N°1 en Celulares! */}
           <div className="lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
                 Usuarios del espacio
               </p>
-              <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
+              <span className={`rounded-full border px-3 py-0.5 text-[11px] sm:text-xs font-semibold ${
                 isAtLimit
-                  ? 'border-red-200 bg-red-50 text-red-700'
+                  ? 'border-red-100 bg-red-50/50 text-red-700'
                   : planInfo.activeUsers >= planInfo.maxUsers - 1
-                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  ? 'border-amber-100 bg-amber-50/50 text-amber-700'
                   : 'border-zinc-200 bg-white text-zinc-500'
               }`}>
-                {planInfo.activeUsers} activos / {planInfo.maxUsers === 9999 ? '∞' : planInfo.maxUsers} del plan
+                {planInfo.activeUsers}/{planInfo.maxUsers === 9999 ? '∞' : planInfo.maxUsers} Activos
               </span>
             </div>
 
+            {/* Banner de aviso preventivo: En celular lo suavizamos visualmente */}
             <PlanLimitBanner planInfo={planInfo} />
 
             {users.length === 0 ? (
@@ -421,21 +485,23 @@ export default function TeamPage() {
                 <p className="mt-1 text-xs text-zinc-300">Creá el primero desde el formulario.</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {users.map((user, idx) => (
-                  <div key={user.id} className="group rounded-2xl border border-zinc-200 bg-white px-5 py-4 transition-shadow hover:shadow-md">
-                    <div className="flex items-center gap-4">
+                  <div key={user.id} className="group rounded-2xl border border-zinc-200 bg-white px-4 py-4 sm:px-5 transition-shadow hover:shadow-md">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <Avatar name={user.name} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-black truncate">{user.name}</span>
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="text-sm font-semibold text-black truncate max-w-[120px] sm:max-w-none">{user.name}</span>
                           <RoleBadge role={user.role} />
                         </div>
                         <p className="mt-0.5 text-xs text-zinc-400 truncate">{user.email}</p>
                       </div>
-                      <div className="hidden sm:flex items-center gap-4 shrink-0">
+                      
+                      {/* En celulares mostramos siempre el StatusDot para no perder control visual */}
+                      <div className="flex items-center gap-4 shrink-0">
                         <StatusDot active={user.active} />
-                        <span className="text-[11px] font-mono text-zinc-200 select-none w-5 text-right">
+                        <span className="hidden sm:inline text-[11px] font-mono text-zinc-200 select-none w-5 text-right">
                           {String(idx + 1).padStart(2, '0')}
                         </span>
                       </div>
@@ -449,7 +515,13 @@ export default function TeamPage() {
             )}
           </div>
         </div>
+
+        {/* 💻 EN ESCRITORIO: Mantiene su lugar jerárquico original arriba de todo */}
+        <div className="hidden lg:block mt-10">
+          <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+        </div>
+
       </div>
     </div>
-  )
+  ) 
 }

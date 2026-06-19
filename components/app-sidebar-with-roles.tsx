@@ -1,3 +1,4 @@
+//components\app-sidebar-with-roles.tsx
 'use client'
 
 import { useState } from 'react'
@@ -91,7 +92,7 @@ function SidebarContent({
           <p className="text-[10px] text-white/40">Sistema de Gestión</p>
         </div>
       </div>
-
+ 
       {/* Nav */}
       <nav className="relative z-10 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3">
 
@@ -202,27 +203,41 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
   return (
     <TooltipProvider>
       <>
-        {/* Mobile topbar */}
-        <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
-          <div className="flex items-center gap-2">
-            <Image
-              src={branding?.logoUrl ?? '/placeholder-logo.png'}
-              alt={branding?.name ?? 'WebiBudgets'}
-              width={28}
-              height={28}
-              className="object-contain"
-              priority
-            />
-            <span className="text-sm font-semibold">{branding?.name ?? 'WebiBudgets'}</span>
+        {/* 📱 Mobile topbar: Ahora abarca el 100% horizontal de la parte superior */}
+        <div 
+          className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b px-6 text-white lg:hidden shadow-sm shrink-0"
+          style={{
+            backgroundColor: branding?.primaryColor || '#0a0a0a',
+            borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <Image
+                src={branding?.faviconUrl ?? '/placeholder-logo.png'}
+                alt={branding?.name ?? 'WebiBudgets'}
+                width={20}
+                height={20}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <span className="text-sm font-semibold tracking-wide text-white truncate max-w-[180px]">
+              {branding?.name ?? 'WebiBudgets'}
+            </span>
           </div>
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="text-white/90 hover:text-white hover:bg-white/10 rounded-xl h-10 w-10"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent side="left" className="w-64 p-0 border-none">
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú de navegación</SheetTitle>
               </SheetHeader>
@@ -231,7 +246,7 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
           </Sheet>
         </div>
 
-        {/* Desktop sidebar */}
+        {/* 💻 Desktop sidebar */}
         <aside className="hidden h-full w-64 shrink-0 lg:flex">
           <SidebarContent branding={branding} userRole={userRole} />
         </aside>

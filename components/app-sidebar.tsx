@@ -95,7 +95,7 @@ function SidebarContent({ closeMenu, branding }: { closeMenu?: () => void; brand
 
         <div>
           <h1 className="text-lg font-bold text-sidebar-foreground">{branding?.name ?? 'WebiBudgets'}</h1>
-          <p className="text-xs text-sidebar-foreground/60">Sistema de Gestión</p>
+          <p className="text-xs text-sidebar-foreground/60">Sistemassss de Gestión</p>
         </div>
       </div>
 
