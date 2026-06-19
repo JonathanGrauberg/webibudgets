@@ -21,6 +21,7 @@ export default function RegisterForm() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false) // 🌟 Control de carga para Google
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
 
@@ -124,8 +125,15 @@ export default function RegisterForm() {
     }
   }
 
-  const handleGoogleRegister = () => {
-    signIn('google', { callbackUrl: '/dashboard?welcome=1' })
+  // 🌟 Acción Real de Google
+  const handleGoogleRegister = async () => {
+    setIsGoogleLoading(true)
+    try {
+      await signIn('google', { callbackUrl: '/dashboard?welcome=1' })
+    } catch (err) {
+      console.error('[google-register-error]', err)
+      setIsGoogleLoading(false)
+    }
   }
 
   if (step === 'redirecting') {
@@ -160,10 +168,12 @@ export default function RegisterForm() {
             {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '14 días gratis, sin tarjeta de crédito'}
           </p>
 
+          {/* 🔘 Botón de Google Funcional */}
           <button
             type="button"
+            disabled={isSubmitting || isGoogleLoading}
             onClick={handleGoogleRegister}
-            className="mb-5 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+            className="mb-5 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.99] disabled:opacity-50"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path fill="#EA4335" d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.56 14.96 1 12 1 7.36 1 3.4 3.68 1.4 7.6l3.8 2.96c.92-2.76 3.52-4.52 6.8-4.52z"/>
@@ -171,7 +181,7 @@ export default function RegisterForm() {
               <path fill="#FBBC05" d="M5.2 14.44c-.24-.72-.36-1.48-.36-2.28s.12-1.56.36-2.28L1.4 6.92C.52 8.68 0 10.28 0 12s.52 3.32 1.4 5.08l3.8-2.64z"/>
               <path fill="#34A353" d="M12 23c3.24 0 5.96-1.08 7.96-2.92l-3.68-2.84c-1.04.68-2.36 1.12-4.28 1.12-3.28 0-5.88-1.76-6.8-4.52l-3.8 2.96C3.4 20.32 7.36 23 12 23z"/>
             </svg>
-            Registrarse con Google
+            {isGoogleLoading ? 'Conectando...' : 'Registrarse con Google'}
           </button>
 
           <div className="relative mb-5 flex items-center justify-center">
@@ -193,10 +203,11 @@ export default function RegisterForm() {
               <input
                 type="text"
                 required
+                disabled={isSubmitting || isGoogleLoading}
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Acme S.A."
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
               />
             </div>
 
@@ -207,10 +218,11 @@ export default function RegisterForm() {
               <input
                 type="email"
                 required
+                disabled={isSubmitting || isGoogleLoading}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@empresa.com"
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
               />
             </div>
 
@@ -222,15 +234,17 @@ export default function RegisterForm() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
+                  disabled={isSubmitting || isGoogleLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mayús, minús, número y símbolo"
-                  className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                  className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
                 />
                 <button
                   type="button"
+                  disabled={isSubmitting || isGoogleLoading}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="rounded-xl border border-border px-3 text-xs text-muted-foreground hover:text-foreground transition"
+                  className="rounded-xl border border-border px-3 text-xs text-muted-foreground hover:text-foreground transition disabled:opacity-50"
                 >
                   {showPassword ? 'Ocultar' : 'Ver'}
                 </button>
@@ -239,7 +253,7 @@ export default function RegisterForm() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isGoogleLoading}
               className="w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
             >
               {isSubmitting ? 'Creando cuenta...' : planParam !== 'free' ? `Crear cuenta e ir a pagar` : 'Crear cuenta gratis'}

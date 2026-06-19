@@ -1,4 +1,3 @@
-// app/auth/login/LoginForm.tsx
 'use client'
 
 import { useState } from 'react'
@@ -26,6 +25,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false) // 🌟 Estado de carga para Google
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl')
@@ -69,21 +69,51 @@ export default function LoginForm() {
     setLoading(false)
   }
 
+  // 🌟 Acción Real de Google para Login
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true)
+    try {
+      await signIn('google', { callbackUrl: callbackUrl ?? '/dashboard' })
+    } catch (err) {
+      console.error('[google-login-error]', err)
+      setIsGoogleLoading(false)
+    }
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4">
       <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04]" />
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-foreground/[0.04]" />
 
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl"
-      >
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
           .Budgets
         </Link>
 
         <h1 className="mb-5 mt-5 text-sm font-semibold text-foreground">Iniciar sesión</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Accedé a tu panel de presupuestos</p>
+        <p className="mb-6 text-xs text-muted-foreground">Accedé a tu panel de presupuestos</p>
+
+        {/* 🔘 Botón de Google Funcional */}
+        <button
+          type="button"
+          disabled={loading || isGoogleLoading}
+          onClick={handleGoogleLogin}
+          className="mb-5 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.99] disabled:opacity-50"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.56 14.96 1 12 1 7.36 1 3.4 3.68 1.4 7.6l3.8 2.96c.92-2.76 3.52-4.52 6.8-4.52z"/>
+            <path fill="#4285F4" d="M23.48 12.28c0-.84-.08-1.64-.24-2.44H12v4.56h6.48c-.28 1.48-1.12 2.72-2.36 3.56l3.68 2.84c2.16-2 3.4-4.96 3.4-8.52z"/>
+            <path fill="#FBBC05" d="M5.2 14.44c-.24-.72-.36-1.48-.36-2.28s.12-1.56.36-2.28L1.4 6.92C.52 8.68 0 10.28 0 12s.52 3.32 1.4 5.08l3.8-2.64z"/>
+            <path fill="#34A353" d="M12 23c3.24 0 5.96-1.08 7.96-2.92l-3.68-2.84c-1.04.68-2.36 1.12-4.28 1.12-3.28 0-5.88-1.76-6.8-4.52l-3.8 2.96C3.4 20.32 7.36 23 12 23z"/>
+          </svg>
+          {isGoogleLoading ? 'Conectando...' : 'Iniciar sesión con Google'}
+        </button>
+
+        {/* Separador estético */}
+        <div className="relative mb-5 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+          <span className="relative bg-card px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">O con email</span>
+        </div>
 
         {displayError && (
           <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
@@ -112,42 +142,53 @@ export default function LoginForm() {
           </div>
         )}
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Email
-          </label>
-          <input
-            type="email"
-            placeholder="email@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              Email
+            </label>
+            <input
+              type="email"
+              placeholder="email@ejemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading || isGoogleLoading}
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
+            />
+          </div>
 
-        <div className="mb-6">
-          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Contraseña
-          </label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
-          />
-        </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading || isGoogleLoading}
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? 'Ingresando...' : 'Ingresar'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading || isGoogleLoading}
+            className="w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+          >
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          ¿No tenés cuenta?{' '}
+          <Link href="/auth/register" className="font-medium text-foreground underline underline-offset-2">
+            Registrate gratis
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }

@@ -20,19 +20,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/placeholder-logo.png',
+        url: '/favico.ico',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/placeholder-logo.png',
+        url: '/favico-dark.ico',
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/placeholder-logo.svg',
+        url: '/favico.ico',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/placeholder-logo.png',
+    apple: '/favico.ico',
   },
 }
 
