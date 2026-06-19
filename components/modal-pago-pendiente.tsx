@@ -104,7 +104,7 @@ export function ModalPagoPendiente() {
         <p className="mt-2.5 text-sm text-zinc-500 leading-relaxed">
           {isFreeTrialUser ? (
             <>
-              ¡Te damos la bienvenida a bordo! Queremos que exprimas WebiBudgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días de gracia.
+              ¡Te damos la bienvenida a bordo! Queremos que exprimas WebiBudgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días.
             </>
           ) : (
             <>
