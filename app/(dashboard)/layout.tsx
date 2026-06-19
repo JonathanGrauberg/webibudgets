@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { getTenantBranding, TENANT_HEADER } from '@/lib/tenant'
 import { effectiveBranding } from '@/lib/branding'
 import { DashboardContentWrapper } from '@/components/dashboard-content-wrapper'
+import { ModalPagoPendiente } from '@/components/modal-pago-pendiente'
 
 export default async function DashboardLayout({
   children,
@@ -52,6 +53,8 @@ export default async function DashboardLayout({
               📱 Celular: flex-1 e h-full para tomar el resto de la pantalla abajo del navbar.
             */}
             <DashboardContentWrapper>
+              {/* 🚀 El modal vigilando globalmente */}
+               <ModalPagoPendiente />
               {children}
             </DashboardContentWrapper>
 

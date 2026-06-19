@@ -1,4 +1,3 @@
-// app/(public)/register/RegisterForm.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -16,7 +15,6 @@ export default function RegisterForm() {
 
   const planParam = (searchParams.get('plan') ?? 'free') as PlanKey
   const selectedPlan = PLAN_LIMITS[planParam] ?? PLAN_LIMITS.free
-  const isPaidPlan = planParam !== 'free'
 
   const [companyName, setCompanyName] = useState('')
   const [email, setEmail] = useState('')
@@ -26,14 +24,20 @@ export default function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
 
-  // Si ya está logueado, redirigir al dashboard
+  // 🔄 Captura infalible del botón "Atrás" usando la sesión real del usuario
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/dashboard')
+    if (status === 'authenticated' && session?.user) {
+      const userPlan = (session.user as any).plan ?? 'free'
+      
+      if (userPlan !== 'free') {
+        // Si su plan guardado es pago, lo mandamos al dashboard gatillando el modal
+        router.replace('/dashboard?subscription=pending')
+      } else {
+        router.replace('/dashboard')
+      }
     }
-  }, [status, router])
+  }, [status, session, router])
 
-  // Mientras verifica sesión, no mostrar nada
   if (status === 'loading' || status === 'authenticated') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -42,17 +46,34 @@ export default function RegisterForm() {
     )
   }
 
+  function validatePassword(pass: string): boolean {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[.,\-*@#$%^&+=]).{8,}$/
+    return regex.test(pass)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    const cleanEmail = email.trim().toLowerCase()
+
+    if (!validatePassword(password)) {
+      setError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial (ej: .,-*).')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // 1. Crear tenant + usuario
       const registerRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ companyName, email, password, plan: planParam }),
+        body: JSON.stringify({ 
+          companyName: companyName.trim(), 
+          email: cleanEmail, 
+          password, 
+          plan: planParam 
+        }),
       })
 
       const registerData = await registerRes.json()
@@ -63,9 +84,8 @@ export default function RegisterForm() {
 
       const { tenantId } = registerData
 
-      // 2. Auto-login
       const signInRes = await signIn('credentials', {
-        email,
+        email: cleanEmail,
         password,
         redirect: false,
       })
@@ -74,8 +94,8 @@ export default function RegisterForm() {
         throw new Error('Cuenta creada. Iniciá sesión en /auth/login')
       }
 
-      // 3. Si eligió plan pago → ir a MercadoPago
-      if (isPaidPlan) {
+      // Si el parámetro inicial era un plan pago, gatillamos MercadoPago
+      if (planParam !== 'free') {
         setStep('redirecting')
 
         const checkoutRes = await fetch('/api/subscriptions/checkout', {
@@ -87,7 +107,6 @@ export default function RegisterForm() {
         const checkoutData = await checkoutRes.json()
 
         if (!checkoutRes.ok || !checkoutData.checkoutUrl) {
-          // Si falla MP, igual entramos — el trial cubre
           router.push('/dashboard?subscription=pending')
           return
         }
@@ -96,7 +115,6 @@ export default function RegisterForm() {
         return
       }
 
-      // 4. Plan free → dashboard con bienvenida
       router.push('/dashboard?welcome=1')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
@@ -104,6 +122,10 @@ export default function RegisterForm() {
       setIsSubmitting(false)
       setStep('form')
     }
+  }
+
+  const handleGoogleRegister = () => {
+    signIn('google', { callbackUrl: '/dashboard?welcome=1' })
   }
 
   if (step === 'redirecting') {
@@ -129,35 +151,36 @@ export default function RegisterForm() {
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="rounded-3xl border border-border bg-card p-10 shadow-xl">
-          {/* Logo */}
-          <Link
-            href="/"
-            className="text-4xl font-black tracking-tighter text-primary leading-none"
-          >
+          <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
             .Budgets
           </Link>
 
-          <h1 className="mt-5 mb-5 text-sm font-semibold text-foreground">Crear cuenta</h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            {isPaidPlan
-              ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes`
-              : '14 días gratis, sin tarjeta de crédito'}
+          <h1 className="mt-5 mb-2 text-sm font-semibold text-foreground">Crear cuenta</h1>
+          <p className="mb-6 text-xs text-muted-foreground">
+            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '14 días gratis, sin tarjeta de crédito'}
           </p>
 
-          {/* Badge del plan elegido */}
-          {isPaidPlan && (
-            <div className="mb-6 rounded-xl border border-border bg-secondary px-4 py-3">
-              <p className="text-xs font-semibold text-foreground">{selectedPlan.label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{selectedPlan.description}</p>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleGoogleRegister}
+            className="mb-5 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.56 14.96 1 12 1 7.36 1 3.4 3.68 1.4 7.6l3.8 2.96c.92-2.76 3.52-4.52 6.8-4.52z"/>
+              <path fill="#4285F4" d="M23.48 12.28c0-.84-.08-1.64-.24-2.44H12v4.56h6.48c-.28 1.48-1.12 2.72-2.36 3.56l3.68 2.84c2.16-2 3.4-4.96 3.4-8.52z"/>
+              <path fill="#FBBC05" d="M5.2 14.44c-.24-.72-.36-1.48-.36-2.28s.12-1.56.36-2.28L1.4 6.92C.52 8.68 0 10.28 0 12s.52 3.32 1.4 5.08l3.8-2.64z"/>
+              <path fill="#34A353" d="M12 23c3.24 0 5.96-1.08 7.96-2.92l-3.68-2.84c-1.04.68-2.36 1.12-4.28 1.12-3.28 0-5.88-1.76-6.8-4.52l-3.8 2.96C3.4 20.32 7.36 23 12 23z"/>
+            </svg>
+            Registrarse con Google
+          </button>
+
+          <div className="relative mb-5 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+            <span className="relative bg-card px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">O con email</span>
+          </div>
 
           {error && (
-            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-              <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
               {error}
             </div>
           )}
@@ -173,7 +196,7 @@ export default function RegisterForm() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Acme S.A."
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
               />
             </div>
 
@@ -187,9 +210,7 @@ export default function RegisterForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@empresa.com"
-                autoComplete="off"
-                name="register-email"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
               />
             </div>
 
@@ -201,13 +222,10 @@ export default function RegisterForm() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  minLength={MIN_PASSWORD_LENGTH}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  autoComplete="new-password"
-                  name="register-password"
-                  className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
+                  placeholder="Mayús, minús, número y símbolo"
+                  className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground"
                 />
                 <button
                   type="button"
@@ -222,13 +240,9 @@ export default function RegisterForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+              className="w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
             >
-              {isSubmitting
-                ? 'Creando cuenta...'
-                : isPaidPlan
-                  ? `Crear cuenta e ir a pagar`
-                  : 'Crear cuenta gratis'}
+              {isSubmitting ? 'Creando cuenta...' : planParam !== 'free' ? `Crear cuenta e ir a pagar` : 'Crear cuenta gratis'}
             </button>
           </form>
 
@@ -238,19 +252,7 @@ export default function RegisterForm() {
               Iniciá sesión
             </Link>
           </p>
-
-          {isPaidPlan && (
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Serás redirigido a MercadoPago para completar el pago de forma segura.
-            </p>
-          )}
         </div>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          <Link href="/pricing" className="underline underline-offset-2">
-            Ver todos los planes
-          </Link>
-        </p>
       </div>
     </div>
   )

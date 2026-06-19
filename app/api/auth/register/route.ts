@@ -1,8 +1,7 @@
-// app/api/auth/register/route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { isValidPlan, resolveMaxUsers, resolveTrialEndsAt } from '@/lib/plan'
+import { resolveMaxUsers, resolveTrialEndsAt } from '@/lib/plan'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -36,11 +35,14 @@ async function uniqueSlug(base: string): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
-    const { companyName, email, password, plan: rawPlan } = body ?? {}
+    const { companyName, email: rawEmail, password, plan: rawPlan } = body ?? {}
 
-    if (!companyName || !email || !password) {
+    if (!companyName || !rawEmail || !password) {
       return NextResponse.json({ error: 'Todos los campos son requeridos' }, { status: 400 })
     }
+
+    // 🔒 NORMALIZACIÓN TOTAL DEL EMAIL EN BACKEND (Anti-Mayúsculas)
+    const email = rawEmail.trim().toLowerCase()
 
     if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
       return NextResponse.json(
@@ -59,13 +61,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
     }
 
-    // Solo aceptar planes públicos con trial (starter o team)
-    // business no tiene trial → no puede registrarse solo, debe contactar
     const validPublicPlans = ['starter', 'team'] as const
     type PublicPlan = typeof validPublicPlans[number]
     const plan: PublicPlan = validPublicPlans.includes(rawPlan as PublicPlan)
       ? (rawPlan as PublicPlan)
-      : 'starter' // fallback seguro
+      : 'starter'
 
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
           slug,
           plan,
           maxUsers: resolveMaxUsers(plan),
-          trialEndsAt: resolveTrialEndsAt(plan), // 14 días desde ahora
+          trialEndsAt: resolveTrialEndsAt(plan),
           active: true,
           ...DEFAULT_BRANDING,
         },
@@ -93,9 +93,9 @@ export async function POST(req: NextRequest) {
       await tx.user.create({
         data: {
           name: companyName,
-          email,
+          email, // Se guarda impecable en minúsculas
           password: hashedPassword,
-          role: 'admin', // nunca owner — owner es solo el creador del sistema
+          role: 'admin',
           tenantId: tenant.id,
           active: true,
         },

@@ -1,4 +1,3 @@
-// app/api/subscriptions/checkout/route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { getPlanConfig, isValidPlan } from '@/lib/plan'
@@ -24,21 +23,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
     }
 
+    // 🌐 Detectar dinámicamente el dominio (Sirve tanto para localhost como para budgets.webistudio.net)
+    const origin = req.nextUrl.origin
+
+    // 🔗 Definimos las URLs de retorno para el usuario
+    const successUrl = `${origin}/dashboard?subscription=success`
+    const pendingUrl = `${origin}/dashboard?subscription=pending`
+
     // Construimos la URL oficial de Mercado Pago para suscripciones de forma directa.
-    // Le pasamos por Query Parameters el external_reference y el email para que MP los capture.
     const baseUrl = 'https://www.mercadopago.com.ar/subscriptions/checkout'
     
     const checkoutUrl = new URL(baseUrl)
     checkoutUrl.searchParams.append('preapproval_plan_id', config.mpPlanId)
-    checkoutUrl.searchParams.append('external_reference', tenantId) // Clave para tu Webhook
+    checkoutUrl.searchParams.append('external_reference', tenantId) // Clave crucial para tu Webhook
     
+    // 🇦🇷 AGREGAMOS LAS REGLAS DE RETORNO A MERCADOPAGO
+    // MercadoPago usa 'back_url' de forma global en sus checkouts directos
+    checkoutUrl.searchParams.append('back_url', pendingUrl) 
+    
+    // Si tu plan de MercadoPago soporta parámetros avanzados, le inyectamos success explícito
+    checkoutUrl.searchParams.append('success_url', successUrl)
+    checkoutUrl.searchParams.append('failure_url', pendingUrl)
+
     if (token?.email) {
       checkoutUrl.searchParams.append('payer_email', token.email)
     }
 
-    console.log('[checkout] Generada URL Directa de MP exitosamente:', checkoutUrl.toString())
+    console.log('[checkout] Generada URL Directa de MP con BackURLs:', checkoutUrl.toString())
 
-    // Devolvemos la URL al frontend exactamente igual que antes para que no rompa nada
+    // Devolvemos la URL al frontend exactamente igual que antes
     return NextResponse.json({
       checkoutUrl: checkoutUrl.toString(),
       subscriptionId: `DIRECT-${config.mpPlanId}`, // ID temporal referencial
