@@ -23,6 +23,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true, 
     }),
     CredentialsProvider({
       name: 'Credentials',
@@ -35,7 +36,6 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email y contraseña requeridos')
         }
 
-        // 🌟 Agregamos el include para traer el plan del tenant real en base de datos
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase().trim() },
           include: { tenant: true },
@@ -55,9 +55,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Tu cuenta está desactivada')
         }
 
-        // Inyectamos el plan del Tenant para que viaje al callback JWT
         return {
-          ...user,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
           plan: user.tenant?.plan ?? 'free'
         }
       },
@@ -66,12 +69,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
+        const emailNormalizado = (user.email ?? '').toLowerCase().trim()
+
         const existingUser = await prisma.user.findUnique({
-          where: { email: user.email ?? '' },
-          include: { tenant: true } // Mantenemos consistencia con el esquema
+          where: { email: emailNormalizado },
+          include: { tenant: true }
         })
 
         if (!existingUser) {
+          // ESCENARIO A: Usuario 100% nuevo de Google
           const companyName = `Empresa de ${user.name ?? 'Invitado'}`
           let slug = generateSlug(companyName)
           
@@ -94,27 +100,74 @@ export const authOptions: NextAuthOptions = {
             },
           })
 
+          // 🌟 ASIGNACIÓN ESTRICTA: Solo inyectamos lo que Prisma SÍ tiene mapeado en su tabla User.
+          // El 'plan' NO se toca acá para que el adapter no explote.
           user.tenantId = newTenant.id
           ;(user as any).role = 'admin'
-          ;(user as any).plan = newTenant.plan
         } else {
-          // Si ya existe de antes por Google, aseguramos su plan actual en la sesión
-          ;(user as any).plan = existingUser.tenant?.plan ?? 'free'
+          // ESCENARIO B: El usuario ya existía por credenciales manuales
+          const existingAccount = await prisma.account.findFirst({
+            where: {
+              userId: existingUser.id,
+              provider: 'google',
+            },
+          })
+
+          if (!existingAccount && account) {
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+              },
+            })
+          }
+
+          user.id = existingUser.id
+          user.tenantId = existingUser.tenantId
+          ;(user as any).role = existingUser.role
         }
       }
       return true
     },
-    // 🌟 Mapeamos los datos customizados al Token JWT
+
     async jwt({ token, user }) {
+      // Si el login acaba de suceder, NextAuth nos da el objeto user
       if (user) {
         token.id = user.id
         token.role = (user as any).role
         token.tenantId = (user as any).tenantId
-        token.plan = (user as any).plan
+        
+        // Si vino de Credenciales, ya trae el plan armado.
+        if ((user as any).plan) {
+          token.plan = (user as any).plan
+        }
+      } 
+      
+      // 🌟 SOLUCIÓN REAL: Buscamos el plan del Tenant de manera segura para la sesión del JWT.
+      // Esto corre fuera del alcance del PrismaAdapter y jamás romperá la base de datos.
+      if (token.email && !token.plan) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email.toLowerCase().trim() },
+          include: { tenant: true }
+        })
+        if (dbUser) {
+          token.id = dbUser.id
+          token.role = dbUser.role
+          token.tenantId = dbUser.tenantId
+          token.plan = dbUser.tenant?.plan ?? 'starter'
+        }
       }
       return token
     },
-    // 🌟 Pasamos los datos del Token JWT a la Sesión del cliente
+
     async session({ session, token }) {
       if (session.user) {
         ;(session.user as any).id = token.id
@@ -127,6 +180,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/login',
+    error: '/auth/login', 
   },
   session: {
     strategy: 'jwt',

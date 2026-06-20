@@ -30,7 +30,7 @@ async function uniqueSlug(base: string): Promise<string> {
     if (!existing) return slug
     attempt++
     slug = `${base}-${attempt}`
-  }
+  } 
 }
 
 export async function POST(req: NextRequest) {
