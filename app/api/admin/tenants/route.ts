@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
-  const { companyName, slug, adminEmail, password, plan: rawPlan } = body ?? {}
+  // 🌟 Capturamos 'trialEndsAt' que puede venir del formulario (Modo VIP)
+  const { companyName, slug, adminEmail, password, plan: rawPlan, trialEndsAt: rawTrialEndsAt } = body ?? {}
 
   if (!companyName || !slug || !adminEmail || !password) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -63,13 +64,24 @@ export async function POST(req: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(password, 10)
 
+  // 🌟 LÓGICA INTELIGENTE PARA EL TRIAL:
+  // Si desde el formulario de admin le mandamos una fecha explícita (la del año 2050), la usamos.
+  // Si no viene nada, ejecuta la función original por defecto (null para business, 14 días para los otros).
+  let finalTrialEndsAt = resolveTrialEndsAt(plan)
+  if (rawTrialEndsAt) {
+    const parsedDate = new Date(rawTrialEndsAt)
+    if (!isNaN(parsedDate.getTime())) {
+      finalTrialEndsAt = parsedDate
+    }
+  }
+
   const tenant = await prisma.tenant.create({
     data: {
       name: companyName,
       slug,
       plan,
       maxUsers: resolveMaxUsers(plan),
-      trialEndsAt: resolveTrialEndsAt(plan), // null para business, 14 días para starter/team
+      trialEndsAt: finalTrialEndsAt, // 🚀 Ahora es dinámico
       active: true,
       ...DEFAULT_BRANDING,
       users: {

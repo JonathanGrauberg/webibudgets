@@ -1,4 +1,4 @@
-//app\api\auth\[...nextauth]\route.ts
+// app\api\auth\[...nextauth]\route.ts
 import NextAuth, { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials' 
@@ -35,8 +35,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email y contraseña requeridos')
         }
 
+        // 🌟 Agregamos el include para traer el plan del tenant real en base de datos
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase().trim() },
+          include: { tenant: true },
         })
 
         if (!user || !user.password) {
@@ -53,7 +55,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Tu cuenta está desactivada')
         }
 
-        return user
+        // Inyectamos el plan del Tenant para que viaje al callback JWT
+        return {
+          ...user,
+          plan: user.tenant?.plan ?? 'free'
+        }
       },
     }),
   ],
@@ -62,6 +68,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google') {
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email ?? '' },
+          include: { tenant: true } // Mantenemos consistencia con el esquema
         })
 
         if (!existingUser) {
@@ -89,6 +96,10 @@ export const authOptions: NextAuthOptions = {
 
           user.tenantId = newTenant.id
           ;(user as any).role = 'admin'
+          ;(user as any).plan = newTenant.plan
+        } else {
+          // Si ya existe de antes por Google, aseguramos su plan actual en la sesión
+          ;(user as any).plan = existingUser.tenant?.plan ?? 'free'
         }
       }
       return true
@@ -118,7 +129,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/login',
   },
   session: {
-    strategy: 'jwt', // 🌟 Cambiado a JWT para máxima compatibilidad híbrida (Google + Credentials)
+    strategy: 'jwt',
   },
 }
 

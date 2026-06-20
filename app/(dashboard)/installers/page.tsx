@@ -81,18 +81,17 @@ export default function InstallersPage() {
   const planKey = (session?.user as any)?.plan || 'starter'
   const limits = PLAN_LIMITS[planKey as keyof typeof PLAN_LIMITS]
   
-  // Si es starter, queremos que sea 0 estrictamente. 
-  // Evaluamos con una condición limpia:
   let maxInstallers = 0
-  if (planKey === 'business') maxInstallers = 999 // Ilimitado
-  else if (planKey === 'pro') maxInstallers = 5    // O el número que tengas en tu PRO
-  else maxInstallers = 0                          // Starter = 0
+  // 🌟 Agregamos 'vip' para que también sea ilimitado (999)
+  if (planKey === 'business' || planKey === 'vip') maxInstallers = 999 
+  else if (planKey === 'pro') maxInstallers = 5    
+  else maxInstallers = 0                          
 
   return {
-      plan: planKey,
-      maxInstallers,
-    }
-  }, [session])
+    plan: planKey,
+    maxInstallers,
+  }
+}, [session])
 
   const fetchInstallers = async () => {
     setLoading(true)
@@ -118,11 +117,10 @@ export default function InstallersPage() {
   // ¿Llegamos al tope máximo permitido?
   const isLimitReached = useMemo(() => {
     if (tenantLimits.plan === 'business') return false
-    // Si el máximo permitido es 0, ya está alcanzado desde el primer momento
     return activeCount >= tenantLimits.maxInstallers
   }, [activeCount, tenantLimits])
 
-  // 3. Interceptar el click en CUALQUIER intento de creación
+  // Interceptar el click en CUALQUIER intento de creación
   const openCreate = () => {
     if (isLimitReached) {
       setOpenUpgrade(true)
@@ -147,6 +145,20 @@ export default function InstallersPage() {
   }
 
   const onSave = async () => {
+    // 🛡️ BLINDAJE LÓGICO 1: Si es una creación y el límite ya está alcanzado, frenar.
+    if (!editing && isLimitReached) {
+      setOpen(false)
+      setOpenUpgrade(true)
+      return
+    }
+
+    // 🛡️ BLINDAJE LÓGICO 2: Si está editando uno INACTIVO y lo quiere pasar a ACTIVO sin cupo.
+    if (editing && !editing.active && form.active && isLimitReached) {
+      setOpen(false)
+      setOpenUpgrade(true)
+      return
+    }
+
     setSaving(true)
     try {
       const payload = {
@@ -232,9 +244,8 @@ export default function InstallersPage() {
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <CardTitle>Listado</CardTitle>
-              {/* Contenedor fino del indicador de activos */}
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                Activos en lista: {activeCount}
+  Activos en lista: {activeCount} / {tenantLimits.maxInstallers === 999 ? '∞' : tenantLimits.maxInstallers}
                 {isLimitReached && (
                   <span className="inline-flex items-center text-amber-600 cursor-help group relative">
                     <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
@@ -261,7 +272,6 @@ export default function InstallersPage() {
                 Cargando...
               </div>
             ) : installers.length === 0 ? (
-              /* Empty State comercial si se llegó al tope y no hay más visibles */
               <div className="py-16 px-4 text-center max-w-sm mx-auto flex flex-col items-center gap-4">
                 <div className="p-4 rounded-full bg-muted text-muted-foreground">
                   <Wrench className="h-8 w-8" />
@@ -271,7 +281,7 @@ export default function InstallersPage() {
                   <p className="text-sm text-muted-foreground mt-1">
                     {isLimitReached 
                       ? `Alcanzaste el tope de tu plan actual (${tenantLimits.maxInstallers}). Expandí tu plan para cargar más personal técnico.`
-                      : 'Empezá registrando los técnicos y cuadrillas que realizan los armados en calle.'
+                      : 'Empezá registrando los instaladores / trabajadores'
                     }
                   </p>
                 </div>
@@ -439,7 +449,7 @@ export default function InstallersPage() {
         </Card>
       </div>
 
-      {/* FORMULARIO TRADICIONAL DE CREACIÓN/EDICIÓN */}
+      {/* FORMULARIO DE CREACIÓN/EDICIÓN */}
       {canEditInstallers && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
@@ -502,18 +512,13 @@ export default function InstallersPage() {
                 <Switch
                   checked={form.active}
                   onCheckedChange={(v) => {
-                    // Si intenta encenderlo y ya llegó o pasó el límite...
                     if (v === true && isLimitReached) {
-                      // 1. Si está editando a un tipo que YA estaba activo, dejamos que siga activo.
-                      // 2. Pero si estaba INACTIVO e intenta volver a activarlo, lo frenamos en seco:
                       if (!editing || !editing.active) {
-                        setOpen(false)        // Cerramos el modal de edición
-                        setOpenUpgrade(true)  // Le abrimos el cartel premium de expansión
+                        setOpen(false)        
+                        setOpenUpgrade(true)  
                         return
                       }
                     }
-                    
-                    // Si tiene cupo o lo está apagando, el flujo sigue normal
                     setForm({ ...form, active: v })
                   }}
                 />
@@ -542,7 +547,7 @@ export default function InstallersPage() {
         </Dialog>
       )}
 
-      {/* 🚨 MODAL PREMIUM DE UPGRADE DE LÍMITES */}
+      {/* 🚨 MODAL PREMIUM RE-ESTRUCTURADO AL ORIGINAL */}
       <Dialog open={openUpgrade} onOpenChange={setOpenUpgrade}>
         <DialogOverlay className="bg-black/80 backdrop-blur-[4px]" />
         <DialogContent className="sm:max-w-md text-center p-6 gap-0">
@@ -566,6 +571,7 @@ export default function InstallersPage() {
             <p>• Escalar tu plan para contar con soporte multiplaza y mayor volumen.</p>
           </div>
 
+          {/* DialogFooter original restablecido perfectamente */}
           <DialogFooter className="flex-col gap-2 sm:flex-col mt-2">
             <Button 
               onClick={() => router.push('/pricing')} 

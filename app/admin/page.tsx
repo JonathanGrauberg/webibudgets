@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+//app\admin\page.tsx
 
 export default async function AdminPage() {
   const totalTenants = await prisma.tenant.count()

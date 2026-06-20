@@ -559,7 +559,7 @@ export default function NewBudgetPage() {
                   )}
 
                   <Input
-                    placeholder="Referencia instalador de la zona"
+                    placeholder="Referencia del trabajador (opcional)"
                     value={installerReference}
                     onChange={(e) => setInstallerReference(e.target.value)}
                   />

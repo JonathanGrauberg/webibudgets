@@ -1,5 +1,5 @@
 'use client'
-
+//components\settings\company\company-branding-settings-client.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -8,40 +8,32 @@ import {
   Mail,
   Phone,
   MapPin,
-  Palette,
   Image as ImageIcon,
-  Monitor,
-  Users,
   Crown,
   Check,
   Save,
   Plus,
   Loader2,
-  FileText,
 } from 'lucide-react'
 
 import type { Branding } from '@/lib/branding'
 import { effectiveBranding } from '@/lib/branding'
 import { useBranding } from '@/components/branding-provider'
 import { getContrastColor } from '@/lib/contrast'
-import { FileUploadZone } from '@/components/settings/company/bolt-file-upload-zone'
 import { ColorPicker } from '@/components/settings/company/bolt-color-picker'
 import {
-  SidebarPreview,
-  DashboardPreview,
   PDFPreview,
-  MobilePreview,
   type ColorSystem,
 } from '@/components/settings/company/bolt-previews'
 import { useSession } from 'next-auth/react'
 
-// ✅ Importamos el componente desde su archivo externo aislado
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
+import { SmartAssetRow } from '@/components/branding/smart-asset-row'
 
 export type CompanyBrandingSettingsClientProps = {
   initialBranding?: Branding
-  currentBudgets?: number 
-  maxBudgets?: number     
+  currentBudgets?: number
+  maxBudgets?: number
 }
 
 type CompanyInfo = {
@@ -190,99 +182,24 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
   )
 }
 
-// 🚨 AQUÍ SE REMOVIÓ LA FUNCIÓN LOCAL POR COMPLETO PORQUE AHORA USA LA IMPORTADA 🚨
-
-// ─── Compact asset row ────────────────────────────────────────────────────────
-function CompactAssetRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string | null
-  onChange: (v: string | null) => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => onChange(ev.target?.result as string)
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
-      <div className="w-12 h-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
-        {value ? (
-          <img src={value} alt={label} className="w-full h-full object-contain p-1" />
-        ) : (
-          <ImageIcon className="w-5 h-5 text-slate-300" />
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{label}</p>
-        <p className="text-xs text-slate-400 truncate">
-          {value ? 'Imagen cargada' : 'Sin imagen'}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFile}
-        />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-        >
-          {value ? 'Cambiar' : 'Subir'}
-        </button>
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="px-3 py-1.5 text-xs font-medium rounded-md border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-          >
-            Quitar
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-
-
-export default function CompanyBrandingSettingsClient({ 
+export default function CompanyBrandingSettingsClient({
   initialBranding,
   currentBudgets = 0,
-  maxBudgets = 30
+  maxBudgets = 30,
 }: CompanyBrandingSettingsClientProps) {
-  
-  const { data: session } = useSession() // 🚨 Traemos los datos del usuario logueado
-  
+  const { data: session } = useSession()
+
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
 
   const [activeTab, setActiveTab] = useState('company')
-  
-  // 🚨 CONFIGURACIÓN INTELIGENTE DE VALORES INICIALES
+
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
-    // Si no hay datos comerciales guardados en la BD, usamos los datos de su cuenta como sugerencia
     const dbName = effective.name ?? ''
     const dbEmail = (initialBranding as any)?.email ?? ''
-    
     return {
-      name: dbName || session?.user?.name || '', // Si está vacío en la BD, usa el de su sesión
-      email: dbEmail || session?.user?.email || '', // Si está vacío en la BD, usa el mail con el que inició sesión
+      name: dbName || session?.user?.name || '',
+      email: dbEmail || session?.user?.email || '',
       phone: (initialBranding as any)?.phone ?? '',
       address: (initialBranding as any)?.address ?? '',
       website: (initialBranding as any)?.website ?? '',
@@ -290,11 +207,9 @@ export default function CompanyBrandingSettingsClient({
     }
   })
 
-  // 🚨 ATENCIÓN: Si la sesión tarda un milisegundo en cargar, podemos rellenar los campos en un useEffect 
-  // solo si el usuario todavía no escribió nada por su cuenta.
   useEffect(() => {
     if (session?.user) {
-      setCompanyInfo(prev => ({
+      setCompanyInfo((prev) => ({
         ...prev,
         name: prev.name || session.user?.name || '',
         email: prev.email || session.user?.email || '',
@@ -308,12 +223,12 @@ export default function CompanyBrandingSettingsClient({
     watermark: effective.watermarkUrl ?? null,
     sidebarIcon: effective.sidebarIconUrl ?? null,
   })
-  
+
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>((initialBranding as any)?.watermarkOpacity ?? 0.06)
   const [showPageNumbers, setShowPageNumbers] = useState<boolean>((initialBranding as any)?.showPageNumbers ?? true)
   const [showWebsiteInPdf, setShowWebsiteInPdf] = useState<boolean>((initialBranding as any)?.showWebsiteInPdf ?? true)
   const [showFooterBranding, setShowFooterBranding] = useState<boolean>((initialBranding as any)?.showFooterBranding ?? false)
-  
+
   const [colorSystem, setColorSystem] = useState<ColorSystem>({
     primary: effective.primaryColor ?? '#0ea5e9',
     secondary: effective.secondaryColor ?? '#64748b',
@@ -322,7 +237,12 @@ export default function CompanyBrandingSettingsClient({
 
   const [savedBrandingSnapshot, setSavedBrandingSnapshot] = useState(() =>
     serializeBranding(
-      { logo: effective.logoUrl ?? null, favicon: effective.faviconUrl ?? null, watermark: effective.watermarkUrl ?? null, sidebarIcon: effective.sidebarIconUrl ?? null },
+      {
+        logo: effective.logoUrl ?? null,
+        favicon: effective.faviconUrl ?? null,
+        watermark: effective.watermarkUrl ?? null,
+        sidebarIcon: effective.sidebarIconUrl ?? null,
+      },
       {
         primary: effective.primaryColor ?? '#0ea5e9',
         secondary: effective.secondaryColor ?? '#64748b',
@@ -336,15 +256,12 @@ export default function CompanyBrandingSettingsClient({
       }
     )
   )
-  
-  // Usamos el nombre resuelto (el de la BD o el de la sesión) para mantener consistencia con los snapshots de autoguardado
+
   const resolvedInitialName = effective.name || session?.user?.name || ''
   const [savedName, setSavedName] = useState(resolvedInitialName)
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const [isSavingName, setIsSavingName] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [nameSaveMessage, setNameSaveMessage] = useState<string | null>(null)
 
   const [savedCompanySnapshot, setSavedCompanySnapshot] = useState<string>(() => {
     return JSON.stringify({
@@ -360,7 +277,6 @@ export default function CompanyBrandingSettingsClient({
   const [companySaveMessage, setCompanySaveMessage] = useState<string | null>(null)
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  // ✅ Plan info dinámica — ya no hardcodeada
   const [planInfo, setPlanInfo] = useState<PlanInfo>({ maxUsers: 5, activeUsers: 0, plan: 'free' })
 
   const saveInFlightRef = useRef(false)
@@ -376,7 +292,12 @@ export default function CompanyBrandingSettingsClient({
     const eff = effective
 
     const incomingBrandingSerialized = serializeBranding(
-      { logo: eff.logoUrl ?? null, favicon: eff.faviconUrl ?? null, watermark: eff.watermarkUrl ?? null, sidebarIcon: eff.sidebarIconUrl ?? null },
+      {
+        logo: eff.logoUrl ?? null,
+        favicon: eff.faviconUrl ?? null,
+        watermark: eff.watermarkUrl ?? null,
+        sidebarIcon: eff.sidebarIconUrl ?? null,
+      },
       {
         primary: eff.primaryColor ?? '#0ea5e9',
         secondary: eff.secondaryColor ?? '#64748b',
@@ -391,7 +312,12 @@ export default function CompanyBrandingSettingsClient({
     )
 
     if (incomingBrandingSerialized !== lastSeenBrandingPropsRef.current) {
-      setBrandingAssets({ logo: eff.logoUrl ?? null, favicon: eff.faviconUrl ?? null, watermark: eff.watermarkUrl ?? null, sidebarIcon: eff.sidebarIconUrl ?? null })
+      setBrandingAssets({
+        logo: eff.logoUrl ?? null,
+        favicon: eff.faviconUrl ?? null,
+        watermark: eff.watermarkUrl ?? null,
+        sidebarIcon: eff.sidebarIconUrl ?? null,
+      })
       setColorSystem({
         primary: eff.primaryColor ?? '#0ea5e9',
         secondary: eff.secondaryColor ?? '#64748b',
@@ -427,20 +353,25 @@ export default function CompanyBrandingSettingsClient({
       setSavedName(eff.name ?? '')
       lastSeenCompanyPropsRef.current = incomingCompanySerialized
     }
-
   }, [initialBranding, effective])
 
   const brandingChanged =
-    serializeBranding(brandingAssets, colorSystem, { watermarkOpacity, showPageNumbers, showWebsiteInPdf, showFooterBranding }) !== savedBrandingSnapshot
-  const nameChanged = companyInfo.name !== savedName
-  const companyChanged = JSON.stringify({
-    name: companyInfo.name,
-    email: companyInfo.email,
-    phone: companyInfo.phone,
-    address: companyInfo.address,
-    website: companyInfo.website ?? '',
-    description: companyInfo.description,
-  }) !== savedCompanySnapshot
+    serializeBranding(brandingAssets, colorSystem, {
+      watermarkOpacity,
+      showPageNumbers,
+      showWebsiteInPdf,
+      showFooterBranding,
+    }) !== savedBrandingSnapshot
+
+  const companyChanged =
+    JSON.stringify({
+      name: companyInfo.name,
+      email: companyInfo.email,
+      phone: companyInfo.phone,
+      address: companyInfo.address,
+      website: companyInfo.website ?? '',
+      description: companyInfo.description,
+    }) !== savedCompanySnapshot
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
 
@@ -567,7 +498,7 @@ export default function CompanyBrandingSettingsClient({
     }
   }, [])
 
-  // ✅ Cargar plan info real desde la API
+{/* Modificamos el useEffect que carga el equipo para mapear correctamente el plan 'vip' */}
   useEffect(() => {
     if (activeTab !== 'plan') return
 
@@ -582,14 +513,18 @@ export default function CompanyBrandingSettingsClient({
           if (Array.isArray(payload.users)) {
             setTeamMembers(payload.users)
           }
+          
+          // 🌟 Normalizamos la información en caso de que venga el plan 'vip'
+          const isVipOrBusiness = payload.plan === 'vip' || payload.plan === 'business'
+          
           setPlanInfo({
-            maxUsers: payload.maxUsers ?? 5,
+            maxUsers: isVipOrBusiness ? 999 : (payload.maxUsers ?? 5),
             activeUsers: payload.activeUsers ?? 0,
             plan: payload.plan ?? 'free',
           })
         }
       } catch {
-        // keep empty list on failure
+        // mantener lista vacía en caso de falla
       }
     }
 
@@ -608,11 +543,10 @@ export default function CompanyBrandingSettingsClient({
   }, [])
 
   const handleSaveCompany = async () => {
-      // 🛡️ Escudo de seguridad: Si no hay nombre o son solo espacios, frenamos acá.
-      if (!companyInfo.name || companyInfo.name.trim() === '') {
-        setSaveError('El nombre de la empresa es obligatorio.')
-        return
-      }
+    if (!companyInfo.name || companyInfo.name.trim() === '') {
+      setSaveError('El nombre de la empresa es obligatorio.')
+      return
+    }
     setIsSavingCompany(true)
     setSaveError(null)
     setCompanySaveMessage(null)
@@ -676,12 +610,14 @@ export default function CompanyBrandingSettingsClient({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {saveError && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">{saveError}</div>
+          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+            {saveError}
+          </div>
         )}
 
         <AnimatePresence mode="wait">
 
-          {/* ── CONFIGURACIÓN ─────────────────────────────────────────────── */}
+          {/* ── CONFIGURACIÓN ── */}
           {activeTab === 'company' && (
             <motion.div
               key="company"
@@ -694,7 +630,9 @@ export default function CompanyBrandingSettingsClient({
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Información de la Empresa</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Actualiza los datos de la empresa visibles para el equipo</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      Actualiza los datos de la empresa visibles para el equipo
+                    </p>
                   </div>
                   {companyChanged && (
                     <button
@@ -712,7 +650,9 @@ export default function CompanyBrandingSettingsClient({
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre de la Empresa</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Nombre de la Empresa
+                      </label>
                       <div className="relative">
                         <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
@@ -726,7 +666,9 @@ export default function CompanyBrandingSettingsClient({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Correo Electrónico</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Correo Electrónico
+                      </label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
@@ -781,7 +723,9 @@ export default function CompanyBrandingSettingsClient({
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Descripción de la Empresa</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Descripción de la Empresa
+                      </label>
                       <textarea
                         value={companyInfo.description}
                         onChange={(e) => updateCompanyInfo('description', e.target.value)}
@@ -817,28 +761,26 @@ export default function CompanyBrandingSettingsClient({
                       <p className="text-xs text-slate-400 mt-0.5">Los cambios se guardan automáticamente</p>
                     </div>
                     <AnimatePresence>
-                      {saveStatus !== 'idle' && (
-                        <SaveIndicator status={saveStatus} />
-                      )}
+                      {saveStatus !== 'idle' && <SaveIndicator status={saveStatus} />}
                     </AnimatePresence>
                   </div>
-                  <div className="px-5 py-3 divide-y divide-slate-100 dark:divide-slate-800">
-                    <CompactAssetRow
+                  <div className="px-5 py-3">
+                    <SmartAssetRow
                       label="Logo de la Empresa"
                       value={brandingAssets.logo}
                       onChange={(v) => updateBrandingAsset('logo', v)}
                     />
-                    <CompactAssetRow
+                    <SmartAssetRow
                       label="Favicon"
                       value={brandingAssets.favicon}
                       onChange={(v) => updateBrandingAsset('favicon', v)}
                     />
-                    <CompactAssetRow
+                    <SmartAssetRow
                       label="Marca de Agua (PDF)"
                       value={brandingAssets.watermark}
                       onChange={(v) => updateBrandingAsset('watermark', v)}
                     />
-                    <CompactAssetRow
+                    <SmartAssetRow
                       label="Icono de Barra Lateral"
                       value={brandingAssets.sidebarIcon}
                       onChange={(v) => updateBrandingAsset('sidebarIcon', v)}
@@ -852,17 +794,31 @@ export default function CompanyBrandingSettingsClient({
                     <p className="text-xs text-slate-400 mt-0.5">Personaliza los colores de marca</p>
                   </div>
                   <div className="px-5 py-4 space-y-5">
-                    <ColorPicker label="Color Principal" value={colorSystem.primary} onChange={(v) => setColorSystem((p) => ({ ...p, primary: v }))} />
-                    <ColorPicker label="Color Secundario" value={colorSystem.secondary} onChange={(v) => setColorSystem((p) => ({ ...p, secondary: v }))} />
-                    <ColorPicker label="Color de Acento" value={colorSystem.accent} onChange={(v) => setColorSystem((p) => ({ ...p, accent: v }))} />
+                    <ColorPicker
+                      label="Color Principal"
+                      value={colorSystem.primary}
+                      onChange={(v) => setColorSystem((p) => ({ ...p, primary: v }))}
+                    />
+                    <ColorPicker
+                      label="Color Secundario"
+                      value={colorSystem.secondary}
+                      onChange={(v) => setColorSystem((p) => ({ ...p, secondary: v }))}
+                    />
+                    <ColorPicker
+                      label="Color de Acento"
+                      value={colorSystem.accent}
+                      onChange={(v) => setColorSystem((p) => ({ ...p, accent: v }))}
+                    />
                   </div>
                   <div className="px-5 pb-4 space-y-3">
                     <div className="flex gap-2">
-                      {([
-                        { id: 'primary', color: colorSystem.primary, label: 'Principal' },
-                        { id: 'secondary', color: colorSystem.secondary, label: 'Secundario' },
-                        { id: 'accent', color: colorSystem.accent, label: 'Acento' },
-                      ] as const).map(({ id, color, label }) => (
+                      {(
+                        [
+                          { id: 'primary', color: colorSystem.primary, label: 'Principal' },
+                          { id: 'secondary', color: colorSystem.secondary, label: 'Secundario' },
+                          { id: 'accent', color: colorSystem.accent, label: 'Acento' },
+                        ] as const
+                      ).map(({ id, color, label }) => (
                         <div key={id} className="flex-1 flex flex-col items-center gap-1">
                           <div className="w-full h-10 rounded-lg shadow-sm" style={{ backgroundColor: color }} />
                           <span className="text-[10px] text-slate-400">{label}</span>
@@ -871,7 +827,9 @@ export default function CompanyBrandingSettingsClient({
                     </div>
                     <div
                       className="h-8 rounded-lg"
-                      style={{ background: `linear-gradient(90deg, ${colorSystem.primary} 0%, ${colorSystem.secondary} 50%, ${colorSystem.accent} 100%)` }}
+                      style={{
+                        background: `linear-gradient(90deg, ${colorSystem.primary} 0%, ${colorSystem.secondary} 50%, ${colorSystem.accent} 100%)`,
+                      }}
                     />
                   </div>
                 </div>
@@ -902,16 +860,24 @@ export default function CompanyBrandingSettingsClient({
                       {[
                         { label: 'Mostrar numeración de páginas', value: showPageNumbers, setter: setShowPageNumbers },
                         { label: 'Mostrar sitio web en el pie', value: showWebsiteInPdf, setter: setShowWebsiteInPdf },
-                        { label: 'Mostrar "Generado con WebiBudgets"', value: showFooterBranding, setter: setShowFooterBranding },
+                        {
+                          label: 'Mostrar "Generado con WebiBudgets"',
+                          value: showFooterBranding,
+                          setter: setShowFooterBranding,
+                        },
                       ].map(({ label, value, setter }) => (
                         <label key={label} className="flex items-center gap-3 cursor-pointer group">
                           <div
-                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${value ? '' : 'bg-slate-200 dark:bg-slate-700'}`}
+                            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
+                              value ? '' : 'bg-slate-200 dark:bg-slate-700'
+                            }`}
                             style={value ? { backgroundColor: colorSystem.primary } : {}}
                             onClick={() => setter(!value)}
                           >
                             <div
-                              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${value ? 'left-4' : 'left-0.5'}`}
+                              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                                value ? 'left-4' : 'left-0.5'
+                              }`}
                             />
                           </div>
                           <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors select-none">
@@ -946,67 +912,86 @@ export default function CompanyBrandingSettingsClient({
             </motion.div>
           )}
 
-          {/* ── PLAN ─────────────────────────────────────────────────────── */}
-          {activeTab === 'plan' && (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-            >
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Gestionar Equipo</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Miembros del equipo y sus permisos</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  {teamMembers.length === 0 ? (
-                    <p className="text-sm text-slate-500">No hay miembros cargados.</p>
-                  ) : (
-                    teamMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
-                            style={{ backgroundColor: colorSystem.primary, color: getContrastColor(colorSystem.primary) }}
-                          >
-                            {member.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-900 dark:text-slate-50">{member.name}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
-                          </div>
-                        </div>
-                        <span
-                          className="px-3 py-1 rounded-full text-xs font-medium capitalize"
-                          style={{ backgroundColor: `${colorSystem.primary}15`, color: colorSystem.primary }}
-                        >
-                          {member.role}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                  <Link
-                    href="/settings/team"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 transition-all font-medium"
+{/* ── PLAN ── */}
+    {activeTab === 'plan' && (
+      <motion.div
+        key="plan"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.2 }}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      >
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Gestionar Equipo</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Miembros del equipo y sus permisos
+            </p>
+          </div>
+          <div className="p-6 space-y-4">
+            {teamMembers.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay miembros cargados.</p>
+            ) : (
+              teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                      style={{
+                        backgroundColor: colorSystem.primary,
+                        color: getContrastColor(colorSystem.primary),
+                      }}
+                    >
+                      {member.name
+                        ? member.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)
+                        : '??'}
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-slate-50">{member.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
+                    </div>
+                  </div>
+                  <span
+                    className="px-3 py-1 rounded-full text-xs font-medium capitalize"
+                    style={{
+                      backgroundColor: `${colorSystem.primary}15`,
+                      color: colorSystem.primary,
+                    }}
                   >
-                    <Plus className="w-4 h-4" />
-                    Ir a gestión de equipo
-                  </Link>
+                    {member.role}
+                  </span>
                 </div>
-              </div>
+              ))
+            )}
+            <Link
+              href="/settings/team"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 transition-all font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Ir a gestión de equipo
+            </Link>
+          </div>
+        </div>
 
-              {/* ✅ TeamPlanCard con datos reales */}
-              <TeamPlanCard
-                currentUsers={planInfo.activeUsers}
-                maxUsers={planInfo.maxUsers}
-                plan={planInfo.plan}
-                colors={colorSystem}
-              />
-            </motion.div>
-          )}
+        {/* 🌟 Pasamos el plan limpio. Si en TeamPlanCard tenés lógica interna para renderizar 
+            un badge o barra de progreso, al mandarle maxUsers={999} vas a poder pintar el símbolo "∞" 
+            o deshabilitar la barra de límite fácilmente. */}
+        <TeamPlanCard
+          currentUsers={planInfo.activeUsers}
+          maxUsers={planInfo.maxUsers}
+          plan={planInfo.plan}
+          colors={colorSystem}
+        />
+      </motion.div>
+    )}
 
         </AnimatePresence>
       </div>

@@ -61,7 +61,7 @@ export default function SellersPage() {
   const [loading, setLoading] = useState(true)
   const [includeInactive, setIncludeInactive] = useState(false)
   const [open, setOpen] = useState(false)
-  const [openUpgradeModal, setOpenUpgradeModal] = useState(false) // 🚨 Modal estético de Upgrade
+  const [openUpgradeModal, setOpenUpgradeModal] = useState(false)
   const [editing, setEditing] = useState<Seller | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
@@ -107,10 +107,13 @@ export default function SellersPage() {
     fetchSellers()
   }, [includeInactive])
 
-  const isLimitReached = tenantLimits.plan !== 'business' && tenantLimits.activeUsers >= tenantLimits.maxUsers
+  // 🌟 CAMBIO CLAVE: Definimos cuáles son los planes que no tienen límites de usuarios.
+  const isUnlimitedPlan = tenantLimits.plan === 'business' || tenantLimits.plan === 'vip'
+  
+  // El límite se alcanza solo si NO es un plan ilimitado Y los usuarios activos superan el máximo asignado.
+  const isLimitReached = !isUnlimitedPlan && tenantLimits.activeUsers >= tenantLimits.maxUsers
 
   const openCreate = () => {
-    // En lugar de tirarle un alert o redirigirlo a la fuerza, le abrimos un modal vendedor simpático
     if (isLimitReached) {
       setOpenUpgradeModal(true)
       return
@@ -222,7 +225,6 @@ export default function SellersPage() {
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <CardTitle>Listado</CardTitle>
-              {/* 🚨 El contador con el indicador fino queda acá impecable */}
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                 Activos en lista: {activeCount}
                 {isLimitReached && (
@@ -252,7 +254,6 @@ export default function SellersPage() {
                 Cargando...
               </div>
             ) : sellers.length === 0 ? (
-              /* 🚨 EMPTY STATE ESTRATÉGICO Y INTEGRADO */
               <div className="py-14 px-4 text-center max-w-md mx-auto space-y-3">
                 <div className="mx-auto w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 border border-dashed">
                   <Briefcase className="h-5 w-5" />
@@ -296,7 +297,6 @@ export default function SellersPage() {
                             {s.active ? 'Activo' : 'Inactivo'}
                           </Badge>
                         </div>
-                        {/* ... Resto de tu código mobile idéntico ... */}
                         <div className="space-y-2 text-sm">
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Mail className="h-4 w-4 shrink-0" />
@@ -364,7 +364,7 @@ export default function SellersPage() {
         </Card>
       </div>
 
-      {/* 🚨 MODAL UPGRADE: Ultra estético, vendedor, empático */}
+      {/* MODAL UPGRADE */}
       <Dialog open={openUpgradeModal} onOpenChange={setOpenUpgradeModal}>
         <DialogOverlay className="bg-black/40 backdrop-blur-[1px]" />
         <DialogContent className="max-w-sm rounded-xl p-6 text-center space-y-4">

@@ -1,5 +1,5 @@
 'use client'
-
+//components\modal-pago-pendiente.tsx
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
@@ -17,11 +17,16 @@ export function ModalPagoPendiente() {
   const subParam = searchParams.get('subscription')
   const userPlan = (session?.user as any)?.plan
 
-  // 🌟 Determinamos si es un usuario que entró a probar gratis de buena fe
-  // Si no tiene un flag de "pago pendiente" de MercadoPago y tiene días de prueba, es Free Trial.
+  // Determinamos si es un usuario que entró a probar gratis de buena fe
   const isFreeTrialUser = subParam !== 'pending' && diasRestantes > 0
 
   useEffect(() => {
+    // 👑 ESCUDO VIP: Si el usuario ya está asignado al plan VIP, forzamos el cierre y salimos
+    if (userPlan === 'vip') {
+      setIsOpen(false)
+      return
+    }
+
     if (session?.user && 'trialEndsAt' in session.user && session.user.trialEndsAt) {
       const fechaFinTrial = new Date(session.user.trialEndsAt as string)
       const hoy = new Date()
@@ -37,13 +42,10 @@ export function ModalPagoPendiente() {
 
     // Reglas para mostrar el modal
     if (subParam === 'pending') {
-      // Si MercadoPago explícitamente falló, se muestra sí o sí
       setIsOpen(true)
     } else if (diasRestantes <= 0 && userPlan !== 'business') {
-      // Si se terminaron los días de prueba, bloqueo total y se muestra
       setIsOpen(true)
     } else if (yaPasaron24Horas) {
-      // Recordatorio amigable cada 24 horas
       setIsOpen(true)
       localStorage.setItem('webibudgets_trial_modal_last_seen', ahora.toString())
     }
@@ -57,7 +59,6 @@ export function ModalPagoPendiente() {
 
     try {
       const tenantId = (session.user as any).tenantId
-      // Si por esas casualidades el plan es nulo, mandamos 'starter' por defecto
       const planToPay = userPlan ?? 'starter'
 
       const res = await fetch('/api/subscriptions/checkout', {
@@ -90,7 +91,6 @@ export function ModalPagoPendiente() {
           {isFreeTrialUser ? '🚀' : '💳'}
         </div>
 
-        {/* 🌟 Título Inteligente */}
         <h3 className="text-xl font-black tracking-tight text-zinc-900 leading-tight">
           {isFreeTrialUser 
             ? `¡Tu prueba gratuita está activa! Quedan ${diasRestantes} días`
@@ -100,7 +100,6 @@ export function ModalPagoPendiente() {
           }
         </h3>
         
-        {/* 🌟 Descripción Inteligente */}
         <p className="mt-2.5 text-sm text-zinc-500 leading-relaxed">
           {isFreeTrialUser ? (
             <>
@@ -133,7 +132,7 @@ export function ModalPagoPendiente() {
             {isActivating ? (
               'Redirigiendo a MercadoPago...'
             ) : (
-              isFreeTrialUser ? '⚡ Asegurar mi plan Básico (\$6.990)' : '⚡ Activar mi plan ahora'
+              isFreeTrialUser ? '⚡ Asegurar mi plan Básico ($6.990)' : '⚡ Activar mi plan ahora'
             )}
           </button>
           

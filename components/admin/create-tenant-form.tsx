@@ -1,8 +1,7 @@
-//components\admin\create-tenant-form.tsx
+// components\admin\create-tenant-form.tsx
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PLAN_OPTIONS, PLAN_LIMITS, type PlanKey } from '@/lib/plan'
 
@@ -14,12 +13,13 @@ export default function CreateTenantForm() {
   const [adminEmail, setAdminEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [plan, setPlan] = useState<PlanKey>('free')
+  const [plan, setPlan] = useState<PlanKey>('free') // Acordate de incluir 'vip' en PLAN_OPTIONS dentro de lib/plan.ts
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const planLimits = PLAN_LIMITS[plan]
+  // Obtenemos los límites dinámicamente del plan seleccionado
+  const planLimits = PLAN_LIMITS[plan] || { maxUsers: 'Ilimitado', trialDays: 0 }
   const maxUsersDisplay = planLimits.maxUsers != null ? String(planLimits.maxUsers) : 'Ilimitado'
 
   async function onSubmit(event: React.FormEvent) {
@@ -32,7 +32,14 @@ export default function CreateTenantForm() {
       const response = await fetch('/api/admin/tenants', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ companyName, slug, adminEmail, password, plan }),
+        body: JSON.stringify({ 
+          companyName, 
+          slug, 
+          adminEmail, 
+          password, 
+          plan, // Enviamos el plan directo ('free', 'starter', 'team', 'business' o 'vip')
+          trialEndsAt: plan === 'vip' ? null : undefined // Si es VIP, explícitamente no lleva trial
+        }),
       })
 
       if (!response.ok) {
@@ -41,7 +48,9 @@ export default function CreateTenantForm() {
       }
 
       const data = await response.json()
-      setMessage(`Tenant creado: ${data.tenant.name} (${data.tenant.slug})`)
+      setMessage(`Tenant creado: ${data.tenant.name} (${data.tenant.slug}) ${plan === 'vip' ? '⭐ [PLAN VIP ILIMITADO]' : ''}`)
+      
+      // Resetear formulario
       setCompanyName('')
       setSlug('')
       setAdminEmail('')
@@ -95,7 +104,6 @@ export default function CreateTenantForm() {
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Acme S.A."
                   autoComplete="off"
-                  className="rounded-xl border-zinc-200 bg-zinc-50 focus:bg-white"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -106,7 +114,7 @@ export default function CreateTenantForm() {
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder="acme-sa"
                   autoComplete="off"
-                  className="rounded-xl border-zinc-200 bg-zinc-50 font-mono text-sm focus:bg-white"
+                  className="font-mono text-sm"
                 />
               </label>
             </div>
@@ -130,7 +138,6 @@ export default function CreateTenantForm() {
                   placeholder="admin@acme.com"
                   autoComplete="off"
                   name="new-tenant-admin-email"
-                  className="rounded-xl border-zinc-200 bg-zinc-50 focus:bg-white"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -145,7 +152,7 @@ export default function CreateTenantForm() {
                     placeholder={`Mín. ${MIN_PASSWORD_LENGTH} caracteres`}
                     autoComplete="new-password"
                     name="new-tenant-admin-password"
-                    className="rounded-xl border-zinc-200 bg-zinc-50 focus:bg-white flex-1"
+                    className="flex-1"
                   />
                   <button
                     type="button"
@@ -186,22 +193,26 @@ export default function CreateTenantForm() {
                   value={maxUsersDisplay}
                   readOnly
                   disabled
-                  className="rounded-xl border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                  className="bg-zinc-100 text-zinc-500 cursor-not-allowed"
                 />
               </label>
             </div>
 
-            {planLimits.trialDays && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs text-amber-800">
-                  Este plan incluye un periodo de prueba de <strong>{planLimits.trialDays} días</strong> desde la creación del tenant.
+            {/* Carteles dinámicos según el plan real */}
+            {plan === 'vip' ? (
+              <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
+                <p className="text-xs text-purple-800 font-medium">
+                  ⭐ <strong>Cuenta VIP / Demo Eterna activa:</strong> Este tenant tendrá acceso ilimitado a todas las características de la plataforma sin vencimientos ni alertas de facturación.
                 </p>
               </div>
-            )}
-            {planLimits.maxBudgetsPerMonth && (
-              <p className="text-xs text-zinc-400">
-                Límite de {planLimits.maxBudgetsPerMonth} presupuestos por mes (aplicado próximamente).
-              </p>
+            ) : (
+              planLimits.trialDays > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs text-amber-800">
+                    Este plan incluye un periodo de prueba de <strong>{planLimits.trialDays} días</strong> desde la creación del tenant.
+                  </p>
+                </div>
+              )
             )}
           </fieldset>
 

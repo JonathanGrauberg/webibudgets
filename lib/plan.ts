@@ -1,6 +1,7 @@
 // lib/plan.ts — fuente única de verdad para límites, trials e IDs de MercadoPago
 
-export type PlanKey = 'free' | 'starter' | 'team' | 'business'
+// 1. Agregamos 'vip' al tipo
+export type PlanKey = 'free' | 'starter' | 'team' | 'business' | 'vip'
 
 export type PlanLimit = {
   label: string
@@ -12,7 +13,7 @@ export type PlanLimit = {
   trialDays: number // 0 = sin trial
   mpPlanId: string | null
   featured?: boolean
-  isPublic: boolean // false = solo interno (free)
+  isPublic: boolean // false = solo interno
   features: string[]
 }
 
@@ -28,6 +29,22 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     mpPlanId: null,
     isPublic: false,
     features: [],
+  },
+  // 🌟 AGREGAMOS EL NUEVO PLAN VIP AQUÍ
+  vip: {
+    label: 'VIP / Tester',
+    description: 'Acceso total e ilimitado para owners, amigos y beta testers.',
+    price: 'Bonificado',
+    priceARS: 0,
+    maxUsers: null,           // Ilimitado
+    maxBudgetsPerMonth: null, // Ilimitado
+    trialDays: 0,             // Sin trial (no vence nunca)
+    mpPlanId: null,
+    isPublic: false,          // Oculto del público general
+    features: [
+      'Acceso total ilimitado',
+      'Soporte directo de desarrollo',
+    ],
   },
   starter: {
     label: 'Básico',
@@ -168,12 +185,13 @@ export function isTenantActive(tenant: {
   active: boolean
 }): boolean {
   if (!tenant.active) return false
+  
+  // 🌟 SI ES VIP, TIENE ACCESO DIRECTO SIEMPRE
+  if (tenant.plan === 'vip') return true
+
   const config = getPlanConfig(tenant.plan)
-  // free = siempre bloqueado (sin plan asignado)
   if (tenant.plan === 'free' || !tenant.plan) return false
-  // sin trial → acceso directo (pagó)
   if (config.trialDays === 0) return true
-  // con trial → verificar que no expiró
   if (!tenant.trialEndsAt) return false
   return new Date(tenant.trialEndsAt) > new Date()
 }

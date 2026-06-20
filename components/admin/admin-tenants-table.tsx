@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
+import { Crown } from 'lucide-react'
 
 interface TenantRow {
   id: string
@@ -29,11 +30,11 @@ function toDateInputValue(iso: string | null): string {
 }
 
 function planLabel(plan: string | null) {
-  return PLAN_LIMITS[normalizePlan(plan)].label
+  return PLAN_LIMITS[normalizePlan(plan)]?.label || plan || 'Sin Plan'
 }
 
-function maxUsersDisplay(n: number | null) {
-  if (n === null || n === 9999) return 'Ilimitado'
+function maxUsersDisplay(n: number | null, plan: string | null) {
+  if (plan === 'vip' || n === null || n === 9999) return 'Ilimitado'
   if (n === 0) return 'Bloqueado'
   return String(n)
 }
@@ -54,8 +55,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
     setEdit({
       plan,
       originalPlan: plan,
-      maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan].maxUsers ?? 9999),
-      trialEndsAt: toDateInputValue(t.trialEndsAt),
+      maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan]?.maxUsers ?? 9999),
+      trialEndsAt: plan === 'vip' ? '' : toDateInputValue(t.trialEndsAt),
       active: t.active,
     })
     setError(null)
@@ -81,8 +82,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
         body: JSON.stringify({
           id: editingId,
           ...(planChanged ? { plan: edit.plan } : {}),
-          maxUsers: edit.maxUsers === '' ? undefined : Number(edit.maxUsers),
-          trialEndsAt: edit.trialEndsAt === '' ? null : edit.trialEndsAt,
+          maxUsers: edit.plan === 'vip' ? null : (edit.maxUsers === '' ? undefined : Number(edit.maxUsers)),
+          trialEndsAt: edit.plan === 'vip' ? null : (edit.trialEndsAt === '' ? null : edit.trialEndsAt),
           active: edit.active,
         }),
       })
@@ -157,10 +158,18 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
           {tenants.map((tenant) => {
             const isEditing = editingId === tenant.id
             const isConfirmingDelete = confirmDeleteId === tenant.id
+            const isCurrentVip = tenant.plan === 'vip' // 🚀 Detección limpia basada en el string de plan nativo
 
             return (
               <tr key={tenant.id} className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'opacity-50'}`}>
-                <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{tenant.name}</td>
+                <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-1.5">
+                  {tenant.name}
+                  {isCurrentVip && (
+                    <span title="Cuenta Creador / VIP" className="inline-flex shrink-0">
+                      <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    </span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
 
                 {/* Plan */}
@@ -174,7 +183,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                         setEdit((prev) => prev ? {
                           ...prev,
                           plan: newPlan,
-                          maxUsers: limits.maxUsers != null ? String(limits.maxUsers) : '9999',
+                          maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
+                          trialEndsAt: newPlan === 'vip' ? '' : prev.trialEndsAt
                         } : prev)
                       }}
                       className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
@@ -196,24 +206,33 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                     <input
                       type="number"
                       min={0}
-                      value={edit.maxUsers}
+                      disabled={edit.plan === 'vip'}
+                      value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
                       onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
-                      className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
+                      className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   ) : (
-                    maxUsersDisplay(tenant.maxUsers)
+                    maxUsersDisplay(tenant.maxUsers, tenant.plan)
                   )}
                 </td>
 
                 {/* Trial hasta */}
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                   {isEditing && edit ? (
-                    <input
-                      type="date"
-                      value={edit.trialEndsAt}
-                      onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-                    />
+                    edit.plan === 'vip' ? (
+                      <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
+                    ) : (
+                      <input
+                        type="date"
+                        value={edit.trialEndsAt}
+                        onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
+                        className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
+                      />
+                    )
+                  ) : isCurrentVip ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                      Ilimitado (VIP)
+                    </span>
                   ) : tenant.trialEndsAt ? (
                     new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
                   ) : (
@@ -297,7 +316,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                         >
                           Desactivar
                         </button>
-                      )}
+                  )}
                     </div>
                   )}
                 </td>
