@@ -135,29 +135,19 @@ export const authOptions: NextAuthOptions = {
       // ESCENARIO B: USUARIO YA EXISTE
       // ══════════════════════════════════════════════════════════════════════
 
-      // Si no tiene cuenta Google vinculada aún, la creamos nosotros
       const existingAccount = await prisma.account.findFirst({
         where: { userId: existingUser.id, provider: 'google' },
       })
 
-      if (!existingAccount && account) {
-        await prisma.account.create({
-          data: {
-            userId: existingUser.id,
-            type: account.type,
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-            refresh_token: account.refresh_token ?? null,
-            access_token: account.access_token ?? null,
-            expires_at: account.expires_at ?? null,
-            token_type: account.token_type ?? null,
-            scope: account.scope ?? null,
-            id_token: account.id_token ?? null,
-          },
-        })
+      if (!existingAccount) {
+        // ── B2: Existe pero se registró con contraseña ──────────────────────
+        // NO creamos la Account acá: si retornáramos true el PrismaAdapter
+        // la crearía también y exploataría con Unique constraint duplicada.
+        // Cortamos el flujo y mandamos al login con mensaje claro.
+        return `/auth/login?error=AccountExists`
       }
 
-      // Si el usuario existente NO tiene tenant (caso raro de DB corrupta), bloqueamos
+      // ── B1: Existe y ya tiene Google vinculado → login normal ─────────────
       if (!existingUser.tenantId) {
         console.error(`[auth] Usuario ${existingUser.id} sin tenantId — bloqueando login`)
         return `/auth/login?error=NoTenant`
