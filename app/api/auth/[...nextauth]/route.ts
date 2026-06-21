@@ -1,7 +1,7 @@
-// app\api\auth\[...nextauth]\route.ts
+// app/api/auth/[...nextauth]/route.ts
 import NextAuth, { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import CredentialsProvider from 'next-auth/providers/credentials' 
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from '@/lib/prisma'
 import { resolveMaxUsers, resolveTrialEndsAt } from '@/lib/plan'
@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true, 
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: 'Credentials',
@@ -46,14 +46,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password)
-
-        if (!isValid) {
-          throw new Error('Credenciales incorrectas')
-        }
-
-        if (!user.active) {
-          throw new Error('Tu cuenta está desactivada')
-        }
+        if (!isValid) throw new Error('Credenciales incorrectas')
+        if (!user.active) throw new Error('Tu cuenta está desactivada')
 
         return {
           id: user.id,
@@ -61,45 +55,41 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           tenantId: user.tenantId,
-          plan: user.tenant?.plan ?? 'free'
+          plan: user.tenant?.plan ?? 'free',
         }
       },
     }),
   ],
-callbacks: {
+  callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === 'google') {
-        // 🔒 Normalización total para evitar duplicados por minúsculas/mayúsculas o espacios
-        const emailNormalizado = (user.email ?? '').trim().toLowerCase()
+      if (account?.provider !== 'google') return true
 
-        if (!emailNormalizado) {
-          throw new Error('El proveedor de Google no devolvió un email válido.')
-        }
+      const emailNormalizado = (user.email ?? '').trim().toLowerCase()
+      if (!emailNormalizado) {
+        throw new Error('El proveedor de Google no devolvió un email válido.')
+      }
 
-        // Buscamos si ya existe el usuario por su email único
-        const existingUser = await prisma.user.findFirst({
-          where: { 
-            email: {
-              equals: emailNormalizado,
-              mode: 'insensitive' // Hace que Prisma ignore mayúsculas/minúsculas de forma nativa
-            }
-          },
-          include: { tenant: true }
-        })
+      // ── Buscar si el usuario ya existe ────────────────────────────────────
+      const existingUser = await prisma.user.findFirst({
+        where: { email: { equals: emailNormalizado, mode: 'insensitive' } },
+        include: { tenant: true },
+      })
 
-        if (!existingUser) {
-          // =================================================================
-          // ESCENARIO A: El usuario es 100% NUEVO en el sistema
-          // =================================================================
-          const companyName = `Empresa de ${user.name ?? 'Invitado'}`
-          let slug = generateSlug(companyName)
-          
-          const existingTenant = await prisma.tenant.findUnique({ where: { slug } })
-          if (existingTenant) {
-            slug = `${slug}-${Date.now().toString().slice(-4)}`
-          }
+      if (!existingUser) {
+        // ══════════════════════════════════════════════════════════════════
+        // ESCENARIO A: USUARIO NUEVO
+        // Creamos el tenant Y el user manualmente ANTES de que el adapter
+        // tenga oportunidad de crear un user sin tenantId.
+        // ══════════════════════════════════════════════════════════════════
+        const companyName = `Empresa de ${user.name ?? 'Invitado'}`
+        let slug = generateSlug(companyName)
 
-          const newTenant = await prisma.tenant.create({
+        const slugExists = await prisma.tenant.findUnique({ where: { slug } })
+        if (slugExists) slug = `${slug}-${Date.now().toString().slice(-4)}`
+
+        // Transacción: tenant + user en un solo paso atómico
+        const newUser = await prisma.$transaction(async (tx) => {
+          const newTenant = await tx.tenant.create({
             data: {
               name: companyName,
               slug,
@@ -113,50 +103,73 @@ callbacks: {
             },
           })
 
-          // Asignamos los campos requeridos por tu modelo User para el nuevo registro
-          user.tenantId = newTenant.id
-          ;(user as any).role = 'admin'
-          user.email = emailNormalizado // Aseguramos que NextAuth guarde el mail limpio
-        } else {
-          // =================================================================
-          // ESCENARIO B: El usuario YA EXISTE (No creamos ningún Tenant nuevo)
-          // =================================================================
-          
-          // Verificamos si este usuario ya tiene enlazada esta cuenta de Google
-          const existingAccount = await prisma.account.findFirst({
-            where: {
-              userId: existingUser.id,
-              provider: 'google',
+          return tx.user.create({
+            data: {
+              // El id lo generamos nosotros para que el adapter no lo duplique.
+              // El adapter buscará por email y encontrará este user ya creado.
+              name: user.name ?? 'Sin nombre',
+              email: emailNormalizado,
+              emailVerified: new Date(), // Google ya verificó el email
+              image: user.image ?? null,
+              role: 'admin',
+              tenantId: newTenant.id,
+              active: true,
             },
+            include: { tenant: true },
           })
+        })
 
-          // Si no la tiene vinculada (porque se registró vía Credenciales antes), la enlazamos en caliente
-          if (!existingAccount && account) {
-            await prisma.account.create({
-              data: {
-                userId: existingUser.id,
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-                refresh_token: account.refresh_token,
-                access_token: account.access_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-              },
-            })
-          }
+        // Propagamos los datos al objeto `user` para que lleguen al jwt callback.
+        // En este escenario el adapter verá que el User ya existe (por email)
+        // y solo creará el Account (vínculo con Google). No duplicará el User.
+        user.id = newUser.id
+        ;(user as any).role = newUser.role
+        ;(user as any).tenantId = newUser.tenantId
+        ;(user as any).plan = newUser.tenant?.plan ?? 'starter'
+        user.email = emailNormalizado
 
-          // 🌟 CRÍTICO: Pisamos los datos en memoria de NextAuth con los del usuario real de la DB.
-          // Esto evita que el adaptador intente generar un usuario duplicado.
-          user.id = existingUser.id
-          user.tenantId = existingUser.tenantId
-          user.email = existingUser.email
-          user.name = existingUser.name
-          ;(user as any).role = existingUser.role
-        }
+        return true
       }
+
+      // ══════════════════════════════════════════════════════════════════════
+      // ESCENARIO B: USUARIO YA EXISTE
+      // ══════════════════════════════════════════════════════════════════════
+
+      // Si no tiene cuenta Google vinculada aún, la creamos nosotros
+      const existingAccount = await prisma.account.findFirst({
+        where: { userId: existingUser.id, provider: 'google' },
+      })
+
+      if (!existingAccount && account) {
+        await prisma.account.create({
+          data: {
+            userId: existingUser.id,
+            type: account.type,
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            refresh_token: account.refresh_token ?? null,
+            access_token: account.access_token ?? null,
+            expires_at: account.expires_at ?? null,
+            token_type: account.token_type ?? null,
+            scope: account.scope ?? null,
+            id_token: account.id_token ?? null,
+          },
+        })
+      }
+
+      // Si el usuario existente NO tiene tenant (caso raro de DB corrupta), bloqueamos
+      if (!existingUser.tenantId) {
+        console.error(`[auth] Usuario ${existingUser.id} sin tenantId — bloqueando login`)
+        return `/auth/login?error=NoTenant`
+      }
+
+      // Propagamos datos reales al jwt callback
+      user.id = existingUser.id
+      ;(user as any).role = existingUser.role
+      ;(user as any).tenantId = existingUser.tenantId
+      ;(user as any).plan = existingUser.tenant?.plan ?? 'free'
+      user.email = emailNormalizado
+
       return true
     },
 
@@ -165,29 +178,7 @@ callbacks: {
         token.id = user.id
         token.role = (user as any).role
         token.tenantId = (user as any).tenantId
-        
-        if ((user as any).plan) {
-          token.plan = (user as any).plan
-        }
-      } 
-      
-      // Busqueda reactiva del plan usando el email limpio del token
-      if (token.email && !token.plan) {
-        const dbUser = await prisma.user.findFirst({
-          where: { 
-            email: {
-              equals: token.email.trim().toLowerCase(),
-              mode: 'insensitive'
-            }
-          },
-          include: { tenant: true }
-        })
-        if (dbUser) {
-          token.id = dbUser.id
-          token.role = dbUser.role
-          token.tenantId = dbUser.tenantId
-          token.plan = dbUser.tenant?.plan ?? 'starter'
-        }
+        token.plan = (user as any).plan ?? 'free'
       }
       return token
     },
@@ -204,7 +195,7 @@ callbacks: {
   },
   pages: {
     signIn: '/auth/login',
-    error: '/auth/login', 
+    error: '/auth/login',
   },
   session: {
     strategy: 'jwt',

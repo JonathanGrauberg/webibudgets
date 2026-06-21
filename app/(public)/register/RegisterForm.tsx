@@ -1,5 +1,5 @@
 'use client'
-
+//app\(public)\register\RegisterForm.tsx
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
@@ -21,17 +21,15 @@ export default function RegisterForm() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false) // 🌟 Control de carga para Google
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
 
-  // 🔄 Captura infalible del botón "Atrás" usando la sesión real del usuario
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       const userPlan = (session.user as any).plan ?? 'free'
       
       if (userPlan !== 'free') {
-        // Si su plan guardado es pago, lo mandamos al dashboard gatillando el modal
         router.replace('/dashboard?subscription=pending')
       } else {
         router.replace('/dashboard')
@@ -95,7 +93,6 @@ export default function RegisterForm() {
         throw new Error('Cuenta creada. Iniciá sesión en /auth/login')
       }
 
-      // Si el parámetro inicial era un plan pago, gatillamos MercadoPago
       if (planParam !== 'free') {
         setStep('redirecting')
 
@@ -125,7 +122,6 @@ export default function RegisterForm() {
     }
   }
 
-  // 🌟 Acción Real de Google
   const handleGoogleRegister = async () => {
     setIsGoogleLoading(true)
     try {
@@ -152,6 +148,9 @@ export default function RegisterForm() {
     )
   }
 
+  // 🔒 Detectamos si el error guardado en el estado coincide con la respuesta del mail duplicado
+  const isDuplicateAccountError = error === 'La cuenta ya existe, debes iniciar sesion'
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
       <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04]" />
@@ -168,7 +167,6 @@ export default function RegisterForm() {
             {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '14 días gratis, sin tarjeta de crédito'}
           </p>
 
-          {/* 🔘 Botón de Google Funcional */}
           <button
             type="button"
             disabled={isSubmitting || isGoogleLoading}
@@ -189,10 +187,26 @@ export default function RegisterForm() {
             <span className="relative bg-card px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">O con email</span>
           </div>
 
+          {/* 🌟 Renderizado Condicional del Mensaje de Error */}
           {error && (
-            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
-              {error}
-            </div>
+            isDuplicateAccountError ? (
+              // Cartel Premium / Advertencia amable si la cuenta ya existe
+              <div className="mb-5 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-xs text-amber-800 dark:text-amber-400">
+                <span className="font-semibold">La cuenta ya existe en nuestro sistema.</span>
+                <p>No necesitas crear un nuevo tenant. Podés iniciar sesión directamente con tus accesos de siempre.</p>
+                <Link 
+                  href="/auth/login" 
+                  className="mt-1 font-bold underline text-amber-900 dark:text-amber-300 hover:opacity-80 transition flex items-center gap-1"
+                >
+                  Ir a Iniciar Sesión →
+                </Link>
+              </div>
+            ) : (
+              // Bloque por defecto para otros errores de validación
+              <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
@@ -216,7 +230,7 @@ export default function RegisterForm() {
                 Email
               </label>
               <input
-                type="email"
+                type="type"
                 required
                 disabled={isSubmitting || isGoogleLoading}
                 value={email}
