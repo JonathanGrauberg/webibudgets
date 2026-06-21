@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
-import { Crown } from 'lucide-react'
+import { Crown, Trash2 } from 'lucide-react'
 
 interface TenantRow {
   id: string
@@ -44,6 +44,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmHardDeleteId, setConfirmHardDeleteId] = useState<string | null>(null) // 🚀 Estado para eliminación definitiva
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +53,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
     const plan = normalizePlan(t.plan)
     setEditingId(t.id)
     setConfirmDeleteId(null)
+    setConfirmHardDeleteId(null)
     setEdit({
       plan,
       originalPlan: plan,
@@ -110,6 +112,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
     }
   }
 
+  // 🔹 Soft Delete (Desactivar)
   async function softDelete(id: string) {
     setIsDeleting(true)
     setError(null)
@@ -117,7 +120,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
       const response = await fetch('/api/admin/tenants', {
         method: 'DELETE',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, permanent: false }),
       })
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
@@ -127,6 +130,31 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
         prev.map((t) => (t.id === id ? { ...t, active: false } : t))
       )
       setConfirmDeleteId(null)
+    } catch (err: any) {
+      setError(err?.message ?? 'Error desconocido')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // 💥 Hard Delete (Eliminar Definitivamente de la DB)
+  async function hardDelete(id: string) {
+    setIsDeleting(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/admin/tenants', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, permanent: true }), // Le avisamos al backend que es definitivo
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Error eliminando permanentemente el tenant')
+      }
+      
+      // Lo removemos directamente del listado de la UI
+      setTenants((prev) => prev.filter((t) => t.id !== id))
+      setConfirmHardDeleteId(null)
     } catch (err: any) {
       setError(err?.message ?? 'Error desconocido')
     } finally {
@@ -158,10 +186,11 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
           {tenants.map((tenant) => {
             const isEditing = editingId === tenant.id
             const isConfirmingDelete = confirmDeleteId === tenant.id
-            const isCurrentVip = tenant.plan === 'vip' // 🚀 Detección limpia basada en el string de plan nativo
+            const isConfirmingHardDelete = confirmHardDeleteId === tenant.id
+            const isCurrentVip = tenant.plan === 'vip'
 
             return (
-              <tr key={tenant.id} className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'opacity-50'}`}>
+              <tr key={tenant.id} className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'bg-slate-50/40 opacity-75'}`}>
                 <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-1.5">
                   {tenant.name}
                   {isCurrentVip && (
@@ -291,10 +320,28 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                         disabled={isDeleting}
                         className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                       >
-                        {isDeleting ? '...' : 'Confirmar'}
+                        {isDeleting ? '...' : 'Sí'}
                       </button>
                       <button
                         onClick={() => setConfirmDeleteId(null)}
+                        disabled={isDeleting}
+                        className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : isConfirmingHardDelete ? (
+                    <div className="flex justify-end items-center gap-2">
+                      <span className="text-xs text-red-700 font-bold bg-red-50 dark:bg-red-950/40 px-2 py-1 rounded">¿Eliminar permanentemente de la DB?</span>
+                      <button
+                        onClick={() => hardDelete(tenant.id)}
+                        disabled={isDeleting}
+                        className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800 shadow"
+                      >
+                        {isDeleting ? '...' : 'ELIMINAR'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmHardDeleteId(null)}
                         disabled={isDeleting}
                         className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
                       >
@@ -309,14 +356,24 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       >
                         Editar
                       </button>
-                      {tenant.active && (
+                      
+                      {tenant.active ? (
                         <button
-                          onClick={() => { setConfirmDeleteId(tenant.id); setEditingId(null); setEdit(null) }}
+                          onClick={() => { setConfirmDeleteId(tenant.id); setConfirmHardDeleteId(null); setEditingId(null); setEdit(null) }}
                           className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                         >
                           Desactivar
                         </button>
-                  )}
+                      ) : (
+                        // 🔒 Regla de oro: Botón destructivo visible solo si la empresa ya está inactiva
+                        <button
+                          onClick={() => { setConfirmHardDeleteId(tenant.id); setConfirmDeleteId(null); setEditingId(null); setEdit(null) }}
+                          className="rounded-full bg-red-50 text-red-600 p-1.5 transition hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/50"
+                          title="Eliminar permanentemente de la base de datos"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>

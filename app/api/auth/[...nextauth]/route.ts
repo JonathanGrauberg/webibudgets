@@ -66,18 +66,31 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  callbacks: {
+callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
-        const emailNormalizado = (user.email ?? '').toLowerCase().trim()
+        // 🔒 Normalización total para evitar duplicados por minúsculas/mayúsculas o espacios
+        const emailNormalizado = (user.email ?? '').trim().toLowerCase()
 
-        const existingUser = await prisma.user.findUnique({
-          where: { email: emailNormalizado },
+        if (!emailNormalizado) {
+          throw new Error('El proveedor de Google no devolvió un email válido.')
+        }
+
+        // Buscamos si ya existe el usuario por su email único
+        const existingUser = await prisma.user.findFirst({
+          where: { 
+            email: {
+              equals: emailNormalizado,
+              mode: 'insensitive' // Hace que Prisma ignore mayúsculas/minúsculas de forma nativa
+            }
+          },
           include: { tenant: true }
         })
 
         if (!existingUser) {
-          // ESCENARIO A: Usuario 100% nuevo de Google
+          // =================================================================
+          // ESCENARIO A: El usuario es 100% NUEVO en el sistema
+          // =================================================================
           const companyName = `Empresa de ${user.name ?? 'Invitado'}`
           let slug = generateSlug(companyName)
           
@@ -100,12 +113,16 @@ export const authOptions: NextAuthOptions = {
             },
           })
 
-          // 🌟 ASIGNACIÓN ESTRICTA: Solo inyectamos lo que Prisma SÍ tiene mapeado en su tabla User.
-          // El 'plan' NO se toca acá para que el adapter no explote.
+          // Asignamos los campos requeridos por tu modelo User para el nuevo registro
           user.tenantId = newTenant.id
           ;(user as any).role = 'admin'
+          user.email = emailNormalizado // Aseguramos que NextAuth guarde el mail limpio
         } else {
-          // ESCENARIO B: El usuario ya existía por credenciales manuales
+          // =================================================================
+          // ESCENARIO B: El usuario YA EXISTE (No creamos ningún Tenant nuevo)
+          // =================================================================
+          
+          // Verificamos si este usuario ya tiene enlazada esta cuenta de Google
           const existingAccount = await prisma.account.findFirst({
             where: {
               userId: existingUser.id,
@@ -113,6 +130,7 @@ export const authOptions: NextAuthOptions = {
             },
           })
 
+          // Si no la tiene vinculada (porque se registró vía Credenciales antes), la enlazamos en caliente
           if (!existingAccount && account) {
             await prisma.account.create({
               data: {
@@ -130,8 +148,12 @@ export const authOptions: NextAuthOptions = {
             })
           }
 
+          // 🌟 CRÍTICO: Pisamos los datos en memoria de NextAuth con los del usuario real de la DB.
+          // Esto evita que el adaptador intente generar un usuario duplicado.
           user.id = existingUser.id
           user.tenantId = existingUser.tenantId
+          user.email = existingUser.email
+          user.name = existingUser.name
           ;(user as any).role = existingUser.role
         }
       }
@@ -139,23 +161,25 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user }) {
-      // Si el login acaba de suceder, NextAuth nos da el objeto user
       if (user) {
         token.id = user.id
         token.role = (user as any).role
         token.tenantId = (user as any).tenantId
         
-        // Si vino de Credenciales, ya trae el plan armado.
         if ((user as any).plan) {
           token.plan = (user as any).plan
         }
       } 
       
-      // 🌟 SOLUCIÓN REAL: Buscamos el plan del Tenant de manera segura para la sesión del JWT.
-      // Esto corre fuera del alcance del PrismaAdapter y jamás romperá la base de datos.
+      // Busqueda reactiva del plan usando el email limpio del token
       if (token.email && !token.plan) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email.toLowerCase().trim() },
+        const dbUser = await prisma.user.findFirst({
+          where: { 
+            email: {
+              equals: token.email.trim().toLowerCase(),
+              mode: 'insensitive'
+            }
+          },
           include: { tenant: true }
         })
         if (dbUser) {

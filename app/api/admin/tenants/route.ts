@@ -181,14 +181,43 @@ export async function DELETE(req: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
-  const { id } = body ?? {}
+  const { id, permanent } = body ?? {}
 
   if (!id) return NextResponse.json({ error: 'Missing tenant id' }, { status: 400 })
 
   const existing = await prisma.tenant.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
 
-  // Soft delete: marcar como inactivo
+  if (permanent) {
+    try {
+      // 💥 ELIMINACIÓN EN CASCADA MANUAL: Limpieza absoluta de la base de datos
+      await prisma.$transaction([
+        // 1. Borramos las cuentas de OAuth de todos los usuarios vinculados al tenant
+        prisma.account.deleteMany({
+          where: { user: { tenantId: id } }
+        }),
+        // 2. Borramos las sesiones activas de todos los usuarios vinculados al tenant
+        prisma.session.deleteMany({
+          where: { user: { tenantId: id } }
+        }),
+        // 3. Borramos los usuarios del tenant
+        prisma.user.deleteMany({
+          where: { tenantId: id }
+        }),
+        // 4. Finalmente, destruimos el registro del Tenant de raíz
+        prisma.tenant.deleteMany({
+          where: { id }
+        })
+      ])
+
+      return NextResponse.json({ ok: true, message: 'Tenant eliminado de forma permanente.' })
+    } catch (dbError: any) {
+      console.error('[DELETE permanent error]', dbError)
+      return NextResponse.json({ error: 'Error al ejecutar el borrado definitivo en cascada' }, { status: 500 })
+    }
+  }
+
+  // 🔹 Soft delete original si permanent no es true (Marcar como inactivo)
   const tenant = await prisma.tenant.update({
     where: { id },
     data: { active: false },
