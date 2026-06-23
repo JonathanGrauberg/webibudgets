@@ -206,7 +206,6 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json()
-    // 🌟 Recibimos 'newPassword' en lugar de un booleano ciego
     const { userId, role, active, newPassword } = body
 
     if (!userId) {
@@ -239,38 +238,78 @@ export async function PUT(req: NextRequest) {
     if (role !== undefined) updateData.role = role
     if (active !== undefined) updateData.active = active
 
-    // 🌟 VALIDACIÓN DE LA CONTRASEÑA EN EL BACKEND
     if (newPassword !== undefined && newPassword !== null && newPassword !== '') {
-  if (typeof newPassword !== 'string' || !PASSWORD_REGEX.test(newPassword)) {
-    return NextResponse.json({ 
-      error: 'La contraseña no cumple con los requisitos mínimos de seguridad...' 
-    }, { status: 400 })
-  }
-  
-  // 🔥 Forzamos la generación de la sal explícita con bcryptjs para blindar la compatibilidad
-  const salt = await bcrypt.genSalt(10)
-  updateData.password = await bcrypt.hash(newPassword, salt)
-}
+      if (typeof newPassword !== 'string' || !PASSWORD_REGEX.test(newPassword)) {
+        return NextResponse.json({ 
+          error: 'La contraseña no cumple con los requisitos mínimos de seguridad...' 
+        }, { status: 400 })
+      }
+      
+      const salt = await bcrypt.genSalt(10)
+      updateData.password = await bcrypt.hash(newPassword, salt)
+    }
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        active: true,
-        createdAt: true,
-      },
+    // 🔄 Ejecutamos la actualización y sincronización dentro de una transacción segura
+    const updated = await prisma.$transaction(async (tx) => {
+      const userUpdated = await tx.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          active: true,
+          createdAt: true,
+        },
+      })
+
+      // Si se editó el rol, nos aseguramos de sincronizar los perfiles comerciales
+      if (role !== undefined) {
+        const profileInput = {
+          userId: userUpdated.id,
+          tenantId: tenantId,
+          fullName: userUpdated.name,
+          email: userUpdated.email,
+          active: userUpdated.active,
+        }
+
+        if (role === 'seller') {
+          await ensureSellerForUser(tx, profileInput)
+        } else if (role === 'installer') {
+          await ensureInstallerForUser(tx, profileInput)
+        }
+      }
+
+      return userUpdated
     })
 
     return NextResponse.json({
       user: updated,
-      message: newPassword ? 'Contraseña actualizada con éxito.' : 'Usuario modificado.',
+      message: newPassword ? 'Contraseña actualizada con éxito.' : 'Usuario modificado con éxito y perfiles sincronizados.',
     })
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { userId } = await request.json()
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Falta el ID del usuario' }, { status: 400 })
+    }
+
+    // ⚠️ IMPORTANTE: Podés usar delete si querés borrarlo de raíz:
+    await prisma.user.delete({
+      where: { id: userId },
+    })
+
+    return NextResponse.json({ success: true, message: 'Usuario eliminado correctamente' })
+  } catch (error: any) {
+    console.error('Error al eliminar usuario:', error)
+    return NextResponse.json({ error: 'No se pudo eliminar el usuario' }, { status: 500 })
   }
 }

@@ -397,6 +397,33 @@ export default function TeamPage() {
     )
   }
 
+  async function handleDeleteUser(userId: string) {
+    // Un cartel nativo de confirmación para evitar accidentes trágicos
+    const confirmDelete = confirm('¿Estás seguro de que querés eliminar permanentemente a este usuario? Esta acción no se puede deshacer.')
+    if (!confirmDelete) return
+
+    try {
+      setError(null)
+      setMessage(null)
+      
+      const res = await fetch('/api/tenants/users', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Error al eliminar el usuario')
+      }
+
+      setMessage('Usuario eliminado con éxito.')
+      await fetchUsers() // Recargamos la lista automáticamente
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al eliminar el usuario')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f8f8f6]">
       <PageBreadcrumbs />
@@ -507,7 +534,12 @@ export default function TeamPage() {
                       </div>
                     </div>
                     <div className="mt-3 border-t border-zinc-100 pt-3">
-                      <UserCard user={user} onUpdate={handleUpdateUser} isAtLimit={isAtLimit} />
+                      <UserCard 
+                        user={user} 
+                        onUpdate={handleUpdateUser} 
+                        onDelete={handleDeleteUser} 
+                        isAtLimit={isAtLimit} 
+                      />
                     </div>
                   </div>
                 ))}

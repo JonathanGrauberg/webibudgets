@@ -102,10 +102,16 @@ export function CreateUserForm({
     }
 
     try {
+      // 🇦🇷 Forzamos consistencia: Pasamos el correo estrictamente a minúsculas antes de viajar al backend
+      const normalizedForm = {
+        ...form,
+        email: form.email.trim().toLowerCase()
+      }
+
       const res = await fetch('/api/tenants/users', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(normalizedForm),
       })
 
       if (!res.ok) {
@@ -254,14 +260,17 @@ export function CreateUserForm({
 export function UserCard({
   user,
   onUpdate,
+  onDelete, // 👈 Recibimos la nueva función encargada de eliminar
   isAtLimit = false,
 }: {
   user: User
   onUpdate?: (userId: string, updates: Record<string, unknown>) => Promise<void>
+  onDelete: (userId: string) => Promise<void> // 👈 Tipamos de forma explícita para que TypeScript no tire error
   isAtLimit?: boolean
 }) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [showActions, setShowActions] = useState(false)
+  const [currentRole, setCurrentRole] = useState(user.role)
 
   async function handleToggleActive() {
     if (!onUpdate) return
@@ -272,6 +281,20 @@ export function UserCard({
       setIsUpdating(false)
     }
   }
+
+  async function handleChangeRole(newRole: string) {
+  if (!onUpdate) return
+  setIsUpdating(true)
+  try {
+    // Le enviamos al handleUpdateUser de la página el nuevo rol
+    await onUpdate(user.id, { role: newRole })
+    setCurrentRole(newRole) // Actualizamos el estado local si sale todo OK
+  } catch (err) {
+    alert('❌ No se pudo cambiar el rol del usuario.')
+  } finally {
+    setIsUpdating(false)
+  }
+}
 
   // 🌟 FLUJO DE CONFIRMACIÓN INTERACTIVO "A PRUEBA DE BALAS"
   async function handleResetPassword() {
@@ -367,12 +390,34 @@ export function UserCard({
 
       {showActions && (
         <div className="mt-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+
+        {/* 👑 NUEVO: SELECTOR DE ROL DIRECTO */}
+            <div className="flex flex-col gap-1 px-1 mb-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Rol del usuario</span>
+              <Select 
+                disabled={isUpdating} 
+                value={currentRole} 
+                onValueChange={handleChangeRole}
+              >
+                <SelectTrigger className="h-9 text-sm bg-transparent">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">Visualizador</SelectItem>
+                  <SelectItem value="seller">Vendedor</SelectItem>
+                  <SelectItem value="installer">Instalador</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
           {!user.active && isAtLimit ? (
             <div className="px-3 py-2 text-xs rounded border border-amber-200 bg-amber-50 text-amber-800 leading-relaxed">
               No podés activar este usuario — límite del plan alcanzado.{' '}
               <a href="/pricing" className="underline font-medium">
                 Actualizá tu plan
-              </a>
+              </a>{' '}
+              para agregar más usuarios.
             </div>
           ) : (
             <button
@@ -389,9 +434,19 @@ export function UserCard({
             type="button"
             disabled={isUpdating}
             onClick={handleResetPassword}
+            className="px-3 py-1.5 text-sm rounded border border-zinc-200 text-zinc-700 hover:bg-accent text-left transition disabled:opacity-50"
+          >
+            {isUpdating ? 'Modificando...' : '🔑 Cambiar contraseña'}
+          </button>
+
+          {/* ❌ BOTÓN DE ELIMINACIÓN DE MIEMBRO */}
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={() => onDelete(user.id)}
             className="px-3 py-1.5 text-sm rounded border border-red-100 bg-red-50/30 text-red-700 hover:bg-red-50 text-left transition disabled:opacity-50 font-medium"
           >
-            {isUpdating ? 'Modificando...' : '🔑 Cambiar contraseña de forma manual'}
+            🗑️ Eliminar permanentemente
           </button>
         </div>
       )}
