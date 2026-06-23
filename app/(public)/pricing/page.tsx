@@ -20,7 +20,7 @@ export default async function PricingPage() {
           href="/"
           className="text-4xl font-black tracking-tighter text-primary leading-none"
         >
-          .Budgets
+          .budgets
         </Link>
         
         <div className="flex items-center gap-4">

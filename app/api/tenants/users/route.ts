@@ -180,6 +180,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ── EXPRESIÓN REGULAR DE SEGURIDAD ─────────────────────────────────────────────
+// Mínimo 8 caracteres, al menos 1 Mayúscula, 1 Minúscula, 1 Número y 1 Símbolo especial.
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&!#$])[A-Za-z\d@$!%*?&!#$]{8,}$/
+
 export async function PUT(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token) {
@@ -202,7 +206,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { userId, role, active, resetPassword } = body
+    // 🌟 Recibimos 'newPassword' en lugar de un booleano ciego
+    const { userId, role, active, newPassword } = body
 
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 })
@@ -216,7 +221,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // ✅ Si están intentando activar un usuario inactivo, verificar límite
     if (active === true && targetUser.active === false) {
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -235,11 +239,18 @@ export async function PUT(req: NextRequest) {
     if (role !== undefined) updateData.role = role
     if (active !== undefined) updateData.active = active
 
-    let tempPassword: string | null = null
-    if (resetPassword) {
-      tempPassword = generateTempPassword()
-      updateData.password = await bcrypt.hash(tempPassword, 10)
-    }
+    // 🌟 VALIDACIÓN DE LA CONTRASEÑA EN EL BACKEND
+    if (newPassword !== undefined && newPassword !== null && newPassword !== '') {
+  if (typeof newPassword !== 'string' || !PASSWORD_REGEX.test(newPassword)) {
+    return NextResponse.json({ 
+      error: 'La contraseña no cumple con los requisitos mínimos de seguridad...' 
+    }, { status: 400 })
+  }
+  
+  // 🔥 Forzamos la generación de la sal explícita con bcryptjs para blindar la compatibilidad
+  const salt = await bcrypt.genSalt(10)
+  updateData.password = await bcrypt.hash(newPassword, salt)
+}
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -256,7 +267,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({
       user: updated,
-      ...(tempPassword && { tempPassword, message: 'Password reset. Share the new temporary password.' }),
+      message: newPassword ? 'Contraseña actualizada con éxito.' : 'Usuario modificado.',
     })
   } catch (error) {
     console.error('Error updating user:', error)

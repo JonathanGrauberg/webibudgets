@@ -159,7 +159,7 @@ export default function RegisterForm() {
       <div className="relative z-10 w-full max-w-sm">
         <div className="rounded-3xl border border-border bg-card p-10 shadow-xl">
           <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
-            .Budgets
+            .budgets
           </Link>
 
           <h1 className="mt-5 mb-2 text-sm font-semibold text-foreground">Crear cuenta</h1>

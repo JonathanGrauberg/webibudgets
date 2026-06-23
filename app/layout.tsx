@@ -14,8 +14,8 @@ const inter = Inter({
 
 
 export const metadata: Metadata = {
-  title: '.Budgets - Gestión de presupuestos',
-  description: '.Budgets: gestión simple de presupuestos y clientes para pymes.',
+  title: '.budgets - Gestión de presupuestos',
+  description: '.budgets: gestión simple de presupuestos y clientes para pymes.',
   generator: 'Webi',
   icons: {
     icon: [

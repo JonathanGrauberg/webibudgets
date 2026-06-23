@@ -120,7 +120,7 @@ export function LandingSections({
 
           <div className="relative z-10">
             <h1 className="text-[clamp(3rem,10vw,6rem)] font-bold leading-[0.85] tracking-[-1px] sm:tracking-[-3px] lg:tracking-[-6px] text-foreground">              
-              <span className='text-primary'>.Budgets</span>
+              <span className='text-primary'>.budgets</span>
             </h1> 
             <p className="mt-4 text-lg text-muted-foreground">
               Sistema de gestión para tu negocio

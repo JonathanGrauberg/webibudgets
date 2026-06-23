@@ -1,4 +1,3 @@
-//components\team-form.tsx
 'use client'
 
 import { useState } from 'react'
@@ -7,6 +6,24 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const MIN_PASSWORD_LENGTH = 8
+
+// 🛡️ Filtro de Robustez: 8 caracteres, Mayúscula, Minúscula, Número y Símbolo
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&!#$])[A-Za-z\d@$!%*?&!#$]{8,}$/
+
+// 🛡️ Filtro Anti-Obviedades: Evita patrones consecutivos como '12345678', 'abcdefgh', o repetidos como 'aaaaAAAA1!'
+function isPasswordTooObvious(pass: string): boolean {
+  const lower = pass.toLowerCase()
+  // Comprobar si son caracteres idénticos repetidos
+  if (/^(.)\1+$/.test(pass)) return true
+  
+  // Comprobar secuencias ascendentes comunes
+  const sequentialNumbers = "01234567890"
+  const sequentialLetters = "abcdefghijklmnopqrstuvwxyz"
+  
+  if (sequentialNumbers.includes(lower) || sequentialLetters.includes(lower)) return true
+  
+  return false
+}
 
 type User = {
   id: string
@@ -18,10 +35,21 @@ type User = {
 }
 
 function generatePassword(length = 12): string {
-  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$'
+  // Garantizamos un set de caracteres seguro que cumpla con la Regex obligatoriamente
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const lower = 'abcdefghijkmnopqrstuvwxyz'
+  const nums = '23456789'
+  const syms = '!@#$*'
+  const all = upper + lower + nums + syms
+  
   let result = ''
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  result += upper.charAt(Math.floor(Math.random() * upper.length))
+  result += lower.charAt(Math.floor(Math.random() * lower.length))
+  result += nums.charAt(Math.floor(Math.random() * nums.length))
+  result += syms.charAt(Math.floor(Math.random() * syms.length))
+  
+  for (let i = 4; i < length; i++) {
+    result += all.charAt(Math.floor(Math.random() * all.length))
   }
   return result
 }
@@ -42,7 +70,7 @@ export function CreateUserForm({
   function handleGeneratePassword() {
     const generated = generatePassword()
     setForm((prev) => ({ ...prev, password: generated }))
-    setShowPassword(true)
+    setShowPassword(true) // Forzamos mostrarla para que el Admin la vea y la copie
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -52,8 +80,23 @@ export function CreateUserForm({
     setMessage(null)
     setError(null)
 
+    // 1. Validar longitud básica
     if (form.password.length < MIN_PASSWORD_LENGTH) {
-      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`)
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`)
+      setIsSubmitting(false)
+      return
+    }
+
+    // 2. Validar complejidad criptográfica
+    if (!PASSWORD_REGEX.test(form.password)) {
+      setError("La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un símbolo especial (ej: !@#$).")
+      setIsSubmitting(false)
+      return
+    }
+
+    // 3. Validar patrones obvios o consecutivos
+    if (isPasswordTooObvious(form.password)) {
+      setError("Por seguridad, la contraseña no puede ser una secuencia simple (ej: '12345678') ni caracteres idénticos repetidos.")
       setIsSubmitting(false)
       return
     }
@@ -85,7 +128,6 @@ export function CreateUserForm({
     }
   }
 
-  // ── Si llegó al límite, mostrar banner en lugar del form ──
   if (isAtLimit) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center space-y-4">
@@ -148,7 +190,7 @@ export function CreateUserForm({
               minLength={MIN_PASSWORD_LENGTH}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
+              placeholder="Escribí una clave segura"
               className="flex-1"
               autoComplete="new-password"
               name="new-user-password-field"
@@ -157,8 +199,8 @@ export function CreateUserForm({
               {showPassword ? 'Ocultar' : 'Ver'}
             </Button>
           </div>
-          <Button type="button" variant="ghost" size="sm" className="mt-1 self-start px-0" onClick={handleGeneratePassword}>
-            Generar contraseña
+          <Button type="button" variant="ghost" size="sm" className="mt-1 self-start px-0 text-amber-700 hover:text-amber-800" onClick={handleGeneratePassword}>
+            ⚡ Generar contraseña segura
           </Button>
         </label>
 
@@ -231,11 +273,55 @@ export function UserCard({
     }
   }
 
+  // 🌟 FLUJO DE CONFIRMACIÓN INTERACTIVO "A PRUEBA DE BALAS"
   async function handleResetPassword() {
     if (!onUpdate) return
+
+    // 1. Solicitud interactiva de la clave al Admin de turno
+    const newPassword = prompt(
+      `Vas a cambiar la contraseña de acceso para: ${user.name}.\n\nEscribí la NUEVA contraseña (mínimo 8 caracteres, incluye mayúsculas, números y símbolos):`
+    )
+
+    // Si le dio a Cancelar o lo dejó vacío, frenamos en seco de inmediato sin tocar el servidor
+    if (newPassword === null) return
+    const trimmedPass = newPassword.trim()
+    if (trimmedPass === '') {
+      alert('❌ Operación cancelada: La contraseña no puede estar vacía.')
+      return
+    }
+
+    // 2. Validaciones locales en caliente
+    if (trimmedPass.length < MIN_PASSWORD_LENGTH) {
+      alert(`❌ Error: La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`)
+      return
+    }
+
+    if (!PASSWORD_REGEX.test(trimmedPass)) {
+      alert('❌ Error: La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un carácter especial (ej: !@#$).')
+      return
+    }
+
+    if (isPasswordTooObvious(trimmedPass)) {
+      alert("❌ Error de seguridad: No uses contraseñas obvias o caracteres consecutivos.")
+      return
+    }
+
+    // 3. Ventana de Re-Confirmación explícita
+    const isConfirmed = confirm(
+      `¿Estás 100% seguro de cambiar la contraseña de ${user.name} a:\n"${trimmedPass}"?\n\nNota: Si perdés la conexión a internet en este preciso instante, el cambio simplemente se descartará y se mantendrá la contraseña vieja.`
+    )
+
+    if (!isConfirmed) return
+
+    // 4. Ejecución del envío
     setIsUpdating(true)
     try {
-      await onUpdate(user.id, { resetPassword: true })
+      // Pasamos la contraseña escrita manualmente directamente al onUpdate de tu TeamPage
+      await onUpdate(user.id, { newPassword: trimmedPass })
+      alert(`✅ Contraseña de ${user.name} cambiada exitosamente. ¡Ya puede iniciar sesión!`)
+      setShowActions(false)
+    } catch (err) {
+      alert('❌ Error de comunicación: No se pudo actualizar la contraseña. Revisá tu conexión a internet e intentalo de nuevo.')
     } finally {
       setIsUpdating(false)
     }
@@ -273,15 +359,14 @@ export function UserCard({
         <button
           type="button"
           onClick={() => setShowActions(!showActions)}
-          className="text-muted-foreground hover:text-foreground transition"
+          className="text-muted-foreground hover:text-foreground transition text-lg font-bold px-1"
         >
           ⋮
         </button>
       </div>
 
       {showActions && (
-        <div className="mt-4 flex flex-col gap-2">
-          {/* Activar bloqueado si está en el límite y el usuario está inactivo */}
+        <div className="mt-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
           {!user.active && isAtLimit ? (
             <div className="px-3 py-2 text-xs rounded border border-amber-200 bg-amber-50 text-amber-800 leading-relaxed">
               No podés activar este usuario — límite del plan alcanzado.{' '}
@@ -294,9 +379,9 @@ export function UserCard({
               type="button"
               disabled={isUpdating}
               onClick={handleToggleActive}
-              className="px-3 py-1.5 text-sm rounded border hover:bg-accent transition disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded border hover:bg-accent text-left transition disabled:opacity-50"
             >
-              {isUpdating ? '...' : user.active ? 'Desactivar' : 'Activar'}
+              {isUpdating ? '...' : user.active ? '🚫 Desactivar usuario' : '✅ Activar usuario'}
             </button>
           )}
 
@@ -304,9 +389,9 @@ export function UserCard({
             type="button"
             disabled={isUpdating}
             onClick={handleResetPassword}
-            className="px-3 py-1.5 text-sm rounded border hover:bg-accent transition disabled:opacity-50"
+            className="px-3 py-1.5 text-sm rounded border border-red-100 bg-red-50/30 text-red-700 hover:bg-red-50 text-left transition disabled:opacity-50 font-medium"
           >
-            {isUpdating ? '...' : 'Resetear contraseña'}
+            {isUpdating ? 'Modificando...' : '🔑 Cambiar contraseña de forma manual'}
           </button>
         </div>
       )}

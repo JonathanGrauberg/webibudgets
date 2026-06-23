@@ -82,7 +82,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             id="name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Ej: Producto/Servicio (p. ej. Silla Modelo A)"
+            placeholder="Ej: Producto/Servicio (ej. Silla Modelo A, Servicio de instalación, etc.)"
             required
           />
         </div>

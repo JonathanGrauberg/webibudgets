@@ -87,7 +87,7 @@ export default function LoginForm() {
 
       <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
-          .Budgets
+          .budgets
         </Link>
 
         <h1 className="mb-5 mt-5 text-sm font-semibold text-foreground">Iniciar sesión</h1>

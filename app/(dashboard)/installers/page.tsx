@@ -212,8 +212,8 @@ export default function InstallersPage() {
   return (
     <div className="min-h-screen">
       <PageHeader
-        title="Instaladores"
-        description="Gestioná los equipos técnicos y profesionales que ejecutan tus obras."
+        title="Personal de trabajo"
+        description="Gestioná el personal encargado de realizar las tareas"
       >
         {canEditInstallers && (
           <Button 
@@ -232,7 +232,7 @@ export default function InstallersPage() {
             ) : (
               <>
                 <Plus className="mr-2 h-4 w-4" />
-                Nuevo instalador
+                Nuevo personal
               </>
             )}
           </Button>
@@ -277,11 +277,11 @@ export default function InstallersPage() {
                   <Wrench className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground">No hay instaladores activos</h3>
+                  <h3 className="font-bold text-foreground">No hay personal activo</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     {isLimitReached 
                       ? `Alcanzaste el tope de tu plan actual (${tenantLimits.maxInstallers}). Expandí tu plan para cargar más personal técnico.`
-                      : 'Empezá registrando los instaladores / trabajadores'
+                      : 'Empezá registrando personal de trabajo'
                     }
                   </p>
                 </div>
@@ -456,7 +456,7 @@ export default function InstallersPage() {
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>
-                {editing ? 'Editar instalador' : 'Nuevo instalador'}
+                {editing ? 'Editar Personal' : 'Nuevo Personal'}
               </DialogTitle>
             </DialogHeader>
 

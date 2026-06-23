@@ -69,7 +69,7 @@ const navigation = [
     tooltip: 'Crear y gestionar stock',
   },
   {
-    name: 'Instaladores',
+    name: 'Personal',
     href: '/installers',
     icon: UserRoundCog,
     tooltip: 'Crear y gestionar instaladores',

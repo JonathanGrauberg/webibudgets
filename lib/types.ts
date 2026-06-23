@@ -136,7 +136,7 @@ export interface Budget {
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   biodigesters: 'Equipos',
-  grease_traps: 'Accesorios',
+  grease_traps: 'Accesorios', 
   maintenance: 'Servicios',
   other: 'Otros',
 }

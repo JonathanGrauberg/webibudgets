@@ -1,3 +1,4 @@
+//lib\permissions.ts
 import type { BudgetStatus } from '@/lib/types'
 
 export type AppRole = 'owner' | 'admin' | 'seller' | 'installer' | 'viewer'
@@ -130,7 +131,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'budgets', name: 'Presupuestos', href: '/budgets', tooltip: 'Crear y gestionar cotizaciones' },
   { route: 'sellers', name: 'Vendedores', href: '/sellers', tooltip: 'Crear y gestionar vendedores' },
   { route: 'stock', name: 'Stock', href: '/stock', tooltip: 'Consultar stock disponible' },
-  { route: 'installers', name: 'Instaladores', href: '/installers', tooltip: 'Gestionar instaladores' },
+  { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [

@@ -27,7 +27,7 @@ return (
       <Link href="#hero" className="flex items-center gap-2.5">
       <span className="leading-tight">
         <span className=" block text-xl font-bold tracking-tight text-primary">
-          .Budgets 
+          .budgets 
         </span>
       </span>
     </Link>
