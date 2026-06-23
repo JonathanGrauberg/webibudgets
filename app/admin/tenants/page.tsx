@@ -1,7 +1,10 @@
-//app\admin\tenants\page.tsx
+// app\admin\tenants\page.tsx
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import AdminTenantsTable from '@/components/admin/admin-tenants-table'
+
+// 🔥 Forzamos a Next.js a que NO cachee esta página y consulte la DB en vivo en cada visita
+export const dynamic = 'force-dynamic'
 
 export default async function AdminTenantsPage() {
   const tenants = await prisma.tenant.findMany({
