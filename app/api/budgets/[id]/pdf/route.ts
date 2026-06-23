@@ -6,8 +6,12 @@ import { prisma } from "@/lib/prisma"
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { budgetPdfTemplate } from "@/lib/pdf/template"
 import { generatePdf } from "@/lib/pdf/generator"
-import fs from "fs/promises"
-import path from "path"
+
+// 🌟 STRINGS BASE64 DE FALLBACK (Reemplazan la lectura física de archivos)
+// Podés usar estos marcadores o pegar el base64 real si querés. 
+// Una alternativa excelente si no querés un string gigante acá es usar URLs absolutas directas de tu web.
+const FALLBACK_LOGO_URL = "https://budgets.webistudio.net/placeholder-logo.png"
+const FALLBACK_WATERMARK_URL = "https://budgets.webistudio.net/watermark.png"
 
 export async function GET(
   request: Request,
@@ -37,33 +41,38 @@ export async function GET(
     /* ========================
        Trial check
     ======================== */
-    const isTrial = budget.tenant?.plan === "free"
+    const isTrial = budget.tenant?.plan === "free" || budget.tenant?.plan === "starter"
 
     /* ========================
        LOGO dinámico
     ======================== */
     let logoDataUri: string | undefined
 
+    // 1. Intentamos cargar el logo personalizado del Tenant
     if (budget.tenant?.logoUrl) {
       try {
         const res = await fetch(budget.tenant.logoUrl)
         const arrayBuffer = await res.arrayBuffer()
         const base64 = Buffer.from(arrayBuffer).toString("base64")
-
-        // 👇 detecta tipo real (png, jpg, webp, etc)
         const contentType = res.headers.get("content-type") || "image/png"
-
         logoDataUri = `data:${contentType};base64,${base64}`
       } catch (e) {
         console.error("Error loading tenant logo:", e)
       }
     }
 
-    // fallback
+    // 2. 🔥 FALLBACK SEGURO: Si no tiene o falló, hacemos fetch a la URL pública (Evita usar FS)
     if (!logoDataUri) {
-      const logoPath = path.join(process.cwd(), "public", "placeholder-logo.png")
-      const logoBase64 = (await fs.readFile(logoPath)).toString("base64")
-      logoDataUri = `data:image/png;base64,${logoBase64}`
+      try {
+        const res = await fetch(FALLBACK_LOGO_URL)
+        const arrayBuffer = await res.arrayBuffer()
+        const base64 = Buffer.from(arrayBuffer).toString("base64")
+        logoDataUri = `data:image/png;base64,${base64}`
+      } catch (e) {
+        console.error("Error loading fallback logo via fetch:", e)
+        // Último recurso en texto plano por si se cae internet en el server
+        logoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      }
     }
 
     /* ========================
@@ -71,7 +80,7 @@ export async function GET(
     ======================== */
     let watermarkDataUri: string | undefined
 
-    // Prefer tenant-provided watermark URL if available
+    // 1. Preferimos la marca de agua del tenant si tiene
     if (budget.tenant?.watermarkUrl) {
       try {
         const res = await fetch(budget.tenant.watermarkUrl)
@@ -84,14 +93,15 @@ export async function GET(
       }
     }
 
-    // Fallback to public watermark for trial tenants when no tenant watermark provided
+    // 2. 🔥 FALLBACK SEGURO: Si es trial y no tiene watermark propia, fetch a la URL pública
     if (!watermarkDataUri && isTrial) {
       try {
-        const watermarkPath = path.join(process.cwd(), "public", "watermark.png")
-        const watermarkBase64 = (await fs.readFile(watermarkPath)).toString("base64")
-        watermarkDataUri = `data:image/png;base64,${watermarkBase64}`
+        const res = await fetch(FALLBACK_WATERMARK_URL)
+        const arrayBuffer = await res.arrayBuffer()
+        const base64 = Buffer.from(arrayBuffer).toString("base64")
+        watermarkDataUri = `data:image/png;base64,${base64}`
       } catch (e) {
-        console.error("Error loading watermark:", e)
+        console.error("Error loading fallback watermark via fetch:", e)
       }
     }
 
@@ -115,7 +125,7 @@ export async function GET(
 
     const html = budgetPdfTemplate(budget, {
       logoDataUri,
-      ...(watermarkDataUri && { watermarkDataUri }), // 👈 solo si existe
+      ...(watermarkDataUri && { watermarkDataUri }),
       isTrial,
       tenant: tenantForTemplate,
     })
@@ -145,8 +155,6 @@ export async function GET(
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${fileName}"`,
-
-        // anti-cache
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         "Pragma": "no-cache",
         "Expires": "0",
