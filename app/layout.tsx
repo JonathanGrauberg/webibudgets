@@ -35,6 +35,11 @@ export const metadata: Metadata = {
     apple: '/favico.ico',
   },
 
+  // 🌟 VERIFICACIÓN DE GOOGLE SEARCH CONSOLE AGREGADA AQUÍ:
+  verification: {
+    google: 'uncQp5acTGHPwkvzaev-cE9qD2F_INbbzjjfrXqvtuc',
+  },
+
   openGraph: {
     title: 'WebiBudgets: Tu Gestión de Presupuestos al Instante', // Título diferente o igual
     description: 'Simplifica tus números. Controla tus presupuestos y clientes sin vueltas.', // Descripción más vendedora
@@ -62,6 +67,10 @@ export const metadata: Metadata = {
     locale: 'es_AR', // Tu localidad principal
     type: 'website',
   },
+
+  
+
+
 }
 
 export default function RootLayout({
