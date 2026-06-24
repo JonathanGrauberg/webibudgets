@@ -756,8 +756,22 @@ export default function NewBudgetPage() {
                     </div>
                   )}
 
+                  {/* 💡 RECUADRO DE AYUDA / ALERTA DE UX PARA MIGRAR MANDRILES */}
+                  {!isSubmitting && (!clientId || items.length === 0) && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
+                      <p className="font-semibold flex items-center gap-1.5 text-amber-900">
+                        ⚠️ Falta completar datos
+                      </p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {!clientId && <li>Debés seleccionar un **cliente**.</li>}
+                        {items.length === 0 && <li>Debés agregar al menos un **producto o servicio**.</li>}
+                      </ul>
+                    </div>
+                  )}
+
                   <Button
                     type="submit"
+                    className="w-full transition-all duration-200"
                     disabled={isSubmitting || !clientId || items.length === 0}
                   >
                     {isSubmitting ? 'Creando...' : 'Crear Presupuesto'}
