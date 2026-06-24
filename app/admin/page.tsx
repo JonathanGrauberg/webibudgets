@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 //app\admin\page.tsx
 
+export const dynamic = 'force-dynamic'
 export default async function AdminPage() {
   const totalTenants = await prisma.tenant.count()
   const totalUsers = await prisma.user.count()
