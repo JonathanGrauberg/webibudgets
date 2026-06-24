@@ -1,6 +1,6 @@
 export const runtime = "nodejs"
 export const maxDuration = 60
-
+//app\api\budgets\[id]\pdf\route.ts
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'

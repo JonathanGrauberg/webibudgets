@@ -25,17 +25,21 @@ export default function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
 
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      const userPlan = (session.user as any).plan ?? 'free'
-      
-      if (userPlan !== 'free') {
-        router.replace('/dashboard?subscription=pending')
-      } else {
-        router.replace('/dashboard')
+    useEffect(() => {
+      if (status === 'authenticated' && session?.user) {
+        const userPlan = (session.user as any).plan ?? 'starter'
+        const trialEndsAt = (session.user as any).trialEndsAt
+        const isInActiveTrial = trialEndsAt && new Date(trialEndsAt) > new Date()
+
+        if (isInActiveTrial) {
+          router.replace('/dashboard?welcome=1') // ← el modal welcome lo maneja el dashboard
+        } else if (userPlan === 'vip' || userPlan === 'business') {
+          router.replace('/dashboard')
+        } else {
+          router.replace('/dashboard?subscription=pending')
+        }
       }
-    }
-  }, [status, session, router])
+    }, [status, session, router])
 
   if (status === 'loading' || status === 'authenticated') {
     return (
@@ -230,7 +234,7 @@ export default function RegisterForm() {
                 Email
               </label>
               <input
-                type="type"
+                type="email"
                 required
                 disabled={isSubmitting || isGoogleLoading}
                 value={email}

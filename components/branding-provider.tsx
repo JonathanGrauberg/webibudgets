@@ -1,5 +1,5 @@
 'use client'
-
+//components\branding-provider.tsx
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   type Branding,

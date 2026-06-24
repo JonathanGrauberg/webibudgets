@@ -1,5 +1,5 @@
 'use client'
-
+//components\landing\landing-sections.tsx
 import {
   ArrowRight, Check, FileText, Download,
   Users, Package, Palette, Share2, HelpCircle,

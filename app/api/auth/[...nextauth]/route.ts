@@ -56,6 +56,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           tenantId: user.tenantId,
           plan: user.tenant?.plan ?? 'free',
+          trialEndsAt: user.tenant?.trialEndsAt ?? null,
         }
       },
     }),
@@ -169,6 +170,7 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role
         token.tenantId = (user as any).tenantId
         token.plan = (user as any).plan ?? 'free'
+        token.trialEndsAt = (user as any).trialEndsAt ?? null
       }
       return token
     },
@@ -179,6 +181,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).role = token.role
         ;(session.user as any).tenantId = token.tenantId
         ;(session.user as any).plan = token.plan
+        ;(session.user as any).trialEndsAt = token.trialEndsAt ?? null
       }
       return session
     },

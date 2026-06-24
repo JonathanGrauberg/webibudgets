@@ -11,22 +11,21 @@ export function ModalPagoPendiente() {
   
   const [isOpen, setIsOpen] = useState(false)
   const [diasRestantes, setDiasRestantes] = useState(14)
-  const [isActivating, setIsActivating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  
+  // Guardamos qué tipo de diseño mostrar: 'welcome' (cohete) o 'pending' (tarjeta)
+  const [modalType, setModalType] = useState<'welcome' | 'pending' | null>(null)
 
   const subParam = searchParams.get('subscription')
   const userPlan = (session?.user as any)?.plan
 
-  // Determinamos si es un usuario que entró a probar gratis de buena fe
-  const isFreeTrialUser = subParam !== 'pending' && diasRestantes > 0
-
-  useEffect(() => {
-    // 👑 ESCUDO VIP: Si el usuario ya está asignado al plan VIP, forzamos el cierre y salimos
-    if (userPlan === 'vip') {
+ useEffect(() => {
+    // 👑 ESCUDO VIP / BUSINESS / PLANES ACTIVOS: Si ya pagó, no mostramos nada
+    if (userPlan === 'vip' || userPlan === 'business') {
       setIsOpen(false)
       return
     }
 
+    // Calcular días restantes del trial
     if (session?.user && 'trialEndsAt' in session.user && session.user.trialEndsAt) {
       const fechaFinTrial = new Date(session.user.trialEndsAt as string)
       const hoy = new Date()
@@ -35,64 +34,71 @@ export function ModalPagoPendiente() {
       setDiasRestantes(Math.max(0, restantes))
     }
 
+    // Control de tiempos para el recordatorio rutinario
     const ultimaVezVisto = localStorage.getItem('webibudgets_trial_modal_last_seen')
     const ahora = new Date().getTime()
     const veinticuatroHoras = 24 * 60 * 60 * 1000
     const yaPasaron24Horas = !ultimaVezVisto || (ahora - parseInt(ultimaVezVisto)) > veinticuatroHoras
 
-    // Reglas para mostrar el modal
+    // 🌟 CONTROL DE FLUJOS ESTRICTO (Tu lógica aplicada al 100%)
+    
+    // CASO A: Si explícitamente viene el parámetro de MercadoPago (Ej: el webhook o la redirección devolvió 'pending')
     if (subParam === 'pending') {
+      setModalType('pending')
       setIsOpen(true)
-    } else if (diasRestantes <= 0 && userPlan !== 'business') {
+      return
+    }
+
+   
+    const welcomeParam = searchParams.get('welcome')
+
+    // CASO B: Primer ingreso (viene de registrarse)
+    if (welcomeParam === '1' && diasRestantes > 0) {
+      setModalType('welcome')
       setIsOpen(true)
-    } else if (yaPasaron24Horas) {
+      localStorage.setItem('webibudgets_welcome_seen', 'true')
+      return
+    }
+
+    // CASO C: El período de prueba ya venció (Bloqueo total, tiene que elegir un plan)
+    if (diasRestantes <= 0) {
+      setModalType('pending') 
+      setIsOpen(true)
+      return
+    }
+
+    // CASO D: Recordatorio a los 7 dias 
+    if (diasRestantes <= 7 && diasRestantes > 0 && yaPasaron24Horas) {
+      setModalType('pending')
       setIsOpen(true)
       localStorage.setItem('webibudgets_trial_modal_last_seen', ahora.toString())
     }
+
   }, [subParam, session, diasRestantes, userPlan])
-
-  async function handleActivateNow() {
-    if (!session?.user) return
-    
-    setIsActivating(true)
-    setError(null)
-
-    try {
-      const tenantId = (session.user as any).tenantId
-      const planToPay = userPlan ?? 'starter'
-
-      const res = await fetch('/api/subscriptions/checkout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan: planToPay, tenantId }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok || !data.checkoutUrl) {
-        throw new Error(data?.error ?? 'No se pudo generar el enlace de pago')
-      }
-
-      window.location.href = data.checkoutUrl
-    } catch (err) {
-      console.error('[modal-checkout]', err)
-      setError('Hubo un problema al conectar con MercadoPago. Intentá de nuevo.')
-      setIsActivating(false)
-    }
+  // 👈 PUNTO 2 SOLUCIONADO: Te redirige al catálogo de precios para que elijas el plan que quieras
+  function handleGoToPricing() {
+    setIsOpen(false)
+    router.push('/pricing')
   }
 
-  if (!isOpen) return null
+  // Cierre limpio de la Bienvenida (Cohete)
+  function handleCloseWelcome() {
+    localStorage.setItem('webibudgets_welcome_seen', 'true') // Guardamos para que NO vuelva a aparecer jamás
+    setIsOpen(false)
+  }
+
+  if (!isOpen || !modalType) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl transition-all scale-in duration-200">
         
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-black mb-4 text-xl">
-          {isFreeTrialUser ? '🚀' : '💳'}
+          {modalType === 'welcome' ? '🚀' : '💳'}
         </div>
 
         <h3 className="text-xl font-black tracking-tight text-zinc-900 leading-tight">
-          {isFreeTrialUser 
+          {modalType === 'welcome' 
             ? `¡Tu prueba gratuita está activa! Quedan ${diasRestantes} días`
             : diasRestantes > 0 
               ? `¡Tu período de prueba sigue activo! Te quedan ${diasRestantes} días`
@@ -101,13 +107,16 @@ export function ModalPagoPendiente() {
         </h3>
         
         <p className="mt-2.5 text-sm text-zinc-500 leading-relaxed">
-          {isFreeTrialUser ? (
+          {modalType === 'welcome' ? (
             <>
               ¡Te damos la bienvenida a bordo! Queremos que exprimas WebiBudgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días.
             </>
           ) : (
             <>
-              Notamos que el pago en MercadoPago quedó pendiente, ¡pero no pasa nada! Podés seguir usando WebiBudgets normalmente para armar tus presupuestos.
+              {diasRestantes > 0 
+                ? `Te quedan ${diasRestantes} días de prueba. Cuando quieras, podés activar tu plan para seguir usando WebiBudgets sin interrupciones.`
+                : 'Para seguir usando WebiBudgets y mantener todos tus datos a salvo, por favor selecciona y activa tu plan definitivo.'
+              }
             </>
           )}
         </p>
@@ -116,36 +125,23 @@ export function ModalPagoPendiente() {
           🔒 <span className="font-bold text-black">Quedate tranquilo:</span> Cuando decidas activar tu plan definitivo, mantenés absolutamente todos tus datos, clientes y presupuestos intactos tal cual los venías usando.
         </p>
 
-        {error && (
-          <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2 text-center font-medium">
-            {error}
-          </p>
-        )}
-
         <div className="mt-6 flex flex-col gap-2">
+          {/* Botón principal unificado para ir a /pricing */}
           <button
             type="button"
-            disabled={isActivating}
-            onClick={handleActivateNow}
-            className="w-full rounded-xl bg-black py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={handleGoToPricing}
+            className="w-full rounded-xl bg-black py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 active:scale-[0.99] flex items-center justify-center gap-2"
           >
-            {isActivating ? (
-              'Redirigiendo a MercadoPago...'
-            ) : (
-              isFreeTrialUser ? '⚡ Asegurar mi plan Básico ($6.990)' : '⚡ Activar mi plan ahora'
-            )}
+            {modalType === 'welcome' ? '⚡ Elegir mi plan definitivo' : '⚡ Activar mi plan ahora'}
           </button>
           
+          {/* Botón secundario para continuar */}
           <button
             type="button"
-            disabled={isActivating}
-            onClick={() => {
-              setIsOpen(false)
-              router.replace('/dashboard')
-            }}
-            className="w-full text-center rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            onClick={modalType === 'welcome' ? handleCloseWelcome : () => setIsOpen(false)}
+            className="w-full text-center rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
           >
-            {isFreeTrialUser ? 'Ir a mi cuenta gratis por ahora →' : 'Continuar al Dashboard por ahora →'}
+            {modalType === 'welcome' ? 'Ir a mi cuenta gratis por ahora →' : 'Continuar al Dashboard por ahora →'}
           </button>
         </div>
       </div>
