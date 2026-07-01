@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\products\page.tsx
 import { Suspense, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogOverlay
+  DialogOverlay,
+  DialogFooter
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -30,11 +31,12 @@ import {
 } from '@/components/ui/select'
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  TooltipContent,
 } from '@/components/ui/tooltip'
-import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw } from 'lucide-react'
 import { ProductForm } from '@/components/product-form'
 import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
@@ -76,6 +78,12 @@ export default function ProductsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductService | null>(null)
 
+  // 🌟 Estados para la actualización masiva de precios
+  const [isBulkOpen, setIsBulkOpen] = useState(false)
+  const [bulkPercentage, setBulkPercentage] = useState('')
+  const [bulkCategory, setBulkCategory] = useState('all')
+  const [isSubmittingBulk, setIsSubmittingBulk] = useState(false)
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -110,6 +118,54 @@ export default function ProductsPage() {
     mutate('/api/products')
   }
 
+  // 🌟 Manejador para enviar el aumento por porcentaje al endpoint
+  const handleBulkUpdateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const pct = Number(bulkPercentage)
+    
+    if (!bulkPercentage || isNaN(pct) || pct === 0) {
+      alert('Por favor, ingresá un porcentaje numérico válido diferente de 0.')
+      return
+    }
+
+    const confirmMsg = bulkCategory === 'all'
+      ? `¿Estás seguro de que querés actualizar masivamente el precio de TODOS los productos en un ${pct}%?`
+      : `¿Estás seguro de que querés actualizar el precio de la categoría seleccionada en un ${pct}%?`
+
+    if (!confirm(confirmMsg)) return
+
+    try {
+      setIsSubmittingBulk(true)
+      const res = await fetch('/api/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          percentage: pct,
+          category: bulkCategory === 'all' ? undefined : bulkCategory
+        })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Error al actualizar precios')
+      }
+
+      const result = await res.json()
+      alert(`¡Éxito! Se actualizaron los precios de ${result.count} productos.`)
+      
+      // Limpiamos estados y refrescamos la lista con SWR
+      setBulkPercentage('')
+      setBulkCategory('all')
+      setIsBulkOpen(false)
+      mutate('/api/products')
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'Ocurrió un error inesperado.')
+    } finally {
+      setIsSubmittingBulk(false)
+    }
+  }
+
   return (
     <Suspense fallback={<Loading />}>
       <TooltipProvider>
@@ -119,15 +175,28 @@ export default function ProductsPage() {
             description="Administra tu catálogo de productos y lista de precios"
           >
             {canEditProducts && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={handleCreate} className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Producto
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Agregar un nuevo producto o servicio</TooltipContent>
-              </Tooltip>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                {/* 🌟 Botón de actualización masiva */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={() => setIsBulkOpen(true)} variant="outline" className="w-full sm:w-auto">
+                      <Percent className="mr-2 h-4 w-4" />
+                      Actualizar Precios
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Modificar precios de forma masiva por porcentaje</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={handleCreate} className="w-full sm:w-auto">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Nuevo Producto
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Agregar un nuevo producto o servicio</TooltipContent>
+                </Tooltip>
+              </div>
             )}
           </PageHeader>
 
@@ -360,6 +429,7 @@ export default function ProductsPage() {
             )}
           </div>
 
+          {/* Modal Edición / Creación tradicional */}
           {canEditProducts && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
@@ -378,6 +448,78 @@ export default function ProductsPage() {
               </DialogContent>
             </Dialog>
           )}
+
+          {/* 🌟 NUEVO: Modal de Actualización Masiva por Porcentaje */}
+          {canEditProducts && (
+            <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+              <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Actualización Masiva de Precios</DialogTitle>
+                </DialogHeader>
+                
+                <form onSubmit={handleBulkUpdateSubmit} className="space-y-4 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bulkPercentage">Porcentaje de Ajuste</Label>
+                    <div className="relative">
+                      <Input
+                        id="bulkPercentage"
+                        type="number"
+                        placeholder="Ej: 10 para aumentar o -5 para rebajar"
+                        value={bulkPercentage}
+                        onChange={(e) => setBulkPercentage(e.target.value)}
+                        required
+                        disabled={isSubmittingBulk}
+                      />
+                      <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Colocá valores positivos para recargos por inflación o negativos para descuentos generales.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bulkCategory">Categoría a Afectar</Label>
+                    <Select value={bulkCategory} onValueChange={setBulkCategory} disabled={isSubmittingBulk}>
+                      <SelectTrigger id="bulkCategory" className="w-full">
+                        <SelectValue placeholder="Seleccionar alcance" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todo el catálogo completo</SelectItem>
+                        {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            Solo {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <DialogFooter className="pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsBulkOpen(false)}
+                      disabled={isSubmittingBulk}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={isSubmittingBulk}>
+                      {isSubmittingBulk ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        'Aplicar Ajuste'
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+
         </div>
       </TooltipProvider>
     </Suspense>

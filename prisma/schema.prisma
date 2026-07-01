@@ -390,8 +390,12 @@ model BudgetItem {
   budgetId         String
   budget           Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
-  productServiceId String
-  productService   ProductService @relation(fields: [productServiceId], references: [id])
+  // 🌟 1. Lo hacemos opcional con "?" y le agregamos onDelete: SetNull
+  productServiceId String?
+  productService   ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
+
+  // 🌟 2. Campo para cuando escriben un producto/servicio a medida que no existe en stock
+  customName       String?
 
   quantity         Int
 

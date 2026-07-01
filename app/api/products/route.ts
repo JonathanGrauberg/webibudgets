@@ -1,3 +1,4 @@
+// app\api\products\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
@@ -44,6 +45,62 @@ export async function POST(request: Request) {
     console.error('Error creating product:', error)
     return NextResponse.json(
       { error: 'Failed to create product' },
+      { status: 500 }
+    )
+  }
+}
+
+/* ==========================================================
+   PATCH (Actualización Masiva de Precios por Porcentaje)
+========================================================== */
+export async function PATCH(request: Request) {
+  try {
+    const tenantId = await getTenantIdFromRequest(request)
+    const data = await request.json()
+
+    const { percentage, category } = data
+
+    if (percentage === undefined || isNaN(Number(percentage))) {
+      return NextResponse.json(
+        { error: 'Se requiere un porcentaje numérico válido.' },
+        { status: 400 }
+      )
+    }
+
+    // Calculamos el factor de multiplicación. Ej: 10% de aumento -> factor 1.10
+    // Si mandaran un descuento de -5% -> factor 0.95
+    const factor = 1 + (Number(percentage) / 100)
+
+    // Armamos las condiciones del WHERE aislando estrictamente por tenant
+    const whereConditions: any = {
+      tenantId: tenantId,
+      active: true, // Solo actualizamos los productos activos
+    }
+
+    // Si pasaron una categoría específica por el body, filtramos también por ella
+    if (category) {
+      whereConditions.category = category
+    }
+
+    // Ejecutamos la query masiva directamente en Postgres gracias a Prisma
+    const result = await prisma.productService.updateMany({
+      where: whereConditions,
+      data: {
+        price: {
+          multiply: factor
+        }
+      }
+    })
+
+    return NextResponse.json({
+      message: 'Precios actualizados con éxito.',
+      count: result.count
+    })
+
+  } catch (error) {
+    console.error('Error en actualización masiva de precios:', error)
+    return NextResponse.json(
+      { error: 'Error interno al actualizar precios masivamente.' },
       { status: 500 }
     )
   }
