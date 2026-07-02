@@ -195,6 +195,7 @@ export async function PATCH(request: Request, { params }: Params) {
             unitPrice: item.unitPrice,
             subtotal: item.subtotal,
             discount: item.discount,
+            customName: item.customName, // 🌟 esto faltaba
           })),
         }),
       ])

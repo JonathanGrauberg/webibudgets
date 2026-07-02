@@ -1,16 +1,20 @@
 export type BudgetRequestItem = {
-  productServiceId: string
+  productServiceId: string | null
   quantity: number
   unitPrice: number
   discount?: number
+  customName?: string | null
+  isCustom?: boolean
 }
 
 export type NormalizedBudgetItem = {
-  productServiceId: string
+  productServiceId: string | null
   quantity: number
   unitPrice: number
   discount: number
   subtotal: number
+  customName: string | null
+  isCustom: boolean
 }
 
 export type BudgetCalculationInput = {
@@ -37,28 +41,40 @@ export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
 
   return items
     .map((item: any) => {
-      const productServiceId = typeof item?.productServiceId === 'string' ? item.productServiceId.trim() : ''
+      const rawProductServiceId = typeof item?.productServiceId === 'string' ? item.productServiceId.trim() : ''
+      const customName = typeof item?.customName === 'string' ? item.customName.trim() : ''
+      const isCustom = Boolean(item?.isCustom) || customName.length > 0 || rawProductServiceId.length === 0
+
       const quantity = Math.max(0, Number(item?.quantity) || 0)
       const unitPrice = Math.max(0, Number(item?.unitPrice) || 0)
       const discount = Math.max(0, Number(item?.discount ?? 0) || 0)
 
       return {
-        productServiceId,
+        productServiceId: isCustom ? null : rawProductServiceId,
         quantity,
         unitPrice,
         discount,
         subtotal: quantity * unitPrice,
+        customName: isCustom ? (customName || 'Ítem personalizado') : null,
+        isCustom,
       }
     })
-    .filter((item) => item.productServiceId.length > 0 && item.quantity > 0)
+    .filter((item) => item.quantity > 0 && (item.isCustom ? !!item.customName : !!item.productServiceId))
 }
 
 export function getBudgetItemProductIds(items: NormalizedBudgetItem[]) {
-  return Array.from(new Set(items.map((item) => item.productServiceId)))
+  return Array.from(
+    new Set(
+      items
+        .filter((item) => !item.isCustom && item.productServiceId)
+        .map((item) => item.productServiceId as string)
+    )
+  )
 }
 
 export function groupBudgetItemQuantities(items: NormalizedBudgetItem[]) {
   return items.reduce<Map<string, number>>((grouped, item) => {
+    if (item.isCustom || !item.productServiceId) return grouped
     grouped.set(item.productServiceId, (grouped.get(item.productServiceId) ?? 0) + item.quantity)
     return grouped
   }, new Map())

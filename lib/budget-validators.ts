@@ -1,3 +1,4 @@
+//lib\budget-validators.ts
 import { prisma } from '@/lib/prisma'
 import type { NormalizedBudgetItem } from './budget-calculator'
 
@@ -86,7 +87,8 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
     unitPrice: item.unitPrice,
     subtotal: item.subtotal,
     discount: item.discount,
-    productServiceId: item.productServiceId,
+    productServiceId: item.productServiceId, // ya es string | null, createMany lo acepta tal cual
+    customName: item.customName,
   }))
 }
 
