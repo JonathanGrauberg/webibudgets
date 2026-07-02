@@ -94,7 +94,7 @@ function SidebarContent({ closeMenu, branding }: { closeMenu?: () => void; brand
         </div>
 
         <div>
-          <h1 className="text-lg font-bold text-sidebar-foreground">{branding?.name ?? 'WebiBudgets'}</h1>
+          <h1 className="text-lg font-bold text-sidebar-foreground">{branding?.name ?? '.budgets'}</h1>
           <p className="text-xs text-sidebar-foreground/60">Sistemassss de Gestión</p>
         </div>
       </div>
@@ -157,13 +157,13 @@ export function AppSidebar({ branding }: { branding?: { id?: string; name?: stri
             <div className="flex items-center gap-2">
             <Image
               src={branding?.logoUrl ?? '/placeholder-logo.png'}
-              alt={branding?.name ?? 'WebiBudgets'}
+              alt={branding?.name ?? '.budgets'}
               width={28}
               height={28}
               className="object-contain"
               priority
             />
-            <span className="text-sm font-semibold">WebiBudgets</span>
+            <span className="text-sm font-semibold">.budgets</span>
           </div>
 
           <Sheet open={open} onOpenChange={setOpen}>

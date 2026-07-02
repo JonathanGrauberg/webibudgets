@@ -169,7 +169,7 @@ export const faqs = [
   },
   {
     question: '¿Puedo personalizar el diseño de mis presupuestos?',
-    answer: 'Sí. de eso se trata WebiBudgets, creá tu presupuesto con tu logo, tu marca, tus colores.',
+    answer: 'Sí. de eso se trata .budgets, creá tu presupuesto con tu logo, tu marca, tus colores.',
   },
   {
     question: '¿Cuántos usuarios puedo agregar?',

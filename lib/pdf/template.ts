@@ -342,7 +342,7 @@ export function budgetPdfTemplate(
   </div>
   <div class="footer">
     <div>
-      ${tenant?.showFooterBranding ? `<div class="text-xs">Generado con WebiBudgets</div>` : ''}
+      ${tenant?.showFooterBranding ? `<div class="text-xs">Generado en .budgets.webistudio.net</div>` : ''}
       ${tenant?.showWebsiteInPdf && tenant?.website ? `<div class="text-xs"><a href="${tenant.website}">${tenant.website}</a></div>` : ''}
     </div>
     ${tenant?.showPageNumbers ? `<div class="text-xs page-num"></div>` : ''}

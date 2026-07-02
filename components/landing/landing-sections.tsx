@@ -46,7 +46,7 @@ const colors = [
 const whatsappUrl =
   'https://wa.me/5493436959359?text=' +
   encodeURIComponent(
-    '👋 ¡Hola WebiBudgets!\n\n🚀 Estoy interesado en el Plan Empresa (Corporativo).\n📋 Me gustaría coordinar una demo y conocer las opciones de integración personalizada.'
+    '👋 ¡Hola .budgets!\n\n🚀 Estoy interesado en el Plan Empresa (Corporativo).\n📋 Me gustaría coordinar una demo y conocer las opciones de integración personalizada.'
   )
 
 interface LandingSectionsProps {
@@ -341,7 +341,7 @@ export function LandingSections({
             Transformá tu empresa hoy mismo.
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-neutral-400">
-            Sumate a Webibudgets y experimentá la diferencia de una gestión profesional, eficiente y personalizada. Ahorrá tiempo, impresioná a tus clientes y hacé crecer tu negocio con la herramienta que se adapta a vos.
+            Sumate a .budgets y experimentá la diferencia de una gestión profesional, eficiente y personalizada. Ahorrá tiempo, impresioná a tus clientes y hacé crecer tu negocio con la herramienta que se adapta a vos.
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link

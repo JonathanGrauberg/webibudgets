@@ -109,13 +109,13 @@ export function ModalPagoPendiente() {
         <p className="mt-2.5 text-sm text-zinc-500 leading-relaxed">
           {modalType === 'welcome' ? (
             <>
-              ¡Te damos la bienvenida a bordo! Queremos que exprimas WebiBudgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días.
+              ¡Te damos la bienvenida a bordo! Queremos que exprimas .budgets al máximo. Tenés acceso total para armar tus presupuestos sin vueltas durante estos 14 días.
             </>
           ) : (
             <>
               {diasRestantes > 0 
-                ? `Te quedan ${diasRestantes} días de prueba. Cuando quieras, podés activar tu plan para seguir usando WebiBudgets sin interrupciones.`
-                : 'Para seguir usando WebiBudgets y mantener todos tus datos a salvo, por favor selecciona y activa tu plan definitivo.'
+                ? `Te quedan ${diasRestantes} días de prueba. Cuando quieras, podés activar tu plan para seguir usando .budgets sin interrupciones.`
+                : 'Para seguir usando .budgets y mantener todos tus datos a salvo, por favor selecciona y activa tu plan definitivo.'
               }
             </>
           )}

@@ -41,10 +41,10 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: 'WebiBudgets: Tu Gestión de Presupuestos al Instante', // Título diferente o igual
+    title: '.budgets: Tu Gestión de Presupuestos al Instante', // Título diferente o igual
     description: 'Simplifica tus números. Controla tus presupuestos y clientes sin vueltas.', // Descripción más vendedora
     url: 'https://budgets.webistudio.net',
-    siteName: 'WebiBudgets',
+    siteName: '.budgets',
     // 🌟 LA IMAGEN CRUCIAL PARA WHATSAPP 🌟
     // WhatsApp prefiere imágenes cuadradas (al menos 300x300px, máx 1MB).
     // Si usas una imagen rectangular normal (como la de Facebook, 1200x630), WhatsApp la cortará.
@@ -54,14 +54,14 @@ export const metadata: Metadata = {
         url: 'https://budgets.webistudio.net/og-whatsapp.png', // Imagen de 300x300 o similar, en /public
         width: 300,
         height: 300,
-        alt: 'WebiBudgets - Logo',
+        alt: '.budgets - Logo',
       },
       // Puedes incluir la versión estándar rectangular también
       {
         url: 'https://budgets.webistudio.net/og-image.png', // 1200x630, en /public
         width: 1200,
         height: 630,
-        alt: 'WebiBudgets - Dashboard',
+        alt: '.budgets - Dashboard',
       },
     ],
     locale: 'es_AR', // Tu localidad principal

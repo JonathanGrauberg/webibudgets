@@ -849,7 +849,7 @@ export default function CompanyBrandingSettingsClient({
                         { label: 'Mostrar numeración de páginas', value: showPageNumbers, setter: setShowPageNumbers },
                         { label: 'Mostrar sitio web en el pie', value: showWebsiteInPdf, setter: setShowWebsiteInPdf },
                         {
-                          label: 'Mostrar "Generado con WebiBudgets"',
+                          label: 'Mostrar "Generado en budgets.webistudio.net"',
                           value: showFooterBranding,
                           setter: setShowFooterBranding,
                         },

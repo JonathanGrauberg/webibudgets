@@ -94,7 +94,7 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       <PageHeader
         title="Dashboard"
-        description="Sistema de gestión WebiBudgets"
+        description="Sistema de gestión .budgets by Webi."
       />
 
       <div className="p-8">

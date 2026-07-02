@@ -12,7 +12,7 @@ const ERROR_MESSAGES: Record<string, { title: string; detail: string }> = {
   },
   trial_expired: {
     title: 'Tu período de prueba venció',
-    detail: 'Activá tu plan para seguir usando WebiBudgets.',
+    detail: 'Activá tu plan para seguir usando .budgets by Webi.',
   },
   tenant_inactive: {
     title: 'Cuenta suspendida',

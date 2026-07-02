@@ -78,7 +78,7 @@ function SidebarContent({
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
           <Image
             src={branding?.faviconUrl ?? '/placeholder-logo.png'}
-            alt={branding?.name ?? 'WebiBudgets'}
+            alt={branding?.name ?? '.budgets'}
             width={24}
             height={24}
             className="object-contain"
@@ -87,7 +87,7 @@ function SidebarContent({
         </div>
         <div>
           <h1 className="text-sm font-semibold leading-tight text-white">
-            {branding?.name ?? 'WebiBudgets'}
+            {branding?.name ?? '.budgets'}
           </h1>
           <p className="text-[10px] text-white/40">Sistema de Gestión</p>
         </div>
