@@ -193,7 +193,7 @@ function SidebarContent({
         >
           Cerrar sesión
         </button>
-        <p className="text-center text-[10px] text-white/25">v1.0.0 · Creado por Webi</p>
+        <p className="text-center text-[10px] text-white/25">v1.2.0 · Creado por Webistudio.net</p>
       </div>
     </div>
   )
