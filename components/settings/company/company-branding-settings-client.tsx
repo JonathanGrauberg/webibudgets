@@ -126,19 +126,12 @@ function serializeBranding(
   })
 }
 
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: React.ElementType
-  label: string
+function TabButton({ active, onClick, icon: Icon, label, id }: {
+  active: boolean; onClick: () => void; icon: React.ElementType; label: string; id?: string
 }) {
   return (
     <motion.button
+      id={id}
       type="button"
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
@@ -597,13 +590,12 @@ export default function CompanyBrandingSettingsClient({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto">
           {tabs.map((tab) => (
-            <TabButton
-              key={tab.id}
-              active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              icon={tab.icon}
-              label={tab.label}
-            />
+            <TabButton key={tab.id} 
+            id={`tab-${tab.id}`} 
+            active={activeTab === tab.id} 
+            onClick={() => setActiveTab(tab.id)} 
+            icon={tab.icon} 
+            label={tab.label} />
           ))}
         </div>
       </div>
@@ -626,7 +618,7 @@ export default function CompanyBrandingSettingsClient({
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div id="tour-company-info" className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Información de la Empresa</h2>
@@ -765,21 +757,17 @@ export default function CompanyBrandingSettingsClient({
                     </AnimatePresence>
                   </div>
                   <div className="px-5 py-3">
-                    <SmartAssetRow
-                      label="Logo de la Empresa"
-                      value={brandingAssets.logo}
-                      onChange={(v) => updateBrandingAsset('logo', v)}
-                    />
+                    <div id="tour-logo-row">
+                      <SmartAssetRow label="Logo de la Empresa" value={brandingAssets.logo} onChange={(v) => updateBrandingAsset('logo', v)} />
+                    </div>
                     <SmartAssetRow
                       label="Favicon"
                       value={brandingAssets.favicon}
                       onChange={(v) => updateBrandingAsset('favicon', v)}
                     />
-                    <SmartAssetRow
-                      label="Marca de Agua (PDF)"
-                      value={brandingAssets.watermark}
-                      onChange={(v) => updateBrandingAsset('watermark', v)}
-                    />
+                    <div id="tour-watermark-row">
+                      <SmartAssetRow label="Marca de Agua (PDF)" value={brandingAssets.watermark} onChange={(v) => updateBrandingAsset('watermark', v)} />
+                    </div>
                     <SmartAssetRow
                       label="Icono de Barra Lateral"
                       value={brandingAssets.sidebarIcon}

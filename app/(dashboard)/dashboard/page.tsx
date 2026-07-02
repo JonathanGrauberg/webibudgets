@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\dashboard\page.tsx
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { StatCard } from '@/components/stat-card'

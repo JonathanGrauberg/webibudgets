@@ -1,6 +1,7 @@
 'use client'
 //components\dashboard-content-wrapper.tsx
 import { useBranding } from '@/components/branding-provider'
+import { useOnboardingTour } from '@/hooks/use-onboarding-tour' 
 
 export function DashboardContentWrapper({
   children,
@@ -8,6 +9,7 @@ export function DashboardContentWrapper({
   children: React.ReactNode
 }) {
   const { branding } = useBranding()
+  useOnboardingTour()   // 👈 nuevo
 
   return (
     <div

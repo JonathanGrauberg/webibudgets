@@ -217,6 +217,7 @@ export default function InstallersPage() {
       >
         {canEditInstallers && (
           <Button 
+            id="tour-create-installer"
             onClick={openCreate} 
             className={`w-full sm:w-auto transition-all duration-300 ${
               isLimitReached 

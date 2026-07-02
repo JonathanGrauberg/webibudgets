@@ -125,6 +125,7 @@ model User {
 
   role      UserRole @default(viewer)
   active    Boolean @default(true)
+  hasSeenOnboarding Boolean @default(false)   // 👈 nuevo
 
   accounts  Account[]
   sessions  Session[]

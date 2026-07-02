@@ -111,6 +111,7 @@ function SidebarContent({
               <TooltipTrigger asChild>
                 <Link
   href={item.href}
+  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
   onClick={() => closeMenu?.()}
   style={
     isActive
@@ -156,6 +157,7 @@ function SidebarContent({
               <TooltipTrigger asChild>
                 <Link
   href={item.href}
+  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
   onClick={() => closeMenu?.()}
   style={
     isActive

@@ -214,7 +214,7 @@ export default function SellersPage() {
         title="Vendedores"
         description="Gestioná los colaboradores que emiten tus presupuestos."
       >
-        <Button onClick={openCreate} className="w-full sm:w-auto" disabled={loadingLimits}>
+        <Button onClick={openCreate} id="tour-create-seller" className="w-full sm:w-auto" disabled={loadingLimits}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo vendedor
         </Button>

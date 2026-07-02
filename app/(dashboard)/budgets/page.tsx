@@ -122,7 +122,7 @@ export default function BudgetsPage() {
             </Button>
           ) : (
             <Link href="/budgets/new" className="w-full sm:w-auto">
-              <Button className="w-full sm:w-auto shadow-sm gap-2">
+              <Button id="tour-create-budget" className="w-full sm:w-auto shadow-sm gap-2">
                 <Plus className="h-4 w-4" />
                 Nuevo presupuesto
               </Button>

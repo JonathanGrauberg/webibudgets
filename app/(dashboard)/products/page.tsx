@@ -189,7 +189,7 @@ export default function ProductsPage() {
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button onClick={handleCreate} className="w-full sm:w-auto">
+                    <Button onClick={handleCreate} id="tour-create-product" className="w-full sm:w-auto">
                       <Plus className="mr-2 h-4 w-4" />
                       Nuevo Producto
                     </Button>
