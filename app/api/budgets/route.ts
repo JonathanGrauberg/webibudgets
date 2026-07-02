@@ -1,4 +1,4 @@
-//app\api\budgets\route.ts
+// app\api\budgets\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'
@@ -69,12 +69,9 @@ export async function POST(request: Request) {
 
     if (currentPlan === 'starter') {
       const maxMonthlyBudgets = 30
-
-      // Calculamos el inicio del mes actual en la zona horaria del servidor
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
 
-      // Contamos cuántos presupuestos se crearon este mes
       const monthlyBudgetsCount = await prisma.budget.count({
         where: {
           tenantId,
@@ -92,17 +89,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // ===============================
-    // ✅ VALIDACIÓN SERVER-SIDE DE STOCK
-    // (no descuenta stock, solo informa / valida productos)
-    // ===============================
-
+    // ===============================================
+    // ✅ VALIDACIÓN SERVER-SIDE DE STOCK & ITEMS
+    // ===============================================
     const normalizedItems = normalizeBudgetItems(data.items)
     if (normalizedItems.length === 0) {
       return NextResponse.json({ error: 'items are required' }, { status: 400 })
     }
 
-    const productIds = getBudgetItemProductIds(normalizedItems)
+    // 🌟 FILTRAMOS ID's: Solo extraemos id para ítems que NO sean personalizados (On-the-fly)
+    const productIds = getBudgetItemProductIds(normalizedItems).filter(Boolean)
     const groupedQty = groupBudgetItemQuantities(normalizedItems)
 
     const clientIsValid = await validateBudgetClient(tenantId, data.clientId)
@@ -122,11 +118,11 @@ export async function POST(request: Request) {
     if (!sellerIsValid) {
       return NextResponse.json({ error: 'Invalid sellerId for tenant' }, { status: 400 })
     }
-
     if (!installerIsValid) {
       return NextResponse.json({ error: 'Invalid installerId for tenant' }, { status: 400 })
     }
 
+    // Corregimos la comparación: Solo validamos si faltan IDs del catálogo real
     if (products.length !== productIds.length) {
       const missingIds = findMissingProductIds(products, productIds)
       return NextResponse.json(
@@ -149,116 +145,83 @@ export async function POST(request: Request) {
     })
 
     const tenant = await prisma.tenant.findUnique({
-  where: {
-    id: tenantId,
-  },
-  select: {
-    budgetSequence: true,
-  },
-})
+      where: { id: tenantId },
+      select: { budgetSequence: true },
+    })
 
-if (!tenant) {
-  throw new Error('Tenant not found')
-}
+    if (!tenant) {
+      throw new Error('Tenant not found')
+    }
 
-const budgetNumber = tenant.budgetSequence
+    const budgetNumber = tenant.budgetSequence
 
-await prisma.tenant.update({
-  where: {
-    id: tenantId,
-  },
-  data: {
-    budgetSequence: {
-      increment: 1,
-    },
-  },
-})
-
-const budget = await prisma.budget.create({
-  data: {
-    tenant: {
-      connect: {
-        id: tenantId,
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        budgetSequence: { increment: 1 },
       },
-    },
+    })
 
-    status: 'draft',
-    budgetNumber,
+    // ===============================================
+    // 💾 CREACIÓN DEL PRESUPUESTO EN BASE DE DATOS
+    // ===============================================
+    const budget = await prisma.budget.create({
+      data: {
+        tenant: {
+          connect: { id: tenantId },
+        },
+        status: 'draft',
+        budgetNumber,
+        notes: typeof data.notes === 'string' ? data.notes : '',
+        installationResponsible: data.installationResponsible ?? null,
+        installerReference: data.installerReference ?? null,
+        details: Array.isArray(data.details) ? data.details : [],
+        subtotal: calculation.subtotal,
+        discount: calculation.discountAmount,
+        tax: calculation.taxAmount,
+        shippingCost: calculation.shippingCost,
+        total: calculation.total,
+        paymentTerms: data.paymentTerms ?? null,
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        client: {
+          connect: { id: data.clientId },
+        },
+        ...(sellerId ? { seller: { connect: { id: sellerId } } } : {}),
+        ...(installerId ? { installer: { connect: { id: installerId } } } : {}),
 
-    notes: typeof data.notes === 'string' ? data.notes : '',
-
-    installationResponsible: data.installationResponsible ?? null,
-    installerReference: data.installerReference ?? null,
-
-    details: Array.isArray(data.details)
-      ? data.details
-      : [],
-
-    subtotal: calculation.subtotal,
-    discount: calculation.discountAmount,
-    tax: calculation.taxAmount,
-    shippingCost: calculation.shippingCost,
-    total: calculation.total,
-
-    paymentTerms: data.paymentTerms ?? null,
-    validUntil: data.validUntil
-      ? new Date(data.validUntil)
-      : null,
-
-    client: {
-      connect: {
-        id: data.clientId,
+        // 🌟 MAPEO INTELIGENTE DE ÍTEMS (NATIVOS VS LIBRES)
+        items: {
+          create: normalizedItems.map((item: any) => {
+            const isCustom = !item.productServiceId || item.isCustom || item.customName;
+            
+            return {
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unitPrice),
+              subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
+              discount: Number(item.discount ?? 0),
+              // Si es un producto libre, guardamos su nombre y NO conectamos productService
+              customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
+              ...(!isCustom ? {
+                productService: {
+                  connect: { id: item.productServiceId }
+                }
+              } : {})
+            }
+          }),
+        },
       },
-    },
-
-    ...(sellerId
-      ? {
-          seller: {
-            connect: {
-              id: sellerId,
-            },
-          },
-        }
-      : {}),
-
-    ...(installerId
-      ? {
-          installer: {
-            connect: {
-              id: installerId,
-            },
-          },
-        }
-      : {}),
-
-    items: {
-      create: buildBudgetItemCreatePayload(
-        normalizedItems
-      ).map((item) => ({
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        subtotal: item.subtotal,
-        discount: item.discount,
-        productService: {
-          connect: {
-            id: item.productServiceId,
+      include: {
+        client: true,
+        seller: true,
+        installer: true,
+        items: {
+          include: {
+            productService: true,
           },
         },
-      })),
-    },
-  },
-
-  include: {
-    client: true,
-    seller: true,
-    installer: true,
-    items: {
-      include: {
-        productService: true,
       },
-    },
-  },
-})
+    })
+
     return NextResponse.json(
       {
         ...budget,

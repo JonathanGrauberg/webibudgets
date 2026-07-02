@@ -1,3 +1,4 @@
+// lib\pdf\template.ts
 import { getContrastColor } from '@/lib/contrast'
 
 export function budgetPdfTemplate(
@@ -7,7 +8,7 @@ export function budgetPdfTemplate(
     watermarkDataUri?: string
     companyName?: string   
     isTrial?: boolean
-    tenant?: {          // ← Agregá esto
+    tenant?: {
       name?: string
       phone?: string
       email?: string
@@ -38,11 +39,10 @@ export function budgetPdfTemplate(
   const hasShipping = budget.shippingCost !== null && budget.shippingCost !== undefined
   const shippingValue = Number(budget.shippingCost ?? 0)
 
-  // ✅ Logo arriba derecha (chico)
+  // Logo arriba derecha (chico)
   const logo = opts?.logoDataUri ? `<img class="logo" src="${opts.logoDataUri}" alt="WebiBudgets" />` : ''
 
-  // ✅ Marca de agua (logo grande, transparente)
-  // - Si no pasás watermarkDataUri, usa el mismo logo como watermark
+  // Marca de agua (logo grande, transparente)
   const watermark = opts?.watermarkDataUri ?? opts?.logoDataUri ?? ''
 
   // Helpers para mostrar textos lindos (por si viene "company"/"client")
@@ -52,6 +52,18 @@ export function budgetPdfTemplate(
       : budget.installationResponsible === 'client'
         ? 'A cargo del cliente'
         : budget.installationResponsible || '—'
+
+  // Normalizar detalles para evitar que rompa si no es un array nativo
+  let safetyDetails: Array<{ title: string; value: string }> = []
+  try {
+    if (Array.isArray(budget.details)) {
+      safetyDetails = budget.details
+    } else if (typeof budget.details === 'string') {
+      safetyDetails = JSON.parse(budget.details)
+    }
+  } catch (e) {
+    console.error("Error parsing budget details for PDF", e)
+  }
 
   return `
 <!DOCTYPE html>
@@ -141,6 +153,7 @@ export function budgetPdfTemplate(
       padding: 10px;
       border-radius: 6px;
       background: transparent;
+      margin-bottom: 6px;
     }
 
     table { 
@@ -151,19 +164,19 @@ export function budgetPdfTemplate(
     }
 
     th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    vertical-align: top;
+      border: 1px solid #ddd;
+      padding: 8px;
+      vertical-align: top;
     }
 
     th {
-    background: rgba(0,0,0,0.04);
-    text-align: left;
-    font-size: 12px;
+      background: rgba(0,0,0,0.04);
+      text-align: left;
+      font-size: 12px;
     }
 
     .right {
-    text-align: right;
+      text-align: right;
     }
 
     .total-row th {
@@ -228,17 +241,23 @@ export function budgetPdfTemplate(
       <tbody>
         ${(budget.items ?? [])
           .map(
-            (item: any) => `
+            (item: any) => {
+              const conceptName = item.customName || item.productService?.name || '—'
+              const conceptDescription = item.customName ? 'Ítem personalizado a medida' : (item.productService?.description || '')
+              const conceptUnit = item.productService?.unit || 'un.'
+
+              return `
         <tr>
           <td>
-            <strong>${item.productService?.name ?? '—'}</strong><br />
-            <span class="muted small">${item.productService?.description || ''}</span>
+            <strong>${conceptName}</strong><br />
+            <span class="muted small">${conceptDescription}</span>
           </td>
-          <td class="right">${item.quantity ?? 0} ${item.productService?.unit || ''}</td>
+          <td class="right">${item.quantity ?? 0} ${conceptUnit}</td>
           <td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
           <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>
         </tr>
       `
+            }
           )
           .join('')}
       </tbody>
@@ -295,17 +314,20 @@ export function budgetPdfTemplate(
       Personal de referencia: ${budget.installerReference || '—'}
     </div>
 
-    ${(budget.details ?? [])
-      .map(
-        (detail: { title: string; value: string }) => `
-    <div class="box avoid-break">
-      <strong>${detail.title}</strong>
-      <br />
-      ${detail.value}
-    </div>
-    `
-      )
-      .join('')}
+    ${
+      safetyDetails.length > 0
+        ? `<h2>Detalles adicionales</h2>` + 
+          safetyDetails.map(
+            (detail) => `
+        <div class="box avoid-break">
+          <strong>${detail.title}</strong>
+          <br />
+          ${detail.value}
+        </div>
+        `
+          ).join('')
+        : ''
+    }
 
     ${
       budget.notes
@@ -318,13 +340,13 @@ export function budgetPdfTemplate(
         : ''
     }
   </div>
-      <div class="footer">
-        <div>
-          ${tenant?.showFooterBranding ? `<div class="text-xs">Generado con WebiBudgets</div>` : ''}
-          ${tenant?.showWebsiteInPdf && tenant?.website ? `<div class="text-xs"><a href="${tenant.website}">${tenant.website}</a></div>` : ''}
-        </div>
-        ${tenant?.showPageNumbers ? `<div class="text-xs page-num"></div>` : ''}
-      </div>
+  <div class="footer">
+    <div>
+      ${tenant?.showFooterBranding ? `<div class="text-xs">Generado con WebiBudgets</div>` : ''}
+      ${tenant?.showWebsiteInPdf && tenant?.website ? `<div class="text-xs"><a href="${tenant.website}">${tenant.website}</a></div>` : ''}
+    </div>
+    ${tenant?.showPageNumbers ? `<div class="text-xs page-num"></div>` : ''}
+  </div>
 </body>
 </html>
 `

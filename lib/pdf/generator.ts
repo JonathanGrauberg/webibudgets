@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer-core"
 import chromium from "@sparticuz/chromium-min"
-
+//lib\pdf\generator.ts
 const CHROMIUM_REMOTE_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar"
 

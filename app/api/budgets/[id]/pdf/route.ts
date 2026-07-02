@@ -1,15 +1,12 @@
 export const runtime = "nodejs"
 export const maxDuration = 60
-//app\api\budgets\[id]\pdf\route.ts
+// app\api\budgets\[id]\pdf\route.ts
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { budgetPdfTemplate } from "@/lib/pdf/template"
 import { generatePdf } from "@/lib/pdf/generator"
 
-// 🌟 STRINGS BASE64 DE FALLBACK (Reemplazan la lectura física de archivos)
-// Podés usar estos marcadores o pegar el base64 real si querés. 
-// Una alternativa excelente si no querés un string gigante acá es usar URLs absolutas directas de tu web.
 const FALLBACK_LOGO_URL = "https://budgets.webistudio.net/placeholder-logo.png"
 const FALLBACK_WATERMARK_URL = "https://budgets.webistudio.net/watermark.png"
 
@@ -48,7 +45,6 @@ export async function GET(
     ======================== */
     let logoDataUri: string | undefined
 
-    // 1. Intentamos cargar el logo personalizado del Tenant
     if (budget.tenant?.logoUrl) {
       try {
         const res = await fetch(budget.tenant.logoUrl)
@@ -61,7 +57,6 @@ export async function GET(
       }
     }
 
-    // 2. 🔥 FALLBACK SEGURO: Si no tiene o falló, hacemos fetch a la URL pública (Evita usar FS)
     if (!logoDataUri) {
       try {
         const res = await fetch(FALLBACK_LOGO_URL)
@@ -70,7 +65,6 @@ export async function GET(
         logoDataUri = `data:image/png;base64,${base64}`
       } catch (e) {
         console.error("Error loading fallback logo via fetch:", e)
-        // Último recurso en texto plano por si se cae internet en el server
         logoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
       }
     }
@@ -80,7 +74,6 @@ export async function GET(
     ======================== */
     let watermarkDataUri: string | undefined
 
-    // 1. Preferimos la marca de agua del tenant si tiene
     if (budget.tenant?.watermarkUrl) {
       try {
         const res = await fetch(budget.tenant.watermarkUrl)
@@ -93,7 +86,6 @@ export async function GET(
       }
     }
 
-    // 2. 🔥 FALLBACK SEGURO: Si es trial y no tiene watermark propia, fetch a la URL pública
     if (!watermarkDataUri && isTrial) {
       try {
         const res = await fetch(FALLBACK_WATERMARK_URL)
@@ -106,7 +98,7 @@ export async function GET(
     }
 
     /* ========================
-       HTML
+       HTML Generation
     ======================== */
     const tenantForTemplate = budget.tenant
       ? {
@@ -128,13 +120,14 @@ export async function GET(
       ...(watermarkDataUri && { watermarkDataUri }),
       isTrial,
       tenant: tenantForTemplate,
+      companyName: budget.tenant?.name ?? undefined
     })
 
     const pdfUint8 = await generatePdf(html)
     const buffer = Buffer.from(pdfUint8)
 
     /* ========================
-       Nombre archivo
+       Nombre del archivo de descarga
     ======================== */
     const clientName = budget.client?.name || ""
     const clientLastName = budget.client?.lastName || ""

@@ -1,7 +1,6 @@
-//app\(dashboard)\budgets\new\page.tsx
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PageHeader } from '@/components/page-header'
@@ -26,22 +25,23 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
 
 /* ================================
-   TYPES
+   TYPES & INTERFACES
 ================================ */
 type BudgetItemInput = {
   id: string
-  productServiceId: string
+  productServiceId: string | null // Ahora permite null para ítems "On-the-fly"
   name: string
   category?: ProductCategory
   quantity: number
   unitPrice: number
   unit?: string
+  isCustom?: boolean // Flag para identificar ítems libres
 }
 
 type Seller = {
@@ -61,6 +61,8 @@ type Installer = {
   active: boolean
 }
 
+type ProductWithStock = ProductService & { stock?: number }
+
 /* ================================
    UTILS
 ================================ */
@@ -78,16 +80,13 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-function buildInstallerReference(installer: Installer) {
+function buildInstallerReference(installer: Installer): string {
   const fullName = `${installer.name} ${installer.lastName}`.trim()
   const parts = [fullName]
-
   if (installer.city?.trim()) parts.push(installer.city.trim())
   if (installer.phone?.trim()) parts.push(installer.phone.trim())
-
   return parts.join(' - ')
 }
-
 
 /* ================================
    PAGE
@@ -96,12 +95,11 @@ export default function NewBudgetPage() {
   const router = useRouter()
 
   const { data: clients = [] } = useSWR<Client[]>('/api/clients', fetcher)
-  const { data: products = [] } = useSWR<ProductService[]>('/api/products', fetcher)
+  const { data: products = [] } = useSWR<ProductWithStock[]>('/api/products', fetcher)
   const { data: sellers = [] } = useSWR<Seller[]>('/api/sellers', fetcher)
   const { data: installers = [] } = useSWR<Installer[]>('/api/installers', fetcher)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
-
   const [clientId, setClientId] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -114,20 +112,14 @@ export default function NewBudgetPage() {
   const [installationResponsible, setInstallationResponsible] = useState('')
   const [installerId, setInstallerId] = useState('')
   const [installerReference, setInstallerReference] = useState('')
-  const [details, setDetails] = useState([
-        {
-          id: crypto.randomUUID(),
-          title: '',
-          value: '',
-        },
-      ])
+  const [details, setDetails] = useState([{ id: crypto.randomUUID(), title: '', value: '' }])
 
   /* ===== Avanzados ===== */
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed' | null>(null)
   const [discountValue, setDiscountValue] = useState(0)
   const [taxPercentage, setTaxPercentage] = useState(0)
 
-  // ✅ Envío
+  // Envío
   const [shippingIncluded, setShippingIncluded] = useState(false)
   const [shippingCost, setShippingCost] = useState(0)
 
@@ -142,17 +134,19 @@ export default function NewBudgetPage() {
   /* ================================
      STOCK HELPERS (UI)
   ================================ */
-  const getStockByProductId = (productServiceId: string) => {
+  const getStockByProductId = (productServiceId: string | null): number => {
+    if (!productServiceId) return 999999 // Los ítems personalizados no tienen restricción de stock
     const p = products.find((x) => x.id === productServiceId)
-    return typeof (p as any)?.stock === 'number' ? (p as any).stock : 0
+    return typeof p?.stock === 'number' ? p.stock : 0
   }
 
   const stockIssues = useMemo(() => {
     return items
+      .filter((i) => !i.isCustom && i.productServiceId) // Solo evaluamos stock de ítems reales de la DB
       .map((i) => {
         const stock = getStockByProductId(i.productServiceId)
         const missing = Math.max(0, i.quantity - stock)
-        return { id: i.productServiceId, stock, missing }
+        return { id: i.productServiceId!, stock, missing }
       })
       .filter((x) => x.missing > 0)
   }, [items, products])
@@ -160,24 +154,7 @@ export default function NewBudgetPage() {
   const hasStockIssues = stockIssues.length > 0
 
   /* ================================
-     INSTALLERS
-  ================================ */
-  useEffect(() => {
-    if (installationResponsible !== 'company') {
-      setInstallerId('')
-      return
-    }
-
-    if (!installerId) return
-
-    const installer = activeInstallers.find((i) => i.id === installerId)
-    if (!installer) return
-
-    setInstallerReference(buildInstallerReference(installer))
-  }, [installationResponsible, installerId, activeInstallers])
-
-  /* ================================
-     ITEMS
+     ITEMS OPERATORS
   ================================ */
   const addItem = () => {
     if (!selectedProductId) return
@@ -201,52 +178,53 @@ export default function NewBudgetPage() {
           quantity: 1,
           unitPrice: product.price,
           unit: product.unit,
+          isCustom: false,
         },
       ])
     }
-
     setSelectedProductId('')
   }
 
-  const updateQuantity = (productServiceId: string, quantity: number) => {
-    if (!Number.isFinite(quantity) || quantity < 1) return
-    setItems((prev) =>
-      prev.map((i) => (i.productServiceId === productServiceId ? { ...i, quantity } : i))
-    )
-  }
-
-  const removeItem = (productServiceId: string) => {
-    setItems((prev) => prev.filter((i) => i.productServiceId !== productServiceId))
-  }
-
-  const addDetail = () => {
-    setDetails((prev) => [
+  // ✨ NUEVA FUNCIÓN: Agregar ítem vacío "On-the-fly"
+  const addCustomItem = () => {
+    setItems((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        title: '',
-        value: '',
+        productServiceId: null,
+        name: '',
+        quantity: 1,
+        unitPrice: 0,
+        unit: 'un.',
+        isCustom: true,
       },
     ])
   }
 
-  const removeDetail = (id: string) => {
-    setDetails((prev) =>
-      prev.filter((detail) => detail.id !== id)
+  const updateItemField = (id: string, field: keyof BudgetItemInput, value: any) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, [field]: value } : i))
     )
   }
 
-  const updateDetail = (
-    id: string,
-    field: 'title' | 'value',
-    value: string
-  ) => {
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }
+
+  /* ================================
+     ADDITIONAL DETAILS OPERATORS
+  ================================ */
+  const addDetail = () => {
+    setDetails((prev) => [...prev, { id: crypto.randomUUID(), title: '', value: '' }])
+  }
+
+  const removeDetail = (id: string) => {
+    setDetails((prev) => prev.filter((detail) => detail.id !== id))
+  }
+
+  const updateDetail = (id: string, field: 'title' | 'value', value: string) => {
     setDetails((prev) =>
-      prev.map((detail) =>
-        detail.id === id
-          ? { ...detail, [field]: value }
-          : detail
-      )
+      prev.map((detail) => (detail.id === id ? { ...detail, [field]: value } : detail))
     )
   }
 
@@ -267,20 +245,21 @@ export default function NewBudgetPage() {
         : 0
 
   const discountAmount = Math.min(rawDiscountAmount, subtotal)
-
   const taxedBase = Math.max(0, subtotal - discountAmount)
   const taxAmount = taxedBase * (safeTaxPercentage / 100)
-
   const shippingAmount = shippingIncluded ? safeShippingCost : 0
 
   const total = taxedBase + taxAmount + shippingAmount
 
+  const hasInvalidQuantities = items.some((i) => i.quantity <= 0)
+  const hasEmptyCustomNames = items.some((i) => i.isCustom && !i.name.trim())
+
   /* ================================
-     SUBMIT
+     SUBMIT (Corregido para tu esquema de Prisma)
   ================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!clientId || items.length === 0) return
+    if (!clientId || items.length === 0 || hasInvalidQuantities || hasEmptyCustomNames) return
 
     setIsSubmitting(true)
     try {
@@ -290,32 +269,25 @@ export default function NewBudgetPage() {
         body: JSON.stringify({
           clientId,
           notes,
-
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
           installerReference,
-          details: details.filter(
-            (d) => d.title.trim() || d.value.trim()
-          ),
-
+          details: details.filter((d) => d.title.trim() || d.value.trim()),
           discountType,
           discountValue: safeDiscountValue,
           taxPercentage: safeTaxPercentage,
-
           sellerId: sellerId || null,
-
           paymentTerms,
           validUntil,
-
           shippingCost: shippingIncluded ? safeShippingCost : null,
-
+          // Mapeo exacto hacia tu modelo BudgetItem de la DB:
           items: items.map((i) => ({
-            productServiceId: i.productServiceId,
+            productServiceId: i.productServiceId, // Almacena el ID o null si es On-the-fly
+            customName: i.isCustom ? i.name : null, // 🌟 Usa 'customName' que es lo que espera tu modelo
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             subtotal: i.unitPrice * i.quantity,
           })),
-
           total,
         }),
       })
@@ -331,9 +303,6 @@ export default function NewBudgetPage() {
     }
   }
 
-  /* ================================
-     UI
-  ================================ */
   return (
     <TooltipProvider>
       <div className="min-h-screen">
@@ -353,7 +322,6 @@ export default function NewBudgetPage() {
                 <CardHeader>
                   <CardTitle>Cliente</CardTitle>
                 </CardHeader>
-
                 <CardContent className="space-y-4">
                   <div>
                     <p className="mb-2 text-sm text-muted-foreground">Vendedor</p>
@@ -395,14 +363,18 @@ export default function NewBudgetPage() {
 
               {/* PRODUCTOS */}
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <CardTitle>Productos / Servicios</CardTitle>
+                  {/* Botón para forzar la inserción libre */}
+                  <Button type="button" variant="outline" size="sm" onClick={addCustomItem} className="gap-1 text-xs">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Item Libre (On-the-fly)
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-2">
                     <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar producto..." />
+                        <SelectValue placeholder="Seleccionar de la lista base..." />
                       </SelectTrigger>
                       <SelectContent>
                         {activeProducts.map((p) => (
@@ -424,53 +396,80 @@ export default function NewBudgetPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Item</TableHead>
-                            <TableHead>Cant.</TableHead>
-                            <TableHead className="text-right">Stock</TableHead>
-                            <TableHead className="text-right">Precio</TableHead>
+                            <TableHead className="w-[100px]">Cant.</TableHead>
+                            <TableHead className="text-right w-[90px]">Stock</TableHead>
+                            <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
                             <TableHead className="text-right">Subtotal</TableHead>
                             <TableHead />
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {items.map((item) => (
-                            <TableRow key={item.productServiceId}>
+                            <TableRow key={item.id}>
                               <TableCell>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.category ? CATEGORY_LABELS[item.category] : '—'}
-                                </p>
+                                {item.isCustom ? (
+                                  // Agregamos flex flex-col y gap para que el badge se acomode abajo sin desbordar
+                                  <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                    <Input
+                                      placeholder="Nombre del servicio o producto a medida..."
+                                      value={item.name}
+                                      className={!item.name.trim() ? 'border-amber-400 focus-visible:ring-amber-400' : ''}
+                                      onChange={(e) => updateItemField(item.id, 'name', e.target.value)}
+                                    />
+                                    {/* Al usar w-max evitamos que el badge se estire al ancho completo del input */}
+                                    <span className="inline-flex w-max items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                                      <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Personalizado
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <p className="font-medium">{item.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                                    </p>
+                                  </div>
+                                )}
                               </TableCell>
 
                               <TableCell>
                                 <Input
                                   type="number"
                                   min={1}
-                                  value={item.quantity}
+                                  value={item.quantity === 0 ? '' : item.quantity}
                                   className={
-                                    item.quantity > getStockByProductId(item.productServiceId)
+                                    item.quantity <= 0 || (!item.isCustom && item.quantity > getStockByProductId(item.productServiceId))
                                       ? 'border-destructive focus-visible:ring-destructive'
                                       : ''
                                   }
-                                  onChange={(e) =>
-                                    updateQuantity(item.productServiceId, Number(e.target.value))
-                                  }
+                                  onChange={(e) => updateItemField(item.id, 'quantity', Number(e.target.value))}
                                 />
                               </TableCell>
 
-                              <TableCell className="text-right">
-                                {(() => {
-                                  const stock = getStockByProductId(item.productServiceId)
-                                  const ok = item.quantity <= stock
-                                  return (
-                                    <span className={ok ? '' : 'text-destructive font-semibold'}>
-                                      {stock}
-                                    </span>
-                                  )
-                                })()}
+                              <TableCell className="text-right text-muted-foreground">
+                                {item.isCustom ? '—' : (
+                                  (() => {
+                                    const stock = getStockByProductId(item.productServiceId)
+                                    const ok = item.quantity <= stock
+                                    return <span className={ok ? '' : 'text-destructive font-semibold'}>{stock}</span>
+                                  })()
+                                )}
                               </TableCell>
 
                               <TableCell className="text-right">
-                                {formatCurrency(item.unitPrice)}
+                                {item.isCustom ? (
+                                  <div className="relative">
+                                    <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      className="pl-6 text-right"
+                                      value={item.unitPrice}
+                                      onChange={(e) => updateItemField(item.id, 'unitPrice', Number(e.target.value))}
+                                    />
+                                  </div>
+                                ) : (
+                                  formatCurrency(item.unitPrice)
+                                )}
                               </TableCell>
 
                               <TableCell className="text-right font-medium">
@@ -481,7 +480,8 @@ export default function NewBudgetPage() {
                                 <Button
                                   type="button"
                                   variant="ghost"
-                                  onClick={() => removeItem(item.productServiceId)}
+                                  size="icon"
+                                  onClick={() => removeItem(item.id)}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -505,10 +505,8 @@ export default function NewBudgetPage() {
                     value={installationResponsible}
                     onValueChange={(value) => {
                       setInstallationResponsible(value)
-
-                      if (value !== 'company') {
-                        setInstallerId('')
-                      }
+                      setInstallerId('')
+                      setInstallerReference('')
                     }}
                   >
                     <SelectTrigger>
@@ -516,9 +514,7 @@ export default function NewBudgetPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="client">A cargo del cliente</SelectItem>
-                      <SelectItem value="company">
-                      {`A cargo de ${companyName}`}
-                    </SelectItem>
+                      <SelectItem value="company">A cargo de {companyName}</SelectItem>
                       <SelectItem value="other">Otro</SelectItem>
                     </SelectContent>
                   </Select>
@@ -534,9 +530,7 @@ export default function NewBudgetPage() {
                             setInstallerReference('')
                             return
                           }
-
                           setInstallerId(value)
-
                           const selectedInstaller = activeInstallers.find((i) => i.id === value)
                           if (selectedInstaller) {
                             setInstallerReference(buildInstallerReference(selectedInstaller))
@@ -565,59 +559,28 @@ export default function NewBudgetPage() {
                   />
 
                   <div className="space-y-3">
-                    <p className="text-sm font-medium">
-                      Información adicional
-                    </p>
-
+                    <p className="text-sm font-medium">Información adicional</p>
                     {details.map((detail) => (
-                      <div
-                        key={detail.id}
-                        className="grid gap-2 md:grid-cols-[220px_1fr_auto]"
-                      >
+                      <div key={detail.id} className="grid gap-2 md:grid-cols-[220px_1fr_auto]">
                         <Input
                           placeholder="Título"
                           value={detail.title}
-                          onChange={(e) =>
-                            updateDetail(
-                              detail.id,
-                              'title',
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => updateDetail(detail.id, 'title', e.target.value)}
                         />
-
                         <Input
                           placeholder="Contenido"
                           value={detail.value}
-                          onChange={(e) =>
-                            updateDetail(
-                              detail.id,
-                              'value',
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => updateDetail(detail.id, 'value', e.target.value)}
                         />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => removeDetail(detail.id)}
-                        >
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeDetail(detail.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addDetail}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar información
+                    <Button type="button" variant="outline" onClick={addDetail}>
+                      <Plus className="mr-2 h-4 w-4" /> Agregar información
                     </Button>
                   </div>
-
                 </CardContent>
               </Card>
 
@@ -628,18 +591,13 @@ export default function NewBudgetPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input
                       placeholder="Condiciones de pago (opcional)"
                       value={paymentTerms}
                       onChange={(e) => setPaymentTerms(e.target.value)}
                     />
-                    <Input
-                      type="date"
-                      value={validUntil}
-                      onChange={(e) => setValidUntil(e.target.value)}
-                    />
+                    <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
                   </div>
                 </CardContent>
               </Card>
@@ -657,6 +615,7 @@ export default function NewBudgetPage() {
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
 
+                  {/* DESCUENTO */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">Descuento</span>
                     <div className="grid grid-cols-2 gap-2">
@@ -680,7 +639,6 @@ export default function NewBudgetPage() {
                           <SelectItem value="percentage">%</SelectItem>
                         </SelectContent>
                       </Select>
-
                       <Input
                         type="number"
                         min={0}
@@ -690,13 +648,13 @@ export default function NewBudgetPage() {
                         placeholder={discountType === 'percentage' ? '%' : 'Monto'}
                       />
                     </div>
-
                     <div className="flex justify-between text-sm">
                       <span>Aplicado</span>
                       <span>- {formatCurrency(discountAmount)}</span>
                     </div>
                   </div>
 
+                  {/* IVA */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">IVA (%)</span>
                     <Input
@@ -712,12 +670,18 @@ export default function NewBudgetPage() {
                     </div>
                   </div>
 
+                  {/* ENVÍO */}
                   <div className="space-y-2 border-t pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Envío incluido</span>
-                      <Switch checked={shippingIncluded} onCheckedChange={setShippingIncluded} />
+                      <Switch
+                        checked={shippingIncluded}
+                        onCheckedChange={(checked) => {
+                          setShippingIncluded(checked)
+                          if (!checked) setShippingCost(0)
+                        }}
+                      />
                     </div>
-
                     {shippingIncluded && (
                       <Input
                         type="number"
@@ -727,7 +691,6 @@ export default function NewBudgetPage() {
                         placeholder="Costo de envío"
                       />
                     )}
-
                     <div className="flex justify-between text-sm">
                       <span>Envío</span>
                       <span>{shippingIncluded ? `+ ${formatCurrency(shippingAmount)}` : '—'}</span>
@@ -739,6 +702,7 @@ export default function NewBudgetPage() {
                     <span className="text-primary">{formatCurrency(total)}</span>
                   </div>
 
+                  {/* CONTROL DE STOCK EXCLUSIVO PARA ÍTEMS DB */}
                   {hasStockIssues && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                       <p className="font-semibold text-destructive">Stock insuficiente</p>
@@ -756,15 +720,17 @@ export default function NewBudgetPage() {
                     </div>
                   )}
 
-                  {/* 💡 RECUADRO DE AYUDA / ALERTA DE UX PARA MIGRAR MANDRILES */}
-                  {!isSubmitting && (!clientId || items.length === 0) && (
+                  {/* FEEDBACK DE VALIDACIONES */}
+                  {!isSubmitting && (!clientId || items.length === 0 || hasInvalidQuantities || hasEmptyCustomNames) && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
                       <p className="font-semibold flex items-center gap-1.5 text-amber-900">
-                        ⚠️ Falta completar datos
+                        ⚠️ Datos pendientes
                       </p>
                       <ul className="list-disc pl-4 space-y-0.5">
-                        {!clientId && <li>Debés seleccionar un **cliente**.</li>}
-                        {items.length === 0 && <li>Debés agregar al menos un **producto o servicio**.</li>}
+                        {!clientId && <li>Falta seleccionar el **cliente**.</li>}
+                        {items.length === 0 && <li>Agregá al menos un **producto o servicio**.</li>}
+                        {hasInvalidQuantities && <li>Hay ítems con cantidad inválida o en **0**.</li>}
+                        {hasEmptyCustomNames && <li>Escribí el nombre de los ítems personalizados.</li>}
                       </ul>
                     </div>
                   )}
@@ -772,7 +738,7 @@ export default function NewBudgetPage() {
                   <Button
                     type="submit"
                     className="w-full transition-all duration-200"
-                    disabled={isSubmitting || !clientId || items.length === 0}
+                    disabled={isSubmitting || !clientId || items.length === 0 || hasInvalidQuantities || hasEmptyCustomNames}
                   >
                     {isSubmitting ? 'Creando...' : 'Crear Presupuesto'}
                   </Button>
