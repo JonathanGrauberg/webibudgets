@@ -104,6 +104,7 @@ model Tenant {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  currency String @default("ARS") // 👈 moneda por defecto del tenant
 }
 
 /* =========================
@@ -256,6 +257,8 @@ model ProductService {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  currency String @default("ARS") // 👈 moneda en la que está cargado el precio
+
   @@index([tenantId])
 }
 
@@ -309,6 +312,8 @@ model Budget {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  currency String @default("ARS") // 👈 moneda única de ESTE presupuesto
 
   @@index([tenantId])
   @@index([clientId])

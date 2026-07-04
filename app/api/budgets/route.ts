@@ -12,13 +12,16 @@ import {
 import {
   buildBudgetItemCreatePayload,
   buildStockProblems,
+  buildCurrencyMismatchProblems,
   findMissingProductIds,
   loadBudgetProducts,
   normalizeRelationId,
   validateBudgetClient,
+  validateBudgetCurrency,
   validateBudgetInstaller,
   validateBudgetSeller,
 } from '@/lib/budget-validators'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 export async function GET(request: Request) {
   try {
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
     // ===================================================
     const tenantData = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plan: true }
+      select: { plan: true, currency: true }
     })
     const currentPlan = tenantData?.plan || 'starter'
 
@@ -96,6 +99,9 @@ export async function POST(request: Request) {
     if (normalizedItems.length === 0) {
       return NextResponse.json({ error: 'items are required' }, { status: 400 })
     }
+
+    // 🌟 MONEDA DEL PRESUPUESTO: viene del form, o cae al default del tenant
+    const budgetCurrency = validateBudgetCurrency(data.currency) ?? tenantData?.currency ?? DEFAULT_CURRENCY
 
     // 🌟 FILTRAMOS ID's: Solo extraemos id para ítems que NO sean personalizados (On-the-fly)
     const productIds = getBudgetItemProductIds(normalizedItems).filter(Boolean)
@@ -136,6 +142,20 @@ export async function POST(request: Request) {
 
     const stockProblems = buildStockProblems(products, groupedQty)
 
+    // 🌟 VALIDACIÓN DE MONEDA: evita mezclar productos de distinta moneda en el mismo presupuesto
+    const currencyProblems = buildCurrencyMismatchProblems(products, groupedQty, budgetCurrency)
+
+    if (currencyProblems.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'currency_mismatch',
+          message: 'Algunos productos no coinciden con la moneda del presupuesto',
+          currencyProblems,
+        },
+        { status: 400 }
+      )
+    }
+
     const calculation = calculateBudgetTotals({
       items: normalizedItems,
       discountType: (data.discountType as 'percentage' | 'fixed' | null) ?? null,
@@ -172,6 +192,7 @@ export async function POST(request: Request) {
         },
         status: 'draft',
         budgetNumber,
+        currency: budgetCurrency, // 👈 moneda del presupuesto, antes faltaba persistirla
         notes: typeof data.notes === 'string' ? data.notes : '',
         installationResponsible: data.installationResponsible ?? null,
         installerReference: data.installerReference ?? null,

@@ -1,5 +1,7 @@
 // lib\pdf\template.ts
 import { getContrastColor } from '@/lib/contrast'
+import { formatCurrency as formatCurrencyBase } from '@/lib/format' // 👈 nuevo
+import { DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
 
 export function budgetPdfTemplate(
   budget: any,
@@ -27,12 +29,10 @@ export function budgetPdfTemplate(
   const watermarkOpacity = tenant?.watermarkOpacity ?? 0.06
   const pdfPrimary = tenant?.primaryColor ?? '#0F172A'
   const pdfHeaderText = getContrastColor(pdfPrimary)
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 0,
-    }).format(value)
+
+  // 🌟 Moneda del presupuesto: la propia del budget, con fallback por si es un registro viejo
+  const budgetCurrency = budget.currency ?? DEFAULT_CURRENCY
+  const formatCurrency = (value: number) => formatCurrencyBase(value, budgetCurrency)
 
   const hasDiscount = Number(budget.discount ?? 0) > 0
   const hasTax = Number(budget.tax ?? 0) > 0

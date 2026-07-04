@@ -1,7 +1,9 @@
+//app\api\tenants\route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
+import { isValidCurrency } from '@/lib/currencies' // 👈 nuevo
 
 const MANAGER_ROLES = ['owner', 'admin']
 
@@ -19,6 +21,7 @@ export async function GET(request: Request) {
       address: true,
       website: true,
       description: true,
+      currency: true, // 👈 nuevo
 
       logoUrl: true,
       faviconUrl: true,
@@ -72,6 +75,7 @@ export async function PUT(request: NextRequest) {
     'address',
     'website',
     'description',
+    'currency', // 👈 nuevo
 
     'logoUrl',
     'faviconUrl',
@@ -97,6 +101,11 @@ export async function PUT(request: NextRequest) {
       if (k === 'maxUsers') {
         const n = Number(v)
         updateData[k] = Number.isFinite(n) ? n : null
+      } else if (k === 'currency') {
+        // 🌟 Validamos contra la lista soportada; si viene mal, no la tocamos
+        if (isValidCurrency(v)) {
+          updateData[k] = v
+        }
       } else {
         updateData[k] = typeof v === 'string' && v.trim() === '' ? null : v
       }

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
+import { isValidCurrency } from '@/lib/currencies' // 👈 nuevo
 
 /* ======================
    GET
@@ -52,6 +53,7 @@ export async function PATCH(
           data.price !== undefined && data.price !== ''
             ? Number(data.price)
             : undefined,
+        currency: isValidCurrency(data.currency) ? data.currency : undefined, // 👈 nuevo
         unit: typeof data.unit === 'string' ? data.unit : undefined,
         active: typeof data.active === 'boolean' ? data.active : undefined,
       },

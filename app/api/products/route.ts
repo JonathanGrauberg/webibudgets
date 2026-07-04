@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
+import { normalizeCurrency, DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
 
 export async function GET(request: Request) {
   try {
@@ -26,6 +27,13 @@ export async function POST(request: Request) {
     const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
+    // 🌟 Moneda del producto: viene del form, o cae a la default del tenant
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { currency: true },
+    })
+    const productCurrency = normalizeCurrency(data.currency, tenant?.currency ?? DEFAULT_CURRENCY)
+
     const product = await prisma.productService.create({
       data: tenantCreateData(
         {
@@ -33,6 +41,7 @@ export async function POST(request: Request) {
           description: data.description ?? '',
           category: data.category,
           price: Number(data.price),
+          currency: productCurrency, // 👈 nuevo
           unit: data.unit,
           active: data.active ?? true,
         },

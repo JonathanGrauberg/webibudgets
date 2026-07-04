@@ -42,6 +42,8 @@ import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
+import { formatCurrency } from '@/lib/format'
+
 
 async function fetchProducts() {
   const res = await fetch('/api/products')
@@ -49,12 +51,10 @@ async function fetchProducts() {
   return res.json()
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-  }).format(amount)
+async function fetchTenantBranding() {
+  const res = await fetch('/api/tenants')
+  if (!res.ok) throw new Error('Failed to fetch tenant')
+  return res.json()
 }
 
 const CATEGORY_COLORS: Record<ProductCategory, string> = {
@@ -73,6 +73,7 @@ export default function ProductsPage() {
   const canEditProducts = canEdit('products')
   
   const { data: products = [], isLoading } = useSWR<ProductService[]>('/api/products', fetchProducts)
+  const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding) // 👈 nuevo
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -283,7 +284,7 @@ export default function ProductsPage() {
                               <span>Precio</span>
                             </div>
                             <span className="font-semibold text-card-foreground">
-                              {formatCurrency(product.price)}
+                              {formatCurrency(product.price, product.currency)}
                             </span>
                           </div>
 
@@ -373,7 +374,14 @@ export default function ProductsPage() {
                               </TableCell>
 
                               <TableCell className="text-right font-medium">
-                                {formatCurrency(product.price)}
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {formatCurrency(product.price, product.currency)}
+                                  {product.currency !== 'ARS' && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5">
+                                      {product.currency}
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
 
                               <TableCell className="text-muted-foreground">
@@ -442,6 +450,7 @@ export default function ProductsPage() {
 
                 <ProductForm
                   product={editingProduct}
+                  defaultCurrency={tenantBranding?.currency}
                   onSuccess={handleFormSuccess}
                   onCancel={() => setIsDialogOpen(false)}
                 />

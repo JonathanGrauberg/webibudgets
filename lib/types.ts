@@ -24,6 +24,7 @@ export interface ProductService {
   description: string
   category: ProductCategory
   price: number
+  currency: string // 👈 nuevo — moneda en la que está cargado el precio
   unit: string
   active: boolean
   stock?: number
@@ -113,6 +114,7 @@ export interface Budget {
   notes: string
 
   // 💰 Montos
+  currency: string // 👈 nuevo — moneda única de este presupuesto
   subtotal: number
   discount: number
   tax: number

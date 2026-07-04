@@ -1,5 +1,5 @@
 'use client'
-
+//components\product-form.tsx
 import React from "react"
 
 import { useState } from 'react'
@@ -24,20 +24,23 @@ import {
 import { HelpCircle } from 'lucide-react'
 import type { ProductService, ProductCategory } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
 
 interface ProductFormProps {
   product?: ProductService | null
+  defaultCurrency?: string // 👈 nuevo — moneda del tenant, usada para productos nuevos
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) {
+export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: ProductFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
     category: product?.category || 'other' as ProductCategory,
     price: product?.price || '',
+    currency: product?.currency || defaultCurrency || DEFAULT_CURRENCY, // 👈 nuevo
     unit: product?.unit || 'unidad',
     active: product?.active ?? true,
   })
@@ -155,28 +158,60 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="price">Precio (ARS) *</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>Precio en colones costarricenses</TooltipContent>
-            </Tooltip>
+        {/* 🌟 Precio + Moneda en la misma fila */}
+        <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="price">Precio *</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Precio del producto o servicio</TooltipContent>
+              </Tooltip>
+            </div>
+            <Input
+              id="price"
+              type="number"
+              min="0"
+              step="any"
+              value={formData.price}
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
+              placeholder="850000"
+              required
+            />
           </div>
-          <Input
-            id="price"
-            type="number"
-            min="0"
-            step="any"
-            value={formData.price}
-            onChange={(e) =>
-              setFormData({ ...formData, price: e.target.value })
-            }
-            placeholder="850000"
-            required
-          />
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="currency">Moneda *</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Moneda en la que está cargado el precio</TooltipContent>
+              </Tooltip>
+            </div>
+            <Select
+              value={formData.currency}
+              onValueChange={(value: string) =>
+                setFormData({ ...formData, currency: value })
+              }
+            >
+              <SelectTrigger id="currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-border p-4">

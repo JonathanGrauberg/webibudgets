@@ -1,6 +1,11 @@
 //lib\budget-validators.ts
 import { prisma } from '@/lib/prisma'
 import type { NormalizedBudgetItem } from './budget-calculator'
+import { isValidCurrency, DEFAULT_CURRENCY } from './currencies'
+
+export function validateBudgetCurrency(currency: unknown): string | null {
+  return isValidCurrency(currency) ? (currency as string) : null
+}
 
 export type TenantValidationResult = {
   clientId: string
@@ -47,7 +52,7 @@ export async function loadBudgetProducts(tenantId: string, productIds: string[])
 
   return prisma.productService.findMany({
     where: { id: { in: productIds }, tenantId, active: true },
-    select: { id: true, name: true, stock: true },
+    select: { id: true, name: true, stock: true, currency: true }, // 👈 currency agregado
   })
 }
 
@@ -91,6 +96,22 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
     customName: item.customName,
   }))
 }
+
+export function buildCurrencyMismatchProblems(
+  products: Array<{ id: string; name: string; currency: string }>,
+  groupedQuantities: Map<string, number>,
+  budgetCurrency: string
+) {
+  return products
+    .filter((product) => groupedQuantities.has(product.id) && product.currency !== budgetCurrency)
+    .map((product) => ({
+      productServiceId: product.id,
+      name: product.name,
+      productCurrency: product.currency,
+      budgetCurrency,
+    }))
+}
+
 
 export const VALID_BUDGET_STATUSES = ['draft', 'sent', 'approved', 'rejected', 'completed', 'expired'] as const
 export const LEGACY_BUDGET_STATUSES = ['expired'] as const

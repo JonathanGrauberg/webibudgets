@@ -29,6 +29,7 @@ import { useSession } from 'next-auth/react'
 
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
 import { SmartAssetRow } from '@/components/branding/smart-asset-row'
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 
 export type CompanyBrandingSettingsClientProps = {
   initialBranding?: Branding
@@ -43,6 +44,7 @@ type CompanyInfo = {
   address: string
   website?: string
   description: string
+  currency: string // 👈 nuevo
 }
 
 type BrandingAssets = {
@@ -197,6 +199,7 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any)?.address ?? '',
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
+      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY, // 👈 nuevo
     }
   })
 
@@ -264,6 +267,7 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any)?.address ?? '',
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
+      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY, // 👈 nuevo
     })
   })
   const [isSavingCompany, setIsSavingCompany] = useState(false)
@@ -331,6 +335,7 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any).address ?? '',
       website: (initialBranding as any).website ?? '',
       description: (initialBranding as any).description ?? '',
+      currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY, // 👈 nuevo
     })
 
     if (incomingCompanySerialized !== lastSeenCompanyPropsRef.current) {
@@ -341,6 +346,7 @@ export default function CompanyBrandingSettingsClient({
         address: (initialBranding as any).address ?? '',
         website: (initialBranding as any).website ?? '',
         description: (initialBranding as any).description ?? '',
+        currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY, // 👈 nuevo
       })
       setSavedCompanySnapshot(incomingCompanySerialized)
       setSavedName(eff.name ?? '')
@@ -364,6 +370,7 @@ export default function CompanyBrandingSettingsClient({
       address: companyInfo.address,
       website: companyInfo.website ?? '',
       description: companyInfo.description,
+      currency: companyInfo.currency, // 👈 nuevo
     }) !== savedCompanySnapshot
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
@@ -551,6 +558,7 @@ export default function CompanyBrandingSettingsClient({
       address: companyInfo.address,
       website: companyInfo.website ?? null,
       description: companyInfo.description,
+      currency: companyInfo.currency, // 👈 nuevo
     }
 
     try {
@@ -609,6 +617,8 @@ export default function CompanyBrandingSettingsClient({
 
         <AnimatePresence mode="wait">
 
+
+          //components\settings\company\company-branding-settings-client.tsx
           {/* ── CONFIGURACIÓN ── */}
           {activeTab === 'company' && (
             <motion.div
@@ -698,6 +708,26 @@ export default function CompanyBrandingSettingsClient({
                           placeholder="https://www.tuempresa.com"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Moneda por defecto
+                      </label>
+                      <select
+                        value={companyInfo.currency}
+                        onChange={(e) => updateCompanyInfo('currency', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-slate-900 dark:text-slate-50"
+                      >
+                        {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code} — {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400">
+                        Moneda usada por defecto en nuevos productos y presupuestos.
+                      </p>
                     </div>
 
                     <div className="space-y-2 md:col-span-2">

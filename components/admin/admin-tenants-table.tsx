@@ -1,4 +1,4 @@
-// components/admin/admin-tenants-table.tsx
+// components/admin/admin-tenants-table.tsx  
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'

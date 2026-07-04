@@ -1,3 +1,4 @@
+//lib\branding.ts
 import type { CSSProperties } from 'react'
 
 export type Branding = {
@@ -10,6 +11,7 @@ export type Branding = {
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
+  currency?: string | null // 👈 nuevo
 }
 
 export const SYSTEM_BRANDING: Branding = {
@@ -21,6 +23,7 @@ export const SYSTEM_BRANDING: Branding = {
   primaryColor: '#0ea5e9',
   secondaryColor: '#64748b',
   accentColor: '#10b981',
+  currency: 'ARS', // 👈 nuevo
 }
 
 export function effectiveBranding(tenant?: Branding): Branding {
@@ -36,6 +39,7 @@ export function effectiveBranding(tenant?: Branding): Branding {
     primaryColor: tenant.primaryColor ?? SYSTEM_BRANDING.primaryColor,
     secondaryColor: tenant.secondaryColor ?? SYSTEM_BRANDING.secondaryColor,
     accentColor: tenant.accentColor ?? SYSTEM_BRANDING.accentColor,
+    currency: tenant.currency ?? SYSTEM_BRANDING.currency, // 👈 nuevo
   }
 }
 

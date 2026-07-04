@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PageHeader } from '@/components/page-header'
@@ -29,6 +29,8 @@ import { Plus, Trash2, ArrowLeft, Sparkles } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
+import { formatCurrency } from '@/lib/format'
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /* ================================
    TYPES & INTERFACES
@@ -61,7 +63,7 @@ type Installer = {
   active: boolean
 }
 
-type ProductWithStock = ProductService & { stock?: number }
+type ProductWithStock = ProductService & { stock?: number; currency: string }
 
 /* ================================
    UTILS
@@ -70,14 +72,6 @@ async function fetcher(url: string) {
   const res = await fetch(url)
   if (!res.ok) throw new Error('Failed to fetch')
   return res.json()
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-  }).format(amount)
 }
 
 function buildInstallerReference(installer: Installer): string {
@@ -106,6 +100,9 @@ export default function NewBudgetPage() {
   const [items, setItems] = useState<BudgetItemInput[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
 
+  /* ===== Moneda del presupuesto ===== */
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
+
   /* ===== Datos del trabajo ===== */
   const { data: branding } = useSWR('/api/tenants', fetcher)
   const companyName = branding?.name || 'la empresa'
@@ -113,6 +110,11 @@ export default function NewBudgetPage() {
   const [installerId, setInstallerId] = useState('')
   const [installerReference, setInstallerReference] = useState('')
   const [details, setDetails] = useState([{ id: crypto.randomUUID(), title: '', value: '' }])
+
+  // Al cargar los datos del tenant, seteamos su moneda por defecto
+  useEffect(() => {
+    if (branding?.currency) setCurrency(branding.currency)
+  }, [branding])
 
   /* ===== Avanzados ===== */
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed' | null>(null)
@@ -127,9 +129,32 @@ export default function NewBudgetPage() {
   const [validUntil, setValidUntil] = useState('')
   const [sellerId, setSellerId] = useState('')
 
-  const activeProducts = useMemo(() => products.filter((p) => p.active), [products])
+  // 🌟 Solo mostramos productos activos que coincidan con la moneda del presupuesto
+  const activeProducts = useMemo(
+    () => products.filter((p) => p.active && p.currency === currency),
+    [products, currency]
+  )
   const activeSellers = useMemo(() => sellers.filter((s) => s.active), [sellers])
   const activeInstallers = useMemo(() => installers.filter((i) => i.active), [installers])
+
+  /* ================================
+     MONEDA HELPERS
+  ================================ */
+  const getProductCurrency = (productServiceId: string | null): string | null => {
+    if (!productServiceId) return null
+    const p = products.find((x) => x.id === productServiceId)
+    return p?.currency ?? null
+  }
+
+  // 🌟 Si el usuario cambia la moneda del presupuesto, sacamos los items de catálogo
+  // que ya no coincidan (los personalizados no tienen moneda propia, así que quedan)
+  const handleCurrencyChange = (newCurrency: string) => {
+    setCurrency(newCurrency)
+    setItems((prev) =>
+      prev.filter((i) => i.isCustom || getProductCurrency(i.productServiceId) === newCurrency)
+    )
+    setSelectedProductId('')
+  }
 
   /* ================================
      STOCK HELPERS (UI)
@@ -268,6 +293,7 @@ export default function NewBudgetPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId,
+          currency, // 👈 moneda del presupuesto
           notes,
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
@@ -317,6 +343,27 @@ export default function NewBudgetPage() {
         <form onSubmit={handleSubmit} className="p-8">
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
+              {/* MONEDA */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Moneda del presupuesto</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select value={currency} onValueChange={handleCurrencyChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.name} ({c.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
               {/* CLIENTE + VENDEDOR */}
               <Card>
                 <CardHeader>
@@ -379,7 +426,7 @@ export default function NewBudgetPage() {
                       <SelectContent>
                         {activeProducts.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} – {formatCurrency(p.price)}
+                            {p.name} – {formatCurrency(p.price, p.currency)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -389,6 +436,12 @@ export default function NewBudgetPage() {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {activeProducts.length === 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      No hay productos cargados en {currency}. Podés usar "Item Libre" o cambiar la moneda del presupuesto.
+                    </p>
+                  )}
 
                   {items.length > 0 && (
                     <div className="mt-4 rounded-lg border">
@@ -468,12 +521,12 @@ export default function NewBudgetPage() {
                                     />
                                   </div>
                                 ) : (
-                                  formatCurrency(item.unitPrice)
+                                  formatCurrency(item.unitPrice, currency)
                                 )}
                               </TableCell>
 
                               <TableCell className="text-right font-medium">
-                                {formatCurrency(item.unitPrice * item.quantity)}
+                                {formatCurrency(item.unitPrice * item.quantity, currency)}
                               </TableCell>
 
                               <TableCell>
@@ -612,7 +665,7 @@ export default function NewBudgetPage() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
+                    <span>{formatCurrency(subtotal, currency)}</span>
                   </div>
 
                   {/* DESCUENTO */}
@@ -650,7 +703,7 @@ export default function NewBudgetPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Aplicado</span>
-                      <span>- {formatCurrency(discountAmount)}</span>
+                      <span>- {formatCurrency(discountAmount, currency)}</span>
                     </div>
                   </div>
 
@@ -666,7 +719,7 @@ export default function NewBudgetPage() {
                     />
                     <div className="flex justify-between text-sm">
                       <span>IVA</span>
-                      <span>+ {formatCurrency(taxAmount)}</span>
+                      <span>+ {formatCurrency(taxAmount, currency)}</span>
                     </div>
                   </div>
 
@@ -693,13 +746,13 @@ export default function NewBudgetPage() {
                     )}
                     <div className="flex justify-between text-sm">
                       <span>Envío</span>
-                      <span>{shippingIncluded ? `+ ${formatCurrency(shippingAmount)}` : '—'}</span>
+                      <span>{shippingIncluded ? `+ ${formatCurrency(shippingAmount, currency)}` : '—'}</span>
                     </div>
                   </div>
 
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span className="text-primary">{formatCurrency(total)}</span>
+                    <span className="text-primary">{formatCurrency(total, currency)}</span>
                   </div>
 
                   {/* CONTROL DE STOCK EXCLUSIVO PARA ÍTEMS DB */}
