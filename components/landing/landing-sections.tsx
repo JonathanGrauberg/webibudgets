@@ -14,6 +14,7 @@ import {
 import { ProductosBanner } from '../productos-banner'
 import Image from "next/image"
 import { useState, useEffect } from 'react';
+import { PresenceMap } from "@/components/PresenceMap";
 
 // 1. Mapeamos TODOS los iconos que tenías en tu archivo original
 const featureIcons = { 
@@ -165,6 +166,10 @@ export function LandingSections({
         </div>
       </section>
 
+      {/* ── PRESENCE MAP ── */}
+
+      <PresenceMap />
+
       {/* ── FEATURES ── */}
       <section id="features" className="px-4 py-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
@@ -288,6 +293,8 @@ export function LandingSections({
           </div>
         </div>
       </section>
+
+
 
       {/* ── FAQ ── */}
       <section id="faq" className="px-4 py-24 sm:px-6 lg:px-8">
