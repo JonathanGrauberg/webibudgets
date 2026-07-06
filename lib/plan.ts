@@ -8,7 +8,9 @@ export type PlanLimit = {
   description: string
   price: string
   priceARS: number
-  maxUsers: number | null // null = ilimitado
+  maxUsers: number | null // null = ilimitado — usuarios que loguean en "Equipo"
+  maxSellers: number | null // 👈 nuevo — vendedores (tabla Seller, sin login)
+  maxInstallers: number | null // 👈 nuevo — instaladores (tabla Installer, sin login)
   maxBudgetsPerMonth: number | null // null = ilimitado
   trialDays: number // 0 = sin trial
   mpPlanId: string | null
@@ -24,6 +26,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     price: 'Gratis',
     priceARS: 0,
     maxUsers: 0, // bloqueado
+    maxSellers: 0, // 👈 nuevo
+    maxInstallers: 0, // 👈 nuevo
     maxBudgetsPerMonth: null,
     trialDays: 0,
     mpPlanId: null,
@@ -37,6 +41,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     price: 'Bonificado',
     priceARS: 0,
     maxUsers: null,           // Ilimitado
+    maxSellers: null, // 👈 nuevo
+    maxInstallers: null, // 👈 nuevo
     maxBudgetsPerMonth: null, // Ilimitado
     trialDays: 0,             // Sin trial (no vence nunca)
     mpPlanId: null,
@@ -51,14 +57,16 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     description: 'Ideal para emprendedores y profesionales independientes.',
     price: '$0.990',
     priceARS: 990,
-    maxUsers: 1,
+    maxUsers: 3, // 👈 antes: 1 — ahora admin + vendedor + instalador
+    maxSellers: 1, // 👈 nuevo
+    maxInstallers: 1, // 👈 nuevo
     maxBudgetsPerMonth: 30,
-    trialDays: 14,
+    trialDays: 7, // 👈 antes: 14
     mpPlanId: process.env.MP_PLAN_STARTER ?? null,
     isPublic: true,
     features: [
-      '14 días de prueba gratis',
-      '1 usuario',
+      '7 días de prueba gratis, con acceso completo', // 👈 actualizado
+      'Hasta 3 usuarios (admin, vendedor e instalador)', // 👈 actualizado
       'Hasta 30 presupuestos por mes',
       'Gestión de clientes',
       'Gestión de vendedores e instaladores',
@@ -74,13 +82,15 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     price: '$5.990',
     priceARS: 5990,
     maxUsers: 5,
+    maxSellers: null, // 👈 nuevo — ilimitado
+    maxInstallers: null, // 👈 nuevo — ilimitado
     maxBudgetsPerMonth: null,
-    trialDays: 14,
+    trialDays: 7, // 👈 antes: 14
     mpPlanId: process.env.MP_PLAN_TEAM ?? null,
     isPublic: true,
     featured: true,
     features: [
-      '14 días de prueba gratis',
+      '7 días de prueba gratis, con acceso completo', // 👈 actualizado
       'Hasta 5 usuarios',
       'Presupuestos ilimitados',
       'Gestión completa del sistema',
@@ -97,6 +107,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     price: '$19.990',
     priceARS: 19990,
     maxUsers: null, // ilimitado
+    maxSellers: null, // 👈 nuevo
+    maxInstallers: null, // 👈 nuevo
     maxBudgetsPerMonth: null,
     trialDays: 0,
     mpPlanId: process.env.MP_PLAN_BUSINESS ?? null,
@@ -143,6 +155,47 @@ export function resolveMaxUsers(plan: string): number {
   const config = getPlanConfig(plan)
   if (config.maxUsers === null) return 9999
   return config.maxUsers
+}
+
+/**
+ * 👈 NUEVO: igual que resolveMaxUsers, pero si el tenant está en trial activo
+ * devuelve "ilimitado" sin importar el plan elegido. El segundo argumento es
+ * opcional a propósito: si no lo pasás, se comporta exactamente igual que
+ * resolveMaxUsers de toda la vida — no rompe ningún lugar existente que la use.
+ */
+export function resolveMaxUsersForTenant(
+  plan: string,
+  trialEndsAt?: Date | string | null
+): number {
+  if (trialEndsAt !== undefined && isInTrial(plan, trialEndsAt)) return 9999
+  return resolveMaxUsers(plan)
+}
+
+/** 👈 NUEVO: mismo criterio que resolveMaxUsersForTenant, para vendedores (tabla Seller) */
+export function resolveMaxSellersForTenant(
+  plan: string,
+  trialEndsAt?: Date | string | null
+): number | null {
+  if (trialEndsAt !== undefined && isInTrial(plan, trialEndsAt)) return null
+  return getPlanConfig(plan).maxSellers
+}
+
+/** 👈 NUEVO: mismo criterio, para instaladores (tabla Installer) */
+export function resolveMaxInstallersForTenant(
+  plan: string,
+  trialEndsAt?: Date | string | null
+): number | null {
+  if (trialEndsAt !== undefined && isInTrial(plan, trialEndsAt)) return null
+  return getPlanConfig(plan).maxInstallers
+}
+
+/** 👈 NUEVO: mismo criterio que resolveMaxUsersForTenant, para presupuestos por mes */
+export function resolveMaxBudgetsForTenant(
+  plan: string,
+  trialEndsAt?: Date | string | null
+): number | null {
+  if (trialEndsAt !== undefined && isInTrial(plan, trialEndsAt)) return null
+  return getPlanConfig(plan).maxBudgetsPerMonth
 }
 
 /** trialEndsAt: solo para planes con trialDays > 0 */

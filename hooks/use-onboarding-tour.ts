@@ -1,5 +1,4 @@
 'use client'
-//hooks\use-onboarding-tour.ts
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { driver, type Driver } from 'driver.js'
@@ -221,6 +220,11 @@ async function showStep(index: number) {
     if (status !== 'authenticated' || startedRef.current) return
     const userId = (session?.user as any)?.id
     if (!userId) return
+
+    // 👈 nuevo: el tour guía por pantallas de admin (Configuración, Clientes, Productos, etc.)
+    // que un vendedor o instalador ni siquiera puede ver — así que solo corre para admins.
+    const role = (session?.user as any)?.role
+    if (role !== 'admin' && role !== 'owner') return
 
     startedRef.current = true
 

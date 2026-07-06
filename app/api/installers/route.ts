@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
-import { PLAN_LIMITS } from '@/lib/plan' // 🚨 Importamos tus límites
+import { resolveMaxInstallersForTenant } from '@/lib/plan' // 👈 fuente de verdad en vivo
 
 export async function GET(request: Request) {
   try {
@@ -34,24 +34,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // 🚨 CONTROL DE LÍMITES EN EL POST (app/api/installers/route.ts)
+    // 🚨 CONTROL DE LÍMITE: leemos plan + trialEndsAt EN VIVO desde lib/plan.ts
+    // (antes: hardcodeaba currentPlan === 'pro' ? 5 : 0 — 'pro' no existe como plan,
+    // así que CUALQUIER plan que no fuera 'business' quedaba con maxAllowed = 0)
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plan: true }
+      select: { plan: true, trialEndsAt: true },
     })
-    const currentPlan = tenant?.plan || 'starter'
 
-    if (currentPlan !== 'business') {
-      // Definimos a mano los cupos reales por plan si hay discrepancias con el archivo
-      const maxAllowed = currentPlan === 'pro' ? 5 : 0 // Starter es 0
+    const maxInstallers = resolveMaxInstallersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
 
-      const activeCount = await prisma.installer.count({
-        where: { tenantId, active: true }
-      })
+    const activeCount = await prisma.installer.count({
+      where: { tenantId, active: true },
+    })
 
-      if (activeCount >= maxAllowed) {
-        return NextResponse.json({ error: 'plan_limit_reached' }, { status: 403 })
-      }
+    // null = ilimitado (plan business/vip, o trial activo)
+    if (maxInstallers !== null && activeCount >= maxInstallers) {
+      return NextResponse.json({ error: 'plan_limit_reached' }, { status: 403 })
     }
 
     const installer = await prisma.installer.create({

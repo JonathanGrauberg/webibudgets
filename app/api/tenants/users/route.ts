@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
 import { ensureInstallerForUser, ensureSellerForUser } from '@/lib/user-profile-sync'
+import { resolveMaxUsersForTenant } from '@/lib/plan' // 👈 fuente de verdad en vivo
 
 const TENANT_HEADER = 'x-tenant-id'
 const MIN_PASSWORD_LENGTH = 8
@@ -42,11 +43,12 @@ export async function GET(req: NextRequest) {
       }),
       prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { plan: true, maxUsers: true, trialEndsAt: true }, // <-- agregar trialEndsAt
+        select: { plan: true, trialEndsAt: true }, // 👈 ya no hace falta traer maxUsers guardado
       }),
     ])
- 
-    const maxUsers = tenant?.maxUsers ?? 1
+
+    // 👈 antes: tenant?.maxUsers ?? 1 (valor guardado, no sabía si estabas en trial)
+    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
     const activeUsers = users.filter((u) => u.active).length
  
     return NextResponse.json({
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
       plan: tenant?.plan ?? 'starter',
       maxUsers,
       activeUsers,
-      trialEndsAt: tenant?.trialEndsAt ? tenant.trialEndsAt.toISOString() : null, // <-- nuevo
+      trialEndsAt: tenant?.trialEndsAt ? tenant.trialEndsAt.toISOString() : null,
     })
   } catch (error) {
     console.error('Error fetching users:', error)
@@ -103,12 +105,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ✅ Verificar límite de plan antes de crear
+    // ✅ Verificar límite de plan antes de crear — en vivo, con soporte de trial
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { maxUsers: true },
+      select: { plan: true, trialEndsAt: true }, // 👈 antes: solo maxUsers guardado
     })
-    const maxUsers = tenant?.maxUsers ?? 5
+    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt) // 👈
     const activeCount = await prisma.user.count({
       where: { tenantId, active: true },
     })
@@ -221,11 +223,12 @@ export async function PUT(req: NextRequest) {
     }
 
     if (active === true && targetUser.active === false) {
+      // 👈 mismo fix: en vivo, con soporte de trial (antes leía tenant.maxUsers guardado)
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { maxUsers: true },
+        select: { plan: true, trialEndsAt: true },
       })
-      const maxUsers = tenant?.maxUsers ?? 5
+      const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
       const activeCount = await prisma.user.count({
         where: { tenantId, active: true },
       })

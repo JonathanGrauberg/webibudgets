@@ -1,7 +1,7 @@
-//app\api\sellers\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
+import { resolveMaxSellersForTenant } from '@/lib/plan' // 👈 fuente de verdad en vivo
 
 export async function GET(request: Request) {
   try {
@@ -36,23 +36,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. 🚨 CONTROL DE LÍMITE: Buscar el plan/maxUsers del Tenant
+    // 2. 🚨 CONTROL DE LÍMITE: leemos plan + trialEndsAt EN VIVO (no un valor guardado)
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { maxUsers: true },
+      select: { plan: true, trialEndsAt: true },
     })
-    
-    const maxUsers = tenant?.maxUsers ?? 5 // Fallback seguro de 5 por las dudas
 
-    // 3. Contar los usuarios activos reales en la tabla User
-    const activeUsersCount = await prisma.user.count({
+    const maxSellers = resolveMaxSellersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
+
+    // 3. Contamos VENDEDORES (Seller), no usuarios logueados — antes comparaba contra la tabla equivocada
+    const activeSellersCount = await prisma.seller.count({
       where: { tenantId, active: true },
     })
 
-    // 4. Si ya alcanzó o superó el límite, rebotamos con el código que entiende tu front
-    if (activeUsersCount >= maxUsers) {
+    // 4. null = ilimitado (plan business/vip, o trial activo). Si no, comparamos contra el cupo real.
+    if (maxSellers !== null && activeSellersCount >= maxSellers) {
       return NextResponse.json(
-        { error: 'plan_limit_reached', message: 'Alcanzaste el límite de usuarios permitidos en tu plan.' }, 
+        { error: 'plan_limit_reached', message: 'Alcanzaste el límite de vendedores permitidos en tu plan.' },
         { status: 403 }
       )
     }
