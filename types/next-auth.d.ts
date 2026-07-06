@@ -10,6 +10,7 @@ declare module 'next-auth' {
     tenantId: string
     tenantActive: boolean
     trialEndsAt: string | null
+    plan: string // 👈 nuevo
   }
 
   interface Session {
@@ -21,6 +22,7 @@ declare module 'next-auth' {
       tenantId: string
       tenantActive: boolean
       trialEndsAt: string | null
+      plan: string // 👈 nuevo
     }
   }
 }
@@ -35,5 +37,6 @@ declare module 'next-auth/jwt' {
     tenantId: string
     tenantActive: boolean
     trialEndsAt: string | null
+    plan: string // 👈 nuevo
   }
 }

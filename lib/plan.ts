@@ -49,8 +49,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   starter: {
     label: 'Básico',
     description: 'Ideal para emprendedores y profesionales independientes.',
-    price: '$6.990',
-    priceARS: 6990,
+    price: '$0.990',
+    priceARS: 990,
     maxUsers: 1,
     maxBudgetsPerMonth: 30,
     trialDays: 14,
@@ -71,8 +71,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   team: {
     label: 'Negocio',
     description: 'Para equipos en crecimiento.',
-    price: '$19.990',
-    priceARS: 19990,
+    price: '$5.990',
+    priceARS: 5990,
     maxUsers: 5,
     maxBudgetsPerMonth: null,
     trialDays: 14,
@@ -94,8 +94,8 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   business: {
     label: 'Empresa',
     description: 'Pensado para empresas con múltiples usuarios y alto volumen.',
-    price: '$49.990',
-    priceARS: 49990,
+    price: '$19.990',
+    priceARS: 19990,
     maxUsers: null, // ilimitado
     maxBudgetsPerMonth: null,
     trialDays: 0,
