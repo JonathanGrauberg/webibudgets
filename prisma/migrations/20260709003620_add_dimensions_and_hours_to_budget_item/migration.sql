@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "BudgetItem" ADD COLUMN     "calculatedM2" DOUBLE PRECISION,
+ADD COLUMN     "heightCm" DOUBLE PRECISION,
+ADD COLUMN     "hours" DOUBLE PRECISION,
+ADD COLUMN     "widthCm" DOUBLE PRECISION;

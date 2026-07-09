@@ -1,4 +1,4 @@
-// app\api\budgets\route.ts
+// app\api\budgets\route.ts 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'

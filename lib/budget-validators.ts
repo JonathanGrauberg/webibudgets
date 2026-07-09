@@ -1,4 +1,4 @@
-//lib\budget-validators.ts
+//lib\budget-validators.ts 
 import { prisma } from '@/lib/prisma'
 import type { NormalizedBudgetItem } from './budget-calculator'
 import { isValidCurrency, DEFAULT_CURRENCY } from './currencies'

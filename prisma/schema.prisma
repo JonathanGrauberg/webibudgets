@@ -412,6 +412,11 @@ model BudgetItem {
   discount         Float @default(0)
 
   subtotal         Float?
+
+  widthCm          Float?
+  heightCm         Float?
+  hours            Float?
+  calculatedM2     Float?
 }
 
 /* =========================
