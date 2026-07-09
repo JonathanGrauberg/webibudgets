@@ -1,9 +1,10 @@
 // components/admin/admin-tenants-table.tsx  
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
-import { Crown, Trash2, Search, X } from 'lucide-react'
+import { Crown, Gem, Trash2, Search, X } from 'lucide-react'
+import TenantFeaturesForm from '@/components/admin/tenant-features-form' // 👈 nuevo
 
 interface TenantRow {
   id: string
@@ -14,6 +15,7 @@ interface TenantRow {
   trialEndsAt: string | null
   active: boolean
   createdAt: string
+  features: Record<string, boolean> | null // 👈 nuevo
 }
 
 interface EditState {
@@ -102,6 +104,13 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
     setEditingId(null)
     setEdit(null)
     setError(null)
+  }
+
+  function handleFeaturesSaved(tenantId: string, features: Record<string, boolean>) {
+    setTenants((prev) =>
+      prev.map((t) => (t.id === tenantId ? { ...t, features } : t))
+    )
+    cancelEdit()
   }
 
   async function saveEdit() {
@@ -347,6 +356,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
               const isConfirmingDelete = confirmDeleteId === tenant.id
               const isConfirmingHardDelete = confirmHardDeleteId === tenant.id
               const isCurrentVip = tenant.plan === 'vip'
+              const isCurrentCustom = tenant.plan === 'custom'
 
               return (
                 <div key={tenant.id} className={`p-4 transition ${tenant.active ? '' : 'bg-slate-50/40 opacity-75'}`}>
@@ -355,6 +365,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       <div className="flex items-center gap-1.5">
                         <p className="font-semibold text-sm text-slate-900 dark:text-white">{tenant.name}</p>
                         {isCurrentVip && <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+                        {isCurrentCustom && <Gem className="w-3.5 h-3.5 text-violet-500 fill-violet-500 shrink-0" />}
                       </div>
                       <p className="text-xs text-slate-400 font-mono mt-0.5">{tenant.slug}</p>
                     </div>
@@ -398,6 +409,15 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                   {isEditing && edit && (
                     <div className="mb-4 space-y-3 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-900">
                       <EditFields compact />
+                      {edit.plan === 'custom' && (
+                        <TenantFeaturesForm
+                          tenantId={tenant.id}
+                          plan={edit.plan}
+                          planPersisted={tenant.plan === 'custom'}
+                          initialFeatures={tenant.features}
+                          onSaved={(features) => handleFeaturesSaved(tenant.id, features)}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -480,153 +500,172 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                 const isConfirmingDelete = confirmDeleteId === tenant.id
                 const isConfirmingHardDelete = confirmHardDeleteId === tenant.id
                 const isCurrentVip = tenant.plan === 'vip'
+                const isCurrentCustom = tenant.plan === 'custom'
 
                 return (
-                  <tr key={tenant.id} className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'bg-slate-50/40 opacity-75'}`}>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
-                      <div className="flex items-center gap-1.5">
-                        {tenant.name}
-                        {isCurrentVip && <Crown className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
+                  <Fragment key={tenant.id}>
+                    <tr className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'bg-slate-50/40 opacity-75'}`}>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
+                        <div className="flex items-center gap-1.5">
+                          {tenant.name}
+                          {isCurrentVip && <Crown className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
+                          {isCurrentCustom && <Gem className="w-4 h-4 text-violet-500 fill-violet-500 shrink-0" />}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
 
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                      {isEditing && edit ? (
-                        <select
-                          value={edit.plan}
-                          onChange={(e) => {
-                            const newPlan = e.target.value as PlanKey
-                            const limits = PLAN_LIMITS[newPlan]
-                            setEdit((prev) => prev ? {
-                              ...prev,
-                              plan: newPlan,
-                              maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
-                              trialEndsAt: newPlan === 'vip' ? '' : prev.trialEndsAt,
-                            } : prev)
-                          }}
-                          className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-                        >
-                          {PLAN_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>{planLabel(tenant.plan)}</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                      {isEditing && edit ? (
-                        <input
-                          type="number"
-                          min={0}
-                          disabled={edit.plan === 'vip'}
-                          value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
-                          onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
-                          className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                      ) : (
-                        maxUsersDisplay(tenant.maxUsers, tenant.plan)
-                      )}
-                    </td>
-
-                    <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                      {isEditing && edit ? (
-                        edit.plan === 'vip' ? (
-                          <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={edit.trialEndsAt}
-                            onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
+                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        {isEditing && edit ? (
+                          <select
+                            value={edit.plan}
+                            onChange={(e) => {
+                              const newPlan = e.target.value as PlanKey
+                              const limits = PLAN_LIMITS[newPlan]
+                              setEdit((prev) => prev ? {
+                                ...prev,
+                                plan: newPlan,
+                                maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
+                                trialEndsAt: newPlan === 'vip' ? '' : prev.trialEndsAt,
+                              } : prev)
+                            }}
                             className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-                          />
-                        )
-                      ) : isCurrentVip ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Ilimitado (VIP)</span>
-                      ) : tenant.trialEndsAt ? (
-                        new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
-                      ) : '—'}
-                    </td>
+                          >
+                            {PLAN_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>{planLabel(tenant.plan)}</span>
+                        )}
+                      </td>
 
-                    <td className="px-6 py-4 text-sm">
-                      {isEditing && edit ? (
-                        <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        {isEditing && edit ? (
                           <input
-                            type="checkbox"
-                            checked={edit.active}
-                            onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
-                            className="w-4 h-4"
+                            type="number"
+                            min={0}
+                            disabled={edit.plan === 'vip'}
+                            value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
+                            onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
+                            className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
-                          <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
-                        </label>
-                      ) : (
-                        <span className={`font-medium ${tenant.active ? 'text-emerald-600' : 'text-zinc-400'}`}>
-                          {tenant.active ? 'Activo' : 'Inactivo'}
-                        </span>
-                      )}
-                    </td>
+                        ) : (
+                          maxUsersDisplay(tenant.maxUsers, tenant.plan)
+                        )}
+                      </td>
 
-                    <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                      {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
-                    </td>
-
-                    <td className="px-6 py-4 text-right text-sm">
-                      {isEditing ? (
-                        <div className="flex justify-end gap-2">
-                          <button onClick={saveEdit} disabled={isSaving} className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
-                            {isSaving ? 'Guardando...' : 'Guardar'}
-                          </button>
-                          <button onClick={cancelEdit} disabled={isSaving} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : isConfirmingDelete ? (
-                        <div className="flex justify-end items-center gap-2">
-                          <span className="text-xs text-red-600 font-medium">¿Desactivar?</span>
-                          <button onClick={() => softDelete(tenant.id)} disabled={isDeleting} className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
-                            {isDeleting ? '...' : 'Sí'}
-                          </button>
-                          <button onClick={() => setConfirmDeleteId(null)} disabled={isDeleting} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
-                            No
-                          </button>
-                        </div>
-                      ) : isConfirmingHardDelete ? (
-                        <div className="flex justify-end items-center gap-2">
-                          <span className="text-xs text-red-700 font-bold bg-red-50 dark:bg-red-950/40 px-2 py-1 rounded">¿Eliminar de la DB?</span>
-                          <button onClick={() => hardDelete(tenant.id)} disabled={isDeleting} className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800 shadow">
-                            {isDeleting ? '...' : 'ELIMINAR'}
-                          </button>
-                          <button onClick={() => setConfirmHardDeleteId(null)} disabled={isDeleting} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => startEdit(tenant)} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
-                            Editar
-                          </button>
-                          {tenant.active ? (
-                            <button
-                              onClick={() => { setConfirmDeleteId(tenant.id); setConfirmHardDeleteId(null); setEditingId(null); setEdit(null) }}
-                              className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                            >
-                              Desactivar
-                            </button>
+                      <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        {isEditing && edit ? (
+                          edit.plan === 'vip' ? (
+                            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
                           ) : (
-                            <button
-                              onClick={() => { setConfirmHardDeleteId(tenant.id); setConfirmDeleteId(null); setEditingId(null); setEdit(null) }}
-                              className="rounded-full bg-red-50 text-red-600 p-1.5 transition hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/50"
-                              title="Eliminar permanentemente de la base de datos"
-                            >
-                              <Trash2 className="w-4 h-4" />
+                            <input
+                              type="date"
+                              value={edit.trialEndsAt}
+                              onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
+                              className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
+                            />
+                          )
+                        ) : isCurrentVip ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-semibold">Ilimitado (VIP)</span>
+                        ) : tenant.trialEndsAt ? (
+                          new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
+                        ) : '—'}
+                      </td>
+
+                      <td className="px-6 py-4 text-sm">
+                        {isEditing && edit ? (
+                          <label className="inline-flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={edit.active}
+                              onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
+                          </label>
+                        ) : (
+                          <span className={`font-medium ${tenant.active ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                            {tenant.active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
+                      </td>
+
+                      <td className="px-6 py-4 text-right text-sm">
+                        {isEditing ? (
+                          <div className="flex justify-end gap-2">
+                            <button onClick={saveEdit} disabled={isSaving} className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
+                              {isSaving ? 'Guardando...' : 'Guardar'}
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                            <button onClick={cancelEdit} disabled={isSaving} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : isConfirmingDelete ? (
+                          <div className="flex justify-end items-center gap-2">
+                            <span className="text-xs text-red-600 font-medium">¿Desactivar?</span>
+                            <button onClick={() => softDelete(tenant.id)} disabled={isDeleting} className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
+                              {isDeleting ? '...' : 'Sí'}
+                            </button>
+                            <button onClick={() => setConfirmDeleteId(null)} disabled={isDeleting} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
+                              No
+                            </button>
+                          </div>
+                        ) : isConfirmingHardDelete ? (
+                          <div className="flex justify-end items-center gap-2">
+                            <span className="text-xs text-red-700 font-bold bg-red-50 dark:bg-red-950/40 px-2 py-1 rounded">¿Eliminar de la DB?</span>
+                            <button onClick={() => hardDelete(tenant.id)} disabled={isDeleting} className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800 shadow">
+                              {isDeleting ? '...' : 'ELIMINAR'}
+                            </button>
+                            <button onClick={() => setConfirmHardDeleteId(null)} disabled={isDeleting} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => startEdit(tenant)} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
+                              Editar
+                            </button>
+                            {tenant.active ? (
+                              <button
+                                onClick={() => { setConfirmDeleteId(tenant.id); setConfirmHardDeleteId(null); setEditingId(null); setEdit(null) }}
+                                className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                              >
+                                Desactivar
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => { setConfirmHardDeleteId(tenant.id); setConfirmDeleteId(null); setEditingId(null); setEdit(null) }}
+                                className="rounded-full bg-red-50 text-red-600 p-1.5 transition hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/50"
+                                title="Eliminar permanentemente de la base de datos"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Fila extra: módulos Custom, solo mientras se edita un tenant con plan "custom" */}
+                    {isEditing && edit && edit.plan === 'custom' && (
+                      <tr key={`${tenant.id}-features`}>
+                        <td colSpan={8} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                          <TenantFeaturesForm
+                            tenantId={tenant.id}
+                            plan={edit.plan}
+                            planPersisted={tenant.plan === 'custom'}
+                            initialFeatures={tenant.features}
+                            onSaved={(features) => handleFeaturesSaved(tenant.id, features)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
             </tbody>

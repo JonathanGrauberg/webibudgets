@@ -1,7 +1,7 @@
 // lib/plan.ts — fuente única de verdad para límites, trials e IDs de MercadoPago
 
 // 1. Agregamos 'vip' al tipo
-export type PlanKey = 'free' | 'starter' | 'team' | 'business' | 'vip'
+export type PlanKey = 'free' | 'starter' | 'team' | 'business' | 'vip' | 'custom'
 
 export type PlanLimit = {
   label: string
@@ -33,6 +33,7 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     mpPlanId: null,
     isPublic: false,
     features: [],
+    
   },
   // 🌟 AGREGAMOS EL NUEVO PLAN VIP AQUÍ
   vip: {
@@ -50,6 +51,25 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
     features: [
       'Acceso total ilimitado',
       'Soporte directo de desarrollo',
+    ],
+  },
+  // 🌟 NUEVO — plan a medida, se asigna manualmente desde el panel admin,
+  // no se contrata desde /pricing ni tiene mpPlanId todavía.
+  custom: {
+    label: 'Custom',
+    description: 'Plan a medida con módulos habilitados manualmente por tenant.',
+    price: 'A convenir',
+    priceARS: 0, // el cobro real se maneja fuera de MercadoPago por ahora
+    maxUsers: null,           // se puede ajustar manualmente por tenant desde "Max usuarios"
+    maxSellers: null,
+    maxInstallers: null,
+    maxBudgetsPerMonth: null,
+    trialDays: 0,
+    mpPlanId: null,
+    isPublic: false,          // no aparece en /pricing, solo se asigna desde admin
+    features: [
+      'Módulos a medida (calculadora, comisiones, vouchers, stock avanzado, dashboard)',
+      'Configuración manual por tenant',
     ],
   },
   starter: {
@@ -241,6 +261,9 @@ export function isTenantActive(tenant: {
   
   // 🌟 SI ES VIP, TIENE ACCESO DIRECTO SIEMPRE
   if (tenant.plan === 'vip') return true
+
+  // 🌟 SI ES CUSTOM, TIENE ACCESO DIRECTO SIEMPRE (se gestiona manualmente desde admin)
+  if (tenant.plan === 'custom') return true
 
   const config = getPlanConfig(tenant.plan)
   if (tenant.plan === 'free' || !tenant.plan) return false
