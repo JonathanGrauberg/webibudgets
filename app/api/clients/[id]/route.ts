@@ -1,3 +1,4 @@
+//app\api\clients\[id]\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -76,6 +77,8 @@ export async function PUT(
       email: data.email?.trim() || null,
       phone: data.phone?.trim(),
       address: data.address?.trim() || '—',
+      city: data.city?.trim() || null, // 👈 nuevo
+      province: data.province?.trim() || null, // 👈 nuevo
       type: data.type || null,
       peopleCount: data.peopleCount ? Number(data.peopleCount) : null,
       usageFrequency: data.usageFrequency || null,

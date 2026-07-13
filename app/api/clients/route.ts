@@ -1,3 +1,5 @@
+//app\api\clients\route.ts
+
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
@@ -33,6 +35,10 @@ export async function POST(request: Request) {
     // Si están vacíos, que sean NULL (importante para el email si es unique)
     const company = typeof data?.company === 'string' && data.company.trim() ? data.company.trim() : null
     const email = typeof data?.email === 'string' && data.email.trim() ? data.email.trim() : null
+
+    // 👈 nuevo
+    const city = typeof data?.city === 'string' && data.city.trim() ? data.city.trim() : null
+    const province = typeof data?.province === 'string' && data.province.trim() ? data.province.trim() : null
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -92,6 +98,8 @@ export async function POST(request: Request) {
           email,
           phone,
           address: typeof data?.address === 'string' && data.address.trim() ? data.address.trim() : '—',
+          city, // 👈 nuevo
+          province, // 👈 nuevo
           type,
           peopleCount: data?.peopleCount ? Number(data.peopleCount) || null : null,
           usageFrequency: data?.usageFrequency ? String(data.usageFrequency) : null,

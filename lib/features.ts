@@ -1,3 +1,4 @@
+//lib\features.ts
 export type FeatureKey =
   | "calculator"
   | "commissions"

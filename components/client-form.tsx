@@ -37,6 +37,8 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   email: client?.email || '',
   phone: client?.phone || '',
   address: client?.address || '',
+  city: (client as any)?.city || '',
+  province: (client as any)?.province || '',
   notes: client?.notes || '',
 
   identificationType:
@@ -222,6 +224,28 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               setFormData({ ...formData, address: e.target.value })
             }
           />
+        </div>
+
+        {/* 🆕 Ciudad y Provincia */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Ciudad</Label>
+            <Input
+              value={formData.city}
+              onChange={(e) =>
+                setFormData({ ...formData, city: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Provincia</Label>
+            <Input
+              value={formData.province}
+              onChange={(e) =>
+                setFormData({ ...formData, province: e.target.value })
+              }
+            />
+          </div>
         </div>
 
         {/* 📍 Ubicación en mapa */}

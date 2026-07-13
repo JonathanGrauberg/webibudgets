@@ -210,6 +210,8 @@ model Client {
   // Ubicación
   latitude  Float?
   longitude Float?
+  city      String?
+  province  String?
 
   // Uso
   type            ClientType?

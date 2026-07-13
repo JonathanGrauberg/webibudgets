@@ -24,7 +24,7 @@ export const metadata: Metadata = {
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/favico-dark.ico',
+        url: '/favico.ico',
         media: '(prefers-color-scheme: dark)',
       },
       {

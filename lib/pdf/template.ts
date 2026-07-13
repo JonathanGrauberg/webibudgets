@@ -315,6 +315,18 @@ export function budgetPdfTemplate(
     </div>
 
     ${
+      budget.validUntil || budget.paymentTerms
+        ? `
+    <h2>Condiciones comerciales</h2>
+    <div class="box avoid-break">
+      ${budget.validUntil ? `Presupuesto válido hasta: <strong>${new Date(budget.validUntil).toLocaleDateString('es-AR')}</strong><br />` : ''}
+      ${budget.paymentTerms ? `Condiciones de pago: <strong>${budget.paymentTerms}</strong>` : ''}
+    </div>
+    `
+        : ''
+    }
+
+    ${
       safetyDetails.length > 0
         ? `<h2>Detalles adicionales</h2>` + 
           safetyDetails.map(

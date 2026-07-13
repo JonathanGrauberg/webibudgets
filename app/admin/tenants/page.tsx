@@ -18,6 +18,7 @@ export default async function AdminTenantsPage() {
       trialEndsAt: true,
       active: true,
       createdAt: true,
+      features: true,
     },
   })
 
@@ -26,6 +27,10 @@ export default async function AdminTenantsPage() {
     ...t,
     createdAt: t.createdAt.toISOString(),
     trialEndsAt: t.trialEndsAt ? t.trialEndsAt.toISOString() : null,
+    // 👈 Prisma tipa Json como JsonValue (más amplio); nuestro propio endpoint de
+    // features es el único que escribe este campo y siempre guarda un objeto de
+    // booleans, así que el cast acá es seguro.
+    features: t.features as Record<string, boolean> | null,
   }))
 
   return (

@@ -25,12 +25,14 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
 import { formatCurrency } from '@/lib/format'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
+import { hasFeature } from '@/lib/features' // 👈 nuevo
+import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator' // 👈 nuevo
 
 /* ================================
    TYPES & INTERFACES
@@ -44,6 +46,10 @@ type BudgetItemInput = {
   unitPrice: number
   unit?: string
   isCustom?: boolean // Flag para identificar ítems libres
+  // 👈 nuevo: campos de la calculadora, siempre opcionales
+  widthCm?: number | null
+  heightCm?: number | null
+  hours?: number | null
 }
 
 type Seller = {
@@ -100,12 +106,19 @@ export default function NewBudgetPage() {
   const [items, setItems] = useState<BudgetItemInput[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
 
+  // 👈 nuevo: qué ítems tienen el bloque de medidas desplegado
+  const [expandedCalcIds, setExpandedCalcIds] = useState<Set<string>>(new Set())
+
   /* ===== Moneda del presupuesto ===== */
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
 
   /* ===== Datos del trabajo ===== */
   const { data: branding } = useSWR('/api/tenants', fetcher)
   const companyName = branding?.name || 'la empresa'
+
+  // 👈 nuevo: ¿este tenant tiene el módulo de calculadora activo?
+  const calculatorEnabled = hasFeature({ features: branding?.features }, 'calculator')
+
   const [installationResponsible, setInstallationResponsible] = useState('')
   const [installerId, setInstallerId] = useState('')
   const [installerReference, setInstallerReference] = useState('')
@@ -204,6 +217,9 @@ export default function NewBudgetPage() {
           unitPrice: product.price,
           unit: product.unit,
           isCustom: false,
+          widthCm: null, // 👈 nuevo
+          heightCm: null, // 👈 nuevo
+          hours: null, // 👈 nuevo
         },
       ])
     }
@@ -222,6 +238,9 @@ export default function NewBudgetPage() {
         unitPrice: 0,
         unit: 'un.',
         isCustom: true,
+        widthCm: null, // 👈 nuevo
+        heightCm: null, // 👈 nuevo
+        hours: null, // 👈 nuevo
       },
     ])
   }
@@ -234,6 +253,24 @@ export default function NewBudgetPage() {
 
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id))
+    setExpandedCalcIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+
+  // 👈 nuevo: mostrar/ocultar el bloque de medidas para un ítem puntual
+  const toggleCalcExpanded = (id: string) => {
+    setExpandedCalcIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
   }
 
   /* ================================
@@ -313,6 +350,10 @@ export default function NewBudgetPage() {
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             subtotal: i.unitPrice * i.quantity,
+            // 👈 nuevo: campos de la calculadora (quedan null si no se usaron)
+            widthCm: i.widthCm ?? null,
+            heightCm: i.heightCm ?? null,
+            hours: i.hours ?? null,
           })),
           total,
         }),
@@ -458,88 +499,116 @@ export default function NewBudgetPage() {
                         </TableHeader>
                         <TableBody>
                           {items.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>
-                                {item.isCustom ? (
-                                  // Agregamos flex flex-col y gap para que el badge se acomode abajo sin desbordar
-                                  <div className="flex flex-col gap-1.5 min-w-[200px]">
-                                    <Input
-                                      placeholder="Nombre del servicio o producto a medida..."
-                                      value={item.name}
-                                      className={!item.name.trim() ? 'border-amber-400 focus-visible:ring-amber-400' : ''}
-                                      onChange={(e) => updateItemField(item.id, 'name', e.target.value)}
+                            <React.Fragment key={item.id}>
+                              <TableRow>
+                                <TableCell>
+                                  {item.isCustom ? (
+                                    // Agregamos flex flex-col y gap para que el badge se acomode abajo sin desbordar
+                                    <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                      <Input
+                                        placeholder="Nombre del servicio o producto a medida..."
+                                        value={item.name}
+                                        className={!item.name.trim() ? 'border-amber-400 focus-visible:ring-amber-400' : ''}
+                                        onChange={(e) => updateItemField(item.id, 'name', e.target.value)}
+                                      />
+                                      {/* Al usar w-max evitamos que el badge se estire al ancho completo del input */}
+                                      <span className="inline-flex w-max items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                                        <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Personalizado
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col">
+                                      <p className="font-medium">{item.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* 👈 nuevo: toggle de medidas, solo si el tenant tiene el módulo activo */}
+                                  {calculatorEnabled && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleCalcExpanded(item.id)}
+                                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Ruler className="h-3 w-3" />
+                                      {expandedCalcIds.has(item.id) ? 'Ocultar medidas' : 'Agregar medidas'}
+                                    </button>
+                                  )}
+                                </TableCell>
+
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={item.quantity === 0 ? '' : item.quantity}
+                                    className={
+                                      item.quantity <= 0 || (!item.isCustom && item.quantity > getStockByProductId(item.productServiceId))
+                                        ? 'border-destructive focus-visible:ring-destructive'
+                                        : ''
+                                    }
+                                    onChange={(e) => updateItemField(item.id, 'quantity', Number(e.target.value))}
+                                  />
+                                </TableCell>
+
+                                <TableCell className="text-right text-muted-foreground">
+                                  {item.isCustom ? '—' : (
+                                    (() => {
+                                      const stock = getStockByProductId(item.productServiceId)
+                                      const ok = item.quantity <= stock
+                                      return <span className={ok ? '' : 'text-destructive font-semibold'}>{stock}</span>
+                                    })()
+                                  )}
+                                </TableCell>
+
+                                <TableCell className="text-right">
+                                  {item.isCustom ? (
+                                    <div className="relative">
+                                      <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        className="pl-6 text-right"
+                                        value={item.unitPrice}
+                                        onChange={(e) => updateItemField(item.id, 'unitPrice', Number(e.target.value))}
+                                      />
+                                    </div>
+                                  ) : (
+                                    formatCurrency(item.unitPrice, currency)
+                                  )}
+                                </TableCell>
+
+                                <TableCell className="text-right font-medium">
+                                  {formatCurrency(item.unitPrice * item.quantity, currency)}
+                                </TableCell>
+
+                                <TableCell>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeItem(item.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+
+                              {/* 👈 nuevo: fila extra con el bloque de medidas, solo si está desplegado */}
+                              {calculatorEnabled && expandedCalcIds.has(item.id) && (
+                                <TableRow>
+                                  <TableCell colSpan={6} className="bg-muted/20">
+                                    <BudgetItemCalculator
+                                      widthCm={item.widthCm ?? null}
+                                      heightCm={item.heightCm ?? null}
+                                      hours={item.hours ?? null}
+                                      onChange={(field, value) => updateItemField(item.id, field, value)}
                                     />
-                                    {/* Al usar w-max evitamos que el badge se estire al ancho completo del input */}
-                                    <span className="inline-flex w-max items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
-                                      <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Personalizado
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col">
-                                    <p className="font-medium">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {item.category ? CATEGORY_LABELS[item.category] : '—'}
-                                    </p>
-                                  </div>
-                                )}
-                              </TableCell>
-
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={item.quantity === 0 ? '' : item.quantity}
-                                  className={
-                                    item.quantity <= 0 || (!item.isCustom && item.quantity > getStockByProductId(item.productServiceId))
-                                      ? 'border-destructive focus-visible:ring-destructive'
-                                      : ''
-                                  }
-                                  onChange={(e) => updateItemField(item.id, 'quantity', Number(e.target.value))}
-                                />
-                              </TableCell>
-
-                              <TableCell className="text-right text-muted-foreground">
-                                {item.isCustom ? '—' : (
-                                  (() => {
-                                    const stock = getStockByProductId(item.productServiceId)
-                                    const ok = item.quantity <= stock
-                                    return <span className={ok ? '' : 'text-destructive font-semibold'}>{stock}</span>
-                                  })()
-                                )}
-                              </TableCell>
-
-                              <TableCell className="text-right">
-                                {item.isCustom ? (
-                                  <div className="relative">
-                                    <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      className="pl-6 text-right"
-                                      value={item.unitPrice}
-                                      onChange={(e) => updateItemField(item.id, 'unitPrice', Number(e.target.value))}
-                                    />
-                                  </div>
-                                ) : (
-                                  formatCurrency(item.unitPrice, currency)
-                                )}
-                              </TableCell>
-
-                              <TableCell className="text-right font-medium">
-                                {formatCurrency(item.unitPrice * item.quantity, currency)}
-                              </TableCell>
-
-                              <TableCell>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeItem(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
+                                  </TableCell> 
+                                </TableRow>
+                              )}
+                            </React.Fragment>
                           ))}
                         </TableBody>
                       </Table>

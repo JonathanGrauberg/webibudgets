@@ -35,6 +35,8 @@ export async function GET(request: Request) {
       showPageNumbers: true,
       showWebsiteInPdf: true,
       showFooterBranding: true,
+
+      features: true, // 👈 nuevo — solo lectura, no se agrega a `allowed` del PUT a propósito
     }
   })
 
@@ -93,6 +95,10 @@ export async function PUT(request: NextRequest) {
 
     'plan',
     'maxUsers',
+    // 'features' intencionalmente EXCLUIDO: solo se edita vía
+    // /api/admin/tenants/[id]/features (owner-only de la plataforma).
+    // Si se agrega acá, cualquier admin/owner del propio tenant podría
+    // auto-habilitarse módulos Custom editando su propio branding.
   ]
   const updateData: Record<string, unknown> = {}
   for (const k of allowed) {

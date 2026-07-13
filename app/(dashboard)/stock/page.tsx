@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\stock\page.tsx
 import { useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { PageHeader } from '@/components/page-header'
@@ -17,6 +17,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Package, Tag, CircleDollarSign, Boxes } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
+import { CATEGORY_LABELS, type ProductCategory } from '@/lib/types' // 👈 nuevo
 
 type Product = {
   id: string
@@ -40,6 +41,12 @@ function formatCurrency(amount: number) {
     currency: 'ARS',
     minimumFractionDigits: 0,
   }).format(amount)
+}
+
+// 👈 nuevo: traduce la key del enum a su label en español, con fallback seguro
+// si algún día llega una categoría que no está en el diccionario (evita romper la UI)
+function categoryLabel(category: string): string {
+  return CATEGORY_LABELS[category as ProductCategory] ?? category
 }
 
 export default function StockPage() {
@@ -144,7 +151,7 @@ export default function StockPage() {
                                 {p.name}
                               </p>
                               <div className="mt-1 flex flex-wrap gap-2">
-                                <Badge variant="secondary">{p.category}</Badge>
+                                <Badge variant="secondary">{categoryLabel(p.category)}</Badge>
                               </div>
                             </div>
 
@@ -176,7 +183,7 @@ export default function StockPage() {
                                 <Tag className="h-4 w-4 shrink-0" />
                                 <span>Categoría</span>
                               </div>
-                              <span>{p.category}</span>
+                              <span>{categoryLabel(p.category)}</span>
                             </div>
                           </div>
                         </div>
@@ -235,7 +242,7 @@ export default function StockPage() {
                         {activeProducts.map((p) => (
                           <TableRow key={p.id}>
                             <TableCell className="font-medium">{p.name}</TableCell>
-                            <TableCell>{p.category}</TableCell>
+                            <TableCell>{categoryLabel(p.category)}</TableCell>
                             <TableCell className="text-right">
                               {formatCurrency(p.price)}
                             </TableCell>

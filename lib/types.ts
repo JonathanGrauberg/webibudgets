@@ -7,6 +7,8 @@ export interface Client {
   email: string
   phone: string
   address: string
+  city?: string | null // 👈 nuevo
+  province?: string | null // 👈 nuevo
   notes: string
   createdAt: Date
   updatedAt: Date
@@ -71,11 +73,17 @@ export type BudgetStatus =
 export interface BudgetItem {
   id: string
   budgetId: string
-  productServiceId: string
+  productServiceId: string | null // 👈 corregido: puede ser null en ítems on-the-fly
   productService?: ProductService
+  customName?: string | null // 👈 nuevo: nombre del ítem cuando es personalizado
   quantity: number
   unitPrice: number
   subtotal: number
+  // 👈 nuevo: campos de la calculadora (solo presentes si el tenant tiene el módulo activo)
+  widthCm?: number | null
+  heightCm?: number | null
+  hours?: number | null
+  calculatedM2?: number | null
 }
 
 export interface BudgetStatusHistory {

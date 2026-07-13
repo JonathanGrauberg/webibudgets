@@ -41,7 +41,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
-import type { Budget, BudgetStatus } from '@/lib/types'
+import type { Budget, BudgetItem, BudgetStatus } from '@/lib/types'
 import {
   STATUS_LABELS,
   STATUS_COLORS,
@@ -91,6 +91,22 @@ function formatDate(date: Date): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date(date))
+}
+
+// 👈 nuevo: nombre a mostrar, sea ítem de catálogo o personalizado
+function getItemDisplayName(item: BudgetItem): string {
+  return item.productService?.name ?? item.customName ?? 'Ítem personalizado'
+}
+
+// 👈 nuevo: texto de medidas (ancho x alto + m² + horas), solo si hay algo cargado
+function getItemMeasurementsLabel(item: BudgetItem): string | null {
+  const parts: string[] = []
+  if (item.widthCm && item.heightCm) {
+    parts.push(`${item.widthCm}cm x ${item.heightCm}cm`)
+    if (item.calculatedM2) parts.push(`${item.calculatedM2} m²`)
+  }
+  if (item.hours) parts.push(`${item.hours} hs`)
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 type StockProblem = {
@@ -471,33 +487,41 @@ const handleGeneratePDF = async () => {
 
               {/* MOBILE */}
               <CardContent className="space-y-3 pt-0 md:hidden">
-                {budget.items.map((item) => (
-                  <div key={item.id} className="rounded-md border p-3">
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {item.productService?.name ?? 'Producto no encontrado'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {CATEGORY_LABELS[item.productService?.category || 'other']}
-                      </p>
-                    </div>
+                {budget.items.map((item) => {
+                  const measurements = getItemMeasurementsLabel(item)
+                  return (
+                    <div key={item.id} className="rounded-md border p-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {getItemDisplayName(item)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.productService?.category
+                            ? CATEGORY_LABELS[item.productService.category]
+                            : 'Personalizado'}
+                        </p>
+                        {measurements && (
+                          <p className="text-xs text-muted-foreground">{measurements}</p>
+                        )}
+                      </div>
 
-                    <div className="mt-3 space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Cantidad</span>
-                        <span>{item.quantity}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Precio unit.</span>
-                        <span>{formatCurrency(item.unitPrice)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 font-medium">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>{formatCurrency(item.subtotal)}</span>
+                      <div className="mt-3 space-y-2 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Cantidad</span>
+                          <span>{item.quantity}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Precio unit.</span>
+                          <span>{formatCurrency(item.unitPrice)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 font-medium">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{formatCurrency(item.subtotal)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
 
                 <div className="rounded-md border bg-muted/50 p-3">
                   <div className="flex items-center justify-between gap-3 text-base font-bold text-primary">
@@ -520,25 +544,33 @@ const handleGeneratePDF = async () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {budget.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <p className="font-medium">
-                              {item.productService?.name ?? 'Producto no encontrado'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {CATEGORY_LABELS[item.productService?.category || 'other']}
-                            </p>
-                          </TableCell>
-                          <TableCell className="text-center">{item.quantity}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(item.unitPrice)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(item.subtotal)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {budget.items.map((item) => {
+                        const measurements = getItemMeasurementsLabel(item)
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <p className="font-medium">
+                                {getItemDisplayName(item)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.productService?.category
+                                  ? CATEGORY_LABELS[item.productService.category]
+                                  : 'Personalizado'}
+                              </p>
+                              {measurements && (
+                                <p className="text-xs text-muted-foreground">{measurements}</p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(item.unitPrice)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(item.subtotal)}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
 
                       <TableRow className="bg-muted/50">
                         <TableCell colSpan={3} className="text-right font-bold">

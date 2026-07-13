@@ -1,0 +1,2 @@
+ALTER TABLE "Client" ADD COLUMN "city" TEXT;
+ALTER TABLE "Client" ADD COLUMN "province" TEXT;
