@@ -1,7 +1,7 @@
 'use client'
-//app\(dashboard)\budgets\new\page.tsx
+//app\(dashboard)\budgets\[id]\edit\page.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles, Ruler } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, Loader2 } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
@@ -37,6 +37,7 @@ import { detectUnitType } from '@/lib/units'
 
 /* ================================
    TYPES & INTERFACES
+   (idénticos a new/page.tsx)
 ================================ */
 type BudgetItemInput = {
   id: string
@@ -91,9 +92,7 @@ function buildInstallerReference(installer: Installer): string {
 }
 
 /* ================================
-   BUDGET ITEM ROW — memoizado para
-   evitar re-renders y el loop del
-   calculador
+   BUDGET ITEM ROW — idéntico a new/page.tsx
 ================================ */
 const BudgetItemRow = React.memo(function BudgetItemRow({
   item,
@@ -114,7 +113,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
   onRemove: (id: string) => void
   getStock: (id: string | null) => number
 }) {
-  // ✅ Callbacks estables: no se recrean salvo que cambie item.id o onUpdateField
   const handleQuantityChange = useCallback(
     (qty: number) => onUpdateField(item.id, 'quantity', qty),
     [item.id, onUpdateField]
@@ -132,7 +130,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
   return (
     <React.Fragment>
       <TableRow>
-        {/* ── NOMBRE / DESCRIPCIÓN ── */}
         <TableCell>
           {item.isCustom ? (
             <div className="flex flex-col gap-1.5 min-w-[200px]">
@@ -167,12 +164,11 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           )}
         </TableCell>
 
-        {/* ── CANTIDAD ── */}
         <TableCell>
           <Input
             type="number"
             min={1}
-            step= "any"
+            step="any"
             value={item.quantity === 0 ? '' : item.quantity}
             className={
               item.quantity <= 0 || (!item.isCustom && item.quantity > stock)
@@ -183,7 +179,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           />
         </TableCell>
 
-        {/* ── STOCK ── */}
         <TableCell className="text-right text-muted-foreground">
           {item.isCustom ? '—' : (
             <span className={item.quantity <= stock ? '' : 'text-destructive font-semibold'}>
@@ -192,7 +187,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           )}
         </TableCell>
 
-        {/* ── PRECIO UNIT ── */}
         <TableCell className="text-right">
           {item.isCustom ? (
             <div className="relative">
@@ -210,12 +204,10 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           )}
         </TableCell>
 
-        {/* ── SUBTOTAL ── */}
         <TableCell className="text-right font-medium">
           {formatCurrency(item.unitPrice * item.quantity, currency)}
         </TableCell>
 
-        {/* ── ELIMINAR ── */}
         <TableCell>
           <Button
             type="button"
@@ -228,7 +220,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
         </TableCell>
       </TableRow>
 
-      {/* ── CALCULADORA DE MEDIDAS ── */}
       {showCalc && isExpanded && (
         <TableRow>
           <TableCell colSpan={6} className="bg-muted/20 px-4 py-2">
@@ -254,8 +245,10 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
 /* ================================
    PAGE
 ================================ */
-export default function NewBudgetPage() {
+export default function EditBudgetPage() {
   const router = useRouter()
+  const params = useParams()
+  const budgetId = params?.id as string
 
   const { data: clients   = [] } = useSWR<Client[]>('/api/clients', fetcher)
   const { data: products  = [] } = useSWR<ProductWithStock[]>('/api/products', fetcher)
@@ -263,10 +256,17 @@ export default function NewBudgetPage() {
   const { data: installers = [] } = useSWR<Installer[]>('/api/installers', fetcher)
   const { data: branding }        = useSWR('/api/tenants', fetcher)
 
+  // 🌟 nuevo — cargamos el presupuesto existente
+  const { data: existingBudget, isLoading: isLoadingBudget } = useSWR(
+    budgetId ? `/api/budgets/${budgetId}` : null,
+    fetcher
+  )
+
   const companyName       = branding?.name || 'la empresa'
   const calculatorEnabled = hasFeature({ features: branding?.features }, 'calculator')
 
   const [isSubmitting, setIsSubmitting]     = useState(false)
+  const [hydrated, setHydrated]             = useState(false) // 🌟 nuevo
   const [clientId, setClientId]             = useState('')
   const [notes, setNotes]                   = useState('')
   const [items, setItems]                   = useState<BudgetItemInput[]>([])
@@ -286,13 +286,69 @@ export default function NewBudgetPage() {
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
 
-  // Moneda por defecto del tenant
+  // 🌟 nuevo — hidratación única de todos los states a partir del budget existente
   useEffect(() => {
-    if (branding?.currency) setCurrency(branding.currency)
-  }, [branding])
+    if (!existingBudget || hydrated) return
+
+    setClientId(existingBudget.clientId ?? '')
+    setSellerId(existingBudget.sellerId ?? '')
+    setInstallerId(existingBudget.installerId ?? '')
+    setInstallationResponsible(existingBudget.installationResponsible ?? '')
+    setInstallerReference(existingBudget.installerReference ?? '')
+    setNotes(existingBudget.notes ?? '')
+    setCurrency(existingBudget.currency ?? DEFAULT_CURRENCY)
+    setPaymentTerms(existingBudget.paymentTerms ?? '')
+    setValidUntil(
+      existingBudget.validUntil
+        ? new Date(existingBudget.validUntil).toISOString().slice(0, 10)
+        : ''
+    )
+
+    // ⚠️ discountType no se persiste — reconstruimos como "fijo" con el monto ya calculado
+    setDiscountType(existingBudget.discount > 0 ? 'fixed' : null)
+    setDiscountValue(existingBudget.discount ?? 0)
+
+    // taxPercentage tampoco se persiste — lo reconstruimos matemáticamente a partir del monto
+    const taxedBase = Math.max(0, (existingBudget.subtotal ?? 0) - (existingBudget.discount ?? 0))
+    const reconstructedTaxPct = taxedBase > 0 ? (existingBudget.tax / taxedBase) * 100 : 0
+    setTaxPercentage(Math.round(reconstructedTaxPct * 100) / 100)
+
+    setShippingIncluded(existingBudget.shippingCost !== null && existingBudget.shippingCost !== undefined)
+    setShippingCost(existingBudget.shippingCost ?? 0)
+
+    setDetails(
+      Array.isArray(existingBudget.details) && existingBudget.details.length > 0
+        ? existingBudget.details.map((d: any) => ({
+            id: d.id ?? crypto.randomUUID(),
+            title: d.title ?? '',
+            value: d.value ?? '',
+          }))
+        : [{ id: crypto.randomUUID(), title: '', value: '' }]
+    )
+
+    setItems(
+      (existingBudget.items ?? []).map((it: any) => ({
+        id: it.id,
+        productServiceId: it.productServiceId,
+        name: it.customName || it.productService?.name || '',
+        category: it.productService?.category,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        unit: it.productService?.unit || 'un.',
+        isCustom: !it.productServiceId,
+        widthCm: it.widthCm ?? null,
+        heightCm: it.heightCm ?? null,
+        depthCm: it.depthCm ?? null,
+        direct: it.direct ?? null,
+        hours: it.hours ?? null,
+      }))
+    )
+
+    setHydrated(true)
+  }, [existingBudget, hydrated])
 
   /* ================================
-     MEMOS
+     MEMOS (idénticos a new/page.tsx)
   ================================ */
   const activeProducts  = useMemo(
     () => products.filter((p) => p.active && p.currency === currency),
@@ -301,33 +357,6 @@ export default function NewBudgetPage() {
   const activeSellers   = useMemo(() => sellers.filter((s) => s.active), [sellers])
   const activeInstallers = useMemo(() => installers.filter((i) => i.active), [installers])
 
-  /* ================================
-     MONEDA HELPERS
-  ================================ */
-  const getProductCurrency = useCallback(
-    (productServiceId: string | null): string | null => {
-      if (!productServiceId) return null
-      return products.find((x) => x.id === productServiceId)?.currency ?? null
-    },
-    [products]
-  )
-
-  const handleCurrencyChange = useCallback(
-    (newCurrency: string) => {
-      setCurrency(newCurrency)
-      setItems((prev) =>
-        prev.filter(
-          (i) => i.isCustom || getProductCurrency(i.productServiceId) === newCurrency
-        )
-      )
-      setSelectedProductId('')
-    },
-    [getProductCurrency]
-  )
-
-  /* ================================
-     STOCK HELPERS
-  ================================ */
   const getStockByProductId = useCallback(
     (productServiceId: string | null): number => {
       if (!productServiceId) return 999999
@@ -351,7 +380,7 @@ export default function NewBudgetPage() {
   const hasStockIssues = stockIssues.length > 0
 
   /* ================================
-     ITEMS OPERATORS
+     ITEMS OPERATORS (idénticos a new/page.tsx)
   ================================ */
   const addItem = useCallback(() => {
     if (!selectedProductId) return
@@ -408,7 +437,6 @@ export default function NewBudgetPage() {
     ])
   }, [])
 
-  // ✅ useCallback con [] — setItems es siempre estable
   const updateItemField = useCallback(
     (id: string, field: keyof BudgetItemInput, value: any) => {
       setItems((prev) =>
@@ -436,7 +464,7 @@ export default function NewBudgetPage() {
   }, [])
 
   /* ================================
-     DETAILS OPERATORS
+     DETAILS OPERATORS (idénticos a new/page.tsx)
   ================================ */
   const addDetail = () => {
     setDetails((prev) => [...prev, { id: crypto.randomUUID(), title: '', value: '' }])
@@ -453,7 +481,7 @@ export default function NewBudgetPage() {
   }
 
   /* ================================
-     CÁLCULOS
+     CÁLCULOS (idénticos a new/page.tsx)
   ================================ */
   const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
 
@@ -478,7 +506,7 @@ export default function NewBudgetPage() {
   const hasEmptyCustomNames  = items.some((i) => i.isCustom && !i.name.trim())
 
   /* ================================
-     SUBMIT
+     SUBMIT — 🌟 PATCH en vez de POST
   ================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -486,12 +514,10 @@ export default function NewBudgetPage() {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/budgets', {
-        method: 'POST',
+      const res = await fetch(`/api/budgets/${budgetId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientId,
-          currency,
           notes,
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
@@ -516,13 +542,11 @@ export default function NewBudgetPage() {
             direct:           i.direct   ?? null,
             hours:            i.hours    ?? null,
           })),
-          total,
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to create budget')
-      const budget = await res.json()
-      router.push(`/budgets/${budget.id}`)
+      if (!res.ok) throw new Error('Failed to update budget')
+      router.push(`/budgets/${budgetId}`)
     } catch (err) {
       console.error(err)
     } finally {
@@ -531,13 +555,27 @@ export default function NewBudgetPage() {
   }
 
   /* ================================
+     LOADING STATE — 🌟 nuevo
+  ================================ */
+  if (isLoadingBudget || !hydrated) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  /* ================================
      RENDER
   ================================ */
   return (
     <TooltipProvider>
       <div className="min-h-screen">
-        <PageHeader title="Nuevo Presupuesto" description="Crea una nueva cotización">
-          <Link href="/budgets">
+        <PageHeader
+          title={`Editar Presupuesto #${String(existingBudget?.budgetNumber ?? 0).padStart(6, '0')}`}
+          description="Modificá los datos y guardá los cambios"
+        >
+          <Link href={`/budgets/${budgetId}`}>
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" /> Volver
             </Button>
@@ -548,11 +586,11 @@ export default function NewBudgetPage() {
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
 
-              {/* MONEDA */}
+              {/* MONEDA — 🌟 deshabilitada, ver nota arriba */}
               <Card>
                 <CardHeader><CardTitle>Moneda del presupuesto</CardTitle></CardHeader>
                 <CardContent>
-                  <Select value={currency} onValueChange={handleCurrencyChange}>
+                  <Select value={currency} disabled>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.values(SUPPORTED_CURRENCIES).map((c) => (
@@ -562,10 +600,13 @@ export default function NewBudgetPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    La moneda no se puede modificar una vez creado el presupuesto.
+                  </p>
                 </CardContent>
               </Card>
 
-              {/* CLIENTE + VENDEDOR */}
+              {/* CLIENTE + VENDEDOR — 🌟 cliente deshabilitado, ver nota arriba */}
               <Card>
                 <CardHeader><CardTitle>Cliente</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -589,7 +630,7 @@ export default function NewBudgetPage() {
 
                   <div>
                     <p className="mb-2 text-sm text-muted-foreground">Cliente</p>
-                    <Select value={clientId} onValueChange={setClientId}>
+                    <Select value={clientId} disabled>
                       <SelectTrigger><SelectValue placeholder="Seleccionar cliente..." /></SelectTrigger>
                       <SelectContent>
                         {clients.map((c) => (
@@ -599,11 +640,14 @@ export default function NewBudgetPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      El cliente no se puede modificar una vez creado el presupuesto.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* PRODUCTOS */}
+              {/* PRODUCTOS — idéntico a new/page.tsx */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <CardTitle>Productos / Servicios</CardTitle>
@@ -638,7 +682,7 @@ export default function NewBudgetPage() {
 
                   {activeProducts.length === 0 && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      No hay productos cargados en {currency}. Podés usar "Item Libre" o cambiar la moneda.
+                      No hay productos cargados en {currency}. Podés usar "Item Libre".
                     </p>
                   )}
 
@@ -676,7 +720,7 @@ export default function NewBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* DATOS DEL TRABAJO */}
+              {/* DATOS DEL TRABAJO — idéntico a new/page.tsx */}
               <Card>
                 <CardHeader><CardTitle>Datos del Trabajo / Instalación</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -761,7 +805,7 @@ export default function NewBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* NOTAS */}
+              {/* NOTAS — idéntico a new/page.tsx */}
               <Card>
                 <CardHeader><CardTitle>Notas</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -782,7 +826,7 @@ export default function NewBudgetPage() {
               </Card>
             </div>
 
-            {/* RESUMEN */}
+            {/* RESUMEN — idéntico a new/page.tsx salvo el botón final */}
             <div>
               <Card className="sticky top-8">
                 <CardHeader><CardTitle>Resumen</CardTitle></CardHeader>
@@ -792,7 +836,6 @@ export default function NewBudgetPage() {
                     <span>{formatCurrency(subtotal, currency)}</span>
                   </div>
 
-                  {/* DESCUENTO */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">Descuento</span>
                     <div className="grid grid-cols-2 gap-2">
@@ -825,7 +868,6 @@ export default function NewBudgetPage() {
                     </div>
                   </div>
 
-                  {/* IVA */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">IVA (%)</span>
                     <Input
@@ -841,7 +883,6 @@ export default function NewBudgetPage() {
                     </div>
                   </div>
 
-                  {/* ENVÍO */}
                   <div className="space-y-2 border-t pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Envío incluido</span>
@@ -873,7 +914,6 @@ export default function NewBudgetPage() {
                     <span className="text-primary">{formatCurrency(total, currency)}</span>
                   </div>
 
-                  {/* STOCK INSUFICIENTE */}
                   {hasStockIssues && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                       <p className="font-semibold text-destructive">Stock insuficiente</p>
@@ -891,14 +931,12 @@ export default function NewBudgetPage() {
                     </div>
                   )}
 
-                  {/* VALIDACIONES */}
                   {!isSubmitting && (!clientId || items.length === 0 || hasInvalidQuantities || hasEmptyCustomNames) && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
                       <p className="font-semibold flex items-center gap-1.5 text-amber-900">
                         ⚠️ Datos pendientes
                       </p>
                       <ul className="list-disc pl-4 space-y-0.5">
-                        {!clientId            && <li>Falta seleccionar el cliente.</li>}
                         {items.length === 0   && <li>Agregá al menos un producto o servicio.</li>}
                         {hasInvalidQuantities && <li>Hay ítems con cantidad inválida o en 0.</li>}
                         {hasEmptyCustomNames  && <li>Escribí el nombre de los ítems personalizados.</li>}
@@ -917,7 +955,7 @@ export default function NewBudgetPage() {
                       hasEmptyCustomNames
                     }
                   >
-                    {isSubmitting ? 'Creando...' : 'Crear Presupuesto'}
+                    {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
                   </Button>
                 </CardContent>
               </Card>

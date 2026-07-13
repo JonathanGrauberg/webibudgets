@@ -1,7 +1,8 @@
 // lib\pdf\template.ts
 import { getContrastColor } from '@/lib/contrast'
-import { formatCurrency as formatCurrencyBase } from '@/lib/format' // 👈 nuevo
-import { DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
+import { formatCurrency as formatCurrencyBase } from '@/lib/format'
+import { DEFAULT_CURRENCY } from '@/lib/currencies' 
+import { detectUnitType, computeQuantity } from '@/lib/units' // 👈 nuevo
 
 export function budgetPdfTemplate(
   budget: any,
@@ -240,26 +241,44 @@ export function budgetPdfTemplate(
       </thead>
       <tbody>
         ${(budget.items ?? [])
-          .map(
-            (item: any) => {
-              const conceptName = item.customName || item.productService?.name || '—'
-              const conceptDescription = item.customName ? 'Ítem personalizado a medida' : (item.productService?.description || '')
-              const conceptUnit = item.productService?.unit || 'un.'
+        .map(
+          (item: any) => {
+            const conceptName = item.customName || item.productService?.name || '—'
+            const conceptDescription = item.customName ? 'Ítem personalizado a medida' : (item.productService?.description || '')
+            const conceptUnit = item.productService?.unit || 'un.'
 
-              return `
-        <tr>
-          <td>
-            <strong>${conceptName}</strong><br />
-            <span class="muted small">${conceptDescription}</span>
-          </td>
-          <td class="right">${item.quantity ?? 0} ${conceptUnit}</td>
-          <td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
-          <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>
-        </tr>
-      `
+            // 🌟 Descripción "cuánto por cuánto" de la calculadora (solo si hay medidas cargadas)
+            const unitType = detectUnitType(conceptUnit)
+            let calcBreakdown = ''
+            if (unitType !== 'unit') {
+              const calcResult = computeQuantity(conceptUnit, {
+                a: item.widthCm ?? null,
+                b: item.heightCm ?? null,
+                c: item.depthCm ?? null,
+                direct: unitType === 'time' ? (item.hours ?? null) : (item.direct ?? null),
+              })
+              if (calcResult.isComplete && calcResult.label) {
+                calcBreakdown = calcResult.label
+              }
             }
-          )
-          .join('')}
+
+            return `
+              <tr>
+                <td>
+                  <strong>${conceptName}</strong><br />
+                  <span class="muted small">${conceptDescription}</span>
+                </td>
+                <td class="right">
+                  ${item.quantity ?? 0} ${conceptUnit}
+                  ${calcBreakdown ? `<br/><span class="muted small">${calcBreakdown}</span>` : ''}
+                </td>
+                <td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
+                <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>
+              </tr>
+            `
+          }
+        )
+        .join('')}
       </tbody>
     </table>
 

@@ -249,6 +249,7 @@ model ProductService {
   category    ProductCategory
 
   price       Float
+  cost        Float?
   unit        String
 
   active      Boolean @default(true)
@@ -318,6 +319,7 @@ model Budget {
   updatedAt DateTime @updatedAt
 
   currency String @default("ARS") // 👈 moneda única de ESTE presupuesto
+  revisionNumber Int @default(0) // 👈 nuevo — se incrementa en cada edición real (cambios en items)
 
   @@index([tenantId])
   @@index([clientId])
@@ -407,7 +409,7 @@ model BudgetItem {
   // 🌟 2. Campo para cuando escriben un producto/servicio a medida que no existe en stock
   customName       String?
 
-  quantity         Int
+  quantity         Float
 
   unitPrice        Float
 
@@ -419,6 +421,8 @@ model BudgetItem {
   heightCm         Float?
   hours            Float?
   calculatedM2     Float?
+  depthCm          Float?
+  direct           Float?
 }
 
 /* =========================

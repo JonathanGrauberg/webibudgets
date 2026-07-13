@@ -23,7 +23,8 @@ import {
   FileText, 
   AlertTriangle, 
   Sparkles, 
-  BarChart3 
+  BarChart3,
+  Pencil
 } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -231,12 +232,22 @@ export default function BudgetsPage() {
                         {formatCurrency(b.total)}
                       </span>
                     </div>
-                    <Link href={`/budgets/${b.id}`} className="block">
-                      <Button variant="outline" className="w-full">
-                        <Eye className="mr-2 h-4 w-4" />
-                        Ver presupuesto
-                      </Button>
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link href={`/budgets/${b.id}`} className="flex-1">
+                        <Button variant="outline" className="w-full">
+                          <Eye className="mr-2 h-4 w-4" />
+                          Ver
+                        </Button>
+                      </Link>
+                      {canCreateBudget && (
+                        <Link href={`/budgets/${b.id}/edit`} className="flex-1">
+                          <Button variant="outline" className="w-full">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -274,12 +285,22 @@ export default function BudgetsPage() {
                             {formatCurrency(b.total)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Link href={`/budgets/${b.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver
-                              </Button>
-                            </Link>
+                            <div className="flex justify-end gap-2">
+                              <Link href={`/budgets/${b.id}`}>
+                                <Button variant="outline" size="sm">
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ver
+                                </Button>
+                              </Link>
+                              {canCreateBudget && (
+                                <Link href={`/budgets/${b.id}/edit`}>
+                                  <Button variant="outline" size="sm">
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

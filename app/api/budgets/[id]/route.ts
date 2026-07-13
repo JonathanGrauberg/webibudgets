@@ -146,6 +146,7 @@ export async function PATCH(request: Request, { params }: Params) {
         tax: calculation.taxAmount,
         shippingCost: calculation.shippingCost,
         total: calculation.total,
+        revisionNumber: { increment: 1 }, // 👈 nuevo
       }
 
       if (data.status !== undefined) {
@@ -188,16 +189,22 @@ export async function PATCH(request: Request, { params }: Params) {
         prisma.budget.updateMany({ where: tenantWhereId(id, tenantId), data: updateData }),
         prisma.budgetItem.deleteMany({ where: { budgetId: id } }),
         prisma.budgetItem.createMany({
-          data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
-            budgetId: id,
-            productServiceId: item.productServiceId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
-            discount: item.discount,
-            customName: item.customName, // 🌟 esto faltaba
-          })),
-        }),
+        data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
+          budgetId: id,
+          productServiceId: item.productServiceId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+          discount: item.discount,
+          customName: item.customName,
+          widthCm: item.widthCm,       // 👈 nuevo
+          heightCm: item.heightCm,     // 👈 nuevo
+          depthCm: item.depthCm,       // 👈 nuevo
+          direct: item.direct,         // 👈 nuevo
+          hours: item.hours,           // 👈 nuevo
+          calculatedM2: item.calculatedM2, // 👈 nuevo
+        })),
+      }),
       ])
 
       if (result[0].count === 0) {

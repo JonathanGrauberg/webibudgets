@@ -68,6 +68,18 @@ function Loading() {
   return null
 }
 
+// 🌟 Helper de costo/ganancia/margen — usado en tabla desktop y cards mobile
+function getCostMetrics(product: ProductService) {
+  const cost = product.cost ?? null
+  const ganancia = cost != null ? product.price - cost : null
+  const margen = cost != null && product.price > 0
+    ? ((product.price - cost) / product.price) * 100
+    : null
+  const isM2 = product.unit === 'm²'
+
+  return { cost, ganancia, margen, isM2 }
+}
+
 export default function ProductsPage() {
   const { canEdit } = usePermissions()
   const canEditProducts = canEdit('products')
@@ -255,84 +267,114 @@ export default function ProductsPage() {
               <>
                 {/* MOBILE: cards */}
                 <div className="space-y-4 md:hidden">
-                  {filteredProducts.map((product) => (
-                    <Card key={product.id}>
-                      <CardContent className="space-y-4 p-4">
-                        <div className="space-y-1">
-                          <p className="font-medium text-card-foreground">
-                            {product.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground break-words">
-                            {product.description}
-                          </p>
-                        </div>
+                  {filteredProducts.map((product) => {
+                    const { cost, margen } = getCostMetrics(product)
 
-                        <div className="flex flex-wrap gap-2">
-                          <Badge className={CATEGORY_COLORS[product.category]}>
-                            {CATEGORY_LABELS[product.category]}
-                          </Badge>
-
-                          <Badge variant={product.active ? 'default' : 'secondary'}>
-                            {product.active ? 'Activo' : 'Inactivo'}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <CircleDollarSign className="h-4 w-4 shrink-0" />
-                              <span>Precio</span>
-                            </div>
-                            <span className="font-semibold text-card-foreground">
-                              {formatCurrency(product.price, product.currency)}
-                            </span>
+                    return (
+                      <Card key={product.id}>
+                        <CardContent className="space-y-4 p-4">
+                          <div className="space-y-1">
+                            <p className="font-medium text-card-foreground">
+                              {product.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground break-words">
+                              {product.description}
+                            </p>
                           </div>
 
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Package className="h-4 w-4 shrink-0" />
-                              <span>Unidad</span>
-                            </div>
-                            <span className="text-card-foreground">
-                              {product.unit}
-                            </span>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge className={CATEGORY_COLORS[product.category]}>
+                              {CATEGORY_LABELS[product.category]}
+                            </Badge>
+
+                            <Badge variant={product.active ? 'default' : 'secondary'}>
+                              {product.active ? 'Activo' : 'Inactivo'}
+                            </Badge>
                           </div>
 
-                          {'stock' in product && typeof product.stock === 'number' && (
+                          <div className="space-y-2 text-sm">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2 text-muted-foreground">
-                                <Tag className="h-4 w-4 shrink-0" />
-                                <span>Stock</span>
+                                <CircleDollarSign className="h-4 w-4 shrink-0" />
+                                <span>Precio</span>
                               </div>
-                              <span className="text-card-foreground">{product.stock}</span>
+                              <span className="font-semibold text-card-foreground">
+                                {formatCurrency(product.price, product.currency)}
+                              </span>
+                            </div>
+
+                            {/* 🌟 Costo (solo si está cargado) */}
+                            {cost != null && (
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <CircleDollarSign className="h-4 w-4 shrink-0" />
+                                  <span>Costo</span>
+                                </div>
+                                <span className="text-card-foreground">
+                                  {formatCurrency(cost, product.currency)}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* 🌟 Margen Bruto (solo si hay costo cargado) */}
+                            {margen != null && (
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Percent className="h-4 w-4 shrink-0" />
+                                  <span>Margen</span>
+                                </div>
+                                <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                                  {margen.toFixed(0)}%
+                                </Badge>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Package className="h-4 w-4 shrink-0" />
+                                <span>Unidad</span>
+                              </div>
+                              <span className="text-card-foreground">
+                                {product.unit}
+                              </span>
+                            </div>
+
+                            {'stock' in product && typeof product.stock === 'number' && (
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Tag className="h-4 w-4 shrink-0" />
+                                  <span>Stock</span>
+                                </div>
+                                <span className="text-card-foreground">{product.stock}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {canEditProducts && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => handleEdit(product)}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                className="flex-1 text-destructive hover:text-destructive"
+                                onClick={() => handleDelete(product.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar
+                              </Button>
                             </div>
                           )}
-                        </div>
-
-                        {canEditProducts && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => handleEdit(product)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </Button>
-
-                            <Button
-                              variant="outline"
-                              className="flex-1 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(product.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
 
                 {/* DESKTOP/TABLET: table */}
@@ -342,9 +384,13 @@ export default function ProductsPage() {
                       <Table className="table-fixed">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[34%]">Producto / Servicio</TableHead>
+                            <TableHead className="w-[28%]">Producto / Servicio</TableHead>
                             <TableHead>Categoría</TableHead>
+                            <TableHead className="text-right">Costo</TableHead>
+                            <TableHead className="text-right">Costo m²</TableHead>
                             <TableHead className="text-right">Precio</TableHead>
+                            <TableHead className="text-right">Ganancia</TableHead>
+                            <TableHead className="text-right">Margen</TableHead>
                             <TableHead>Unidad</TableHead>
                             <TableHead>Estado</TableHead>
                             {canEditProducts && (
@@ -354,80 +400,101 @@ export default function ProductsPage() {
                         </TableHeader>
 
                         <TableBody>
-                          {filteredProducts.map((product) => (
-                            <TableRow key={product.id}>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="font-medium text-card-foreground">
-                                    {product.name}
-                                  </p>
-                                  <p className="line-clamp-2 break-words text-sm text-muted-foreground">
-                                    {product.description}
-                                  </p>
-                                </div>
-                              </TableCell>
+                          {filteredProducts.map((product) => {
+                            const { cost, ganancia, margen, isM2 } = getCostMetrics(product)
 
-                              <TableCell>
-                                <Badge className={CATEGORY_COLORS[product.category]}>
-                                  {CATEGORY_LABELS[product.category]}
-                                </Badge>
-                              </TableCell>
-
-                              <TableCell className="text-right font-medium">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  {formatCurrency(product.price, product.currency)}
-                                  {product.currency !== 'ARS' && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5">
-                                      {product.currency}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-
-                              <TableCell className="text-muted-foreground">
-                                {product.unit}
-                              </TableCell>
-
-                              <TableCell>
-                                <Badge variant={product.active ? 'default' : 'secondary'}>
-                                  {product.active ? 'Activo' : 'Inactivo'}
-                                </Badge>
-                              </TableCell>
-
-                              {canEditProducts && (
+                            return (
+                              <TableRow key={product.id}>
                                 <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleEdit(product)}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Editar producto</TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleDelete(product.id)}
-                                          className="text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Eliminar producto</TooltipContent>
-                                    </Tooltip>
+                                  <div className="space-y-1">
+                                    <p className="font-medium text-card-foreground">
+                                      {product.name}
+                                    </p>
+                                    <p className="line-clamp-2 break-words text-sm text-muted-foreground">
+                                      {product.description}
+                                    </p>
                                   </div>
                                 </TableCell>
-                              )}
-                            </TableRow>
-                          ))}
+
+                                <TableCell>
+                                  <Badge className={CATEGORY_COLORS[product.category]}>
+                                    {CATEGORY_LABELS[product.category]}
+                                  </Badge>
+                                </TableCell>
+
+                                {/* 🌟 Costo / Costo m² / Precio / Ganancia / Margen */}
+                                <TableCell className="text-right">
+                                  {cost != null ? formatCurrency(cost, product.currency) : '—'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {cost != null && isM2 ? formatCurrency(cost, product.currency) : '—'}
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {formatCurrency(product.price, product.currency)}
+                                    {product.currency !== 'ARS' && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5">
+                                        {product.currency}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {ganancia != null ? formatCurrency(ganancia, product.currency) : '—'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {margen != null ? (
+                                    <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                                      {margen.toFixed(0)}%
+                                    </Badge>
+                                  ) : '—'}
+                                </TableCell>
+
+                                <TableCell className="text-muted-foreground">
+                                  {product.unit}
+                                </TableCell>
+
+                                <TableCell>
+                                  <Badge variant={product.active ? 'default' : 'secondary'}>
+                                    {product.active ? 'Activo' : 'Inactivo'}
+                                  </Badge>
+                                </TableCell>
+
+                                {canEditProducts && (
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEdit(product)}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Editar producto</TooltipContent>
+                                      </Tooltip>
+
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDelete(product.id)}
+                                            className="text-destructive hover:text-destructive"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Eliminar producto</TooltipContent>
+                                      </Tooltip>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )
+                          })}
                         </TableBody>
                       </Table>
                     </div>

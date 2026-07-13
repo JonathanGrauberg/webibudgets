@@ -26,7 +26,8 @@ export interface ProductService {
   description: string
   category: ProductCategory
   price: number
-  currency: string // 👈 nuevo — moneda en la que está cargado el precio
+  cost?: number | null // 👈 nuevo
+  currency: string 
   unit: string
   active: boolean
   stock?: number

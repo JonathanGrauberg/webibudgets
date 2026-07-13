@@ -136,6 +136,10 @@ export async function GET(
       budget.budgetNumber ?? 0
     ).padStart(6, '0')
 
+    // 🌟 nuevo — sufijo de versión si el presupuesto fue editado
+    const version = (budget.revisionNumber ?? 0) + 1
+    const versionSuffix = version > 1 ? `_v${version}` : ''
+
     const safeName = `${clientName} ${clientLastName}`
       .trim()
       .replace(/\s+/g, "_")

@@ -220,8 +220,13 @@ export async function POST(request: Request) {
               unitPrice: Number(item.unitPrice),
               subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
               discount: Number(item.discount ?? 0),
-              // Si es un producto libre, guardamos su nombre y NO conectamos productService
               customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
+              widthCm: item.widthCm ?? null,           // 👈 nuevo
+              heightCm: item.heightCm ?? null,         // 👈 nuevo
+              depthCm: item.depthCm ?? null,           // 👈 nuevo
+              direct: item.direct ?? null,             // 👈 nuevo
+              hours: item.hours ?? null,               // 👈 nuevo
+              calculatedM2: item.calculatedM2 ?? null, // 👈 nuevo
               ...(!isCustom ? {
                 productService: {
                   connect: { id: item.productServiceId }

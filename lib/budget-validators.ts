@@ -52,7 +52,7 @@ export async function loadBudgetProducts(tenantId: string, productIds: string[])
 
   return prisma.productService.findMany({
     where: { id: { in: productIds }, tenantId, active: true },
-    select: { id: true, name: true, stock: true, currency: true }, // 👈 currency agregado
+    select: { id: true, name: true, stock: true, currency: true },
   })
 }
 
@@ -92,8 +92,14 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
     unitPrice: item.unitPrice,
     subtotal: item.subtotal,
     discount: item.discount,
-    productServiceId: item.productServiceId, // ya es string | null, createMany lo acepta tal cual
+    productServiceId: item.productServiceId,
     customName: item.customName,
+    widthCm: item.widthCm,
+    heightCm: item.heightCm,
+    depthCm: item.depthCm,
+    direct: item.direct,
+    hours: item.hours,
+    calculatedM2: item.calculatedM2,
   }))
 }
 

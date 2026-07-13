@@ -42,6 +42,7 @@ export async function POST(request: Request) {
           category: data.category,
           price: Number(data.price),
           currency: productCurrency, // 👈 nuevo
+          cost: data.cost !== undefined && data.cost !== '' ? Number(data.cost) : null, // 👈 nuevo
           unit: data.unit,
           active: data.active ?? true,
         },

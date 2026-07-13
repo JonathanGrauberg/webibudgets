@@ -6,6 +6,12 @@ export type BudgetRequestItem = {
   discount?: number
   customName?: string | null
   isCustom?: boolean
+  // Campos de la calculadora (solo se usan si el tenant tiene el módulo activo)
+  widthCm?: number | null
+  heightCm?: number | null
+  depthCm?: number | null
+  direct?: number | null
+  hours?: number | null
 }
 
 export type NormalizedBudgetItem = {
@@ -16,6 +22,12 @@ export type NormalizedBudgetItem = {
   subtotal: number
   customName: string | null
   isCustom: boolean
+  widthCm: number | null
+  heightCm: number | null
+  depthCm: number | null
+  direct: number | null
+  hours: number | null
+  calculatedM2: number | null
 }
 
 export type BudgetCalculationInput = {
@@ -35,6 +47,21 @@ export type BudgetCalculationResult = {
   items: NormalizedBudgetItem[]
 }
 
+/** Calcula m² a partir de ancho/alto en cm, redondeado a 2 decimales. null si falta algún valor. */
+function computeCalculatedM2(widthCm: number | null, heightCm: number | null): number | null {
+  if (!widthCm || !heightCm) return null
+  const m2 = (widthCm * heightCm) / 10000
+  return Math.round(m2 * 100) / 100
+}
+
+/** Parsea un número opcional (acepta decimales), null si no es válido o no vino */
+function parseOptionalNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  if (Number.isNaN(parsed) || parsed < 0) return null
+  return parsed
+}
+
 export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
   if (!Array.isArray(items)) {
     throw new Error('items must be an array')
@@ -46,9 +73,17 @@ export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
       const customName = typeof item?.customName === 'string' ? item.customName.trim() : ''
       const isCustom = Boolean(item?.isCustom) || customName.length > 0 || rawProductServiceId.length === 0
 
+      // 👈 quantity acepta decimales (m², litros, kg...) — requiere quantity Float en el schema
       const quantity = Math.max(0, Number(item?.quantity) || 0)
       const unitPrice = Math.max(0, Number(item?.unitPrice) || 0)
       const discount = Math.max(0, Number(item?.discount ?? 0) || 0)
+
+      const widthCm = parseOptionalNumber(item?.widthCm)
+      const heightCm = parseOptionalNumber(item?.heightCm)
+      const depthCm = parseOptionalNumber(item?.depthCm)
+      const direct = parseOptionalNumber(item?.direct)
+      const hours = parseOptionalNumber(item?.hours)
+      const calculatedM2 = computeCalculatedM2(widthCm, heightCm)
 
       return {
         productServiceId: isCustom ? null : rawProductServiceId,
@@ -58,6 +93,12 @@ export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
         subtotal: quantity * unitPrice,
         customName: isCustom ? (customName || 'Ítem personalizado') : null,
         isCustom,
+        widthCm,
+        heightCm,
+        depthCm,
+        direct,
+        hours,
+        calculatedM2,
       }
     })
     .filter((item) => item.quantity > 0 && (item.isCustom ? !!item.customName : !!item.productServiceId))
