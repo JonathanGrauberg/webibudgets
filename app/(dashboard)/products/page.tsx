@@ -407,7 +407,7 @@ export default function ProductsPage() {
                               <TableRow key={product.id}>
                                 <TableCell>
                                   <div className="space-y-1">
-                                    <p className="font-medium text-card-foreground">
+                                    <p className="line-clamp-2 font-medium text-card-foreground break-words">
                                       {product.name}
                                     </p>
                                     <p className="line-clamp-2 break-words text-sm text-muted-foreground">
