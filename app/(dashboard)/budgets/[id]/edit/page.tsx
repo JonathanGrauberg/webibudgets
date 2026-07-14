@@ -34,6 +34,7 @@ import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { hasFeature } from '@/lib/features'
 import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator'
 import { detectUnitType } from '@/lib/units'
+import { Label } from '@/components/ui/label'
 
 /* ================================
    TYPES & INTERFACES
@@ -811,16 +812,29 @@ export default function EditBudgetPage() {
                 <CardContent className="space-y-4">
                   <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Input
-                      placeholder="Condiciones de pago (opcional)"
-                      value={paymentTerms}
-                      onChange={(e) => setPaymentTerms(e.target.value)}
-                    />
-                    <Input
-                      type="date"
-                      value={validUntil}
-                      onChange={(e) => setValidUntil(e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentTerms" className="text-sm font-normal text-muted-foreground">
+                        Condiciones de pago
+                      </Label>
+                      <Input
+                        id="paymentTerms"
+                        placeholder="Ej: 50% seña, 50% contra entrega"
+                        value={paymentTerms}
+                        onChange={(e) => setPaymentTerms(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="validUntil" className="text-sm font-normal text-muted-foreground">
+                        Válido hasta
+                      </Label>
+                      <Input
+                        id="validUntil"
+                        type="date"
+                        value={validUntil}
+                        onChange={(e) => setValidUntil(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

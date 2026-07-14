@@ -77,21 +77,18 @@ export default function InstallersPage() {
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
+  // 🌟 FIX — antes tenía un switch hardcodeado desincronizado de PLAN_LIMITS
+  // (no contemplaba 'custom', y usaba 'pro' que no existe como PlanKey).
+  // Ahora lee la fuente única de verdad en lib/plan.ts, igual que el resto del sistema.
   const tenantLimits = useMemo(() => {
-  const planKey = (session?.user as any)?.plan || 'starter'
-  const limits = PLAN_LIMITS[planKey as keyof typeof PLAN_LIMITS]
-  
-  let maxInstallers = 0
-  // 🌟 Agregamos 'vip' para que también sea ilimitado (999)
-  if (planKey === 'business' || planKey === 'vip') maxInstallers = 999 
-  else if (planKey === 'pro') maxInstallers = 5    
-  else maxInstallers = 0                          
+    const planKey = ((session?.user as any)?.plan || 'starter') as keyof typeof PLAN_LIMITS
+    const limits = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.starter
 
-  return {
-    plan: planKey,
-    maxInstallers,
-  }
-}, [session])
+    return {
+      plan: planKey,
+      maxInstallers: limits.maxInstallers, // 👈 null = ilimitado
+    }
+  }, [session])
 
   const fetchInstallers = async () => {
     setLoading(true)
@@ -115,8 +112,9 @@ export default function InstallersPage() {
   )
 
   // ¿Llegamos al tope máximo permitido?
+  // 🌟 FIX — null = ilimitado, ya no depende de comparar contra 'business' a mano
   const isLimitReached = useMemo(() => {
-    if (tenantLimits.plan === 'business') return false
+    if (tenantLimits.maxInstallers === null) return false
     return activeCount >= tenantLimits.maxInstallers
   }, [activeCount, tenantLimits])
 
@@ -246,12 +244,12 @@ export default function InstallersPage() {
             <div className="space-y-1">
               <CardTitle>Listado</CardTitle>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-  Activos en lista: {activeCount} / {tenantLimits.maxInstallers === 999 ? '∞' : tenantLimits.maxInstallers}
+                Activos en lista: {activeCount} / {tenantLimits.maxInstallers === null ? '∞' : tenantLimits.maxInstallers}
                 {isLimitReached && (
                   <span className="inline-flex items-center text-amber-600 cursor-help group relative">
                     <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
                     <span className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-950 text-white text-[11px] font-normal p-2 rounded-lg shadow-xl whitespace-nowrap z-50 border border-zinc-800">
-                      Plan {tenantLimits.plan.toUpperCase()}: Límite alcanzado ({activeCount}/{tenantLimits.maxInstallers})
+                      Plan {String(tenantLimits.plan).toUpperCase()}: Límite alcanzado ({activeCount}/{tenantLimits.maxInstallers})
                     </span>
                   </span>
                 )}
@@ -563,7 +561,11 @@ export default function InstallersPage() {
           </DialogHeader>
           
           <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-            Tu plan <span className="font-bold text-foreground uppercase">{tenantLimits.plan}</span> te permite gestionar un tope máximo de <span className="font-bold text-foreground">{tenantLimits.maxInstallers} instaladores</span> activos en simultáneo.
+            Tu plan <span className="font-bold text-foreground uppercase">{String(tenantLimits.plan)}</span> te permite gestionar un tope máximo de{' '}
+            <span className="font-bold text-foreground">
+              {tenantLimits.maxInstallers === null ? 'instaladores ilimitados' : `${tenantLimits.maxInstallers} instaladores`}
+            </span>{' '}
+            activos en simultáneo.
           </p>
 
           <div className="bg-zinc-50 border rounded-xl p-4 my-5 text-left text-xs text-zinc-600 space-y-2">

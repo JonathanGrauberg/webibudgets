@@ -1,6 +1,5 @@
 // lib/plan.ts — fuente única de verdad para límites, trials e IDs de MercadoPago
 
-// 1. Agregamos 'vip' al tipo
 export type PlanKey = 'free' | 'starter' | 'team' | 'business' | 'vip' | 'custom'
 
 export type PlanLimit = {
