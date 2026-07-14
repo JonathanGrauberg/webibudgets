@@ -56,6 +56,49 @@ const emptyForm = {
   active: true,
 }
 
+// 👈 nuevo: paleta de colores para los avatares (fondo suave + texto)
+const AVATAR_COLORS = [
+  'bg-rose-100 text-rose-700',
+  'bg-amber-100 text-amber-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-sky-100 text-sky-700',
+  'bg-violet-100 text-violet-700',
+  'bg-fuchsia-100 text-fuchsia-700',
+  'bg-teal-100 text-teal-700',
+  'bg-orange-100 text-orange-700',
+]
+
+// 👈 nuevo: genera un índice de color estable a partir del nombre completo
+function colorForName(fullName: string): string {
+  let hash = 0
+  for (let i = 0; i < fullName.length; i++) {
+    hash = fullName.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length
+  return AVATAR_COLORS[index]
+}
+
+function getInitials(name: string, lastName: string): string {
+  const first = name?.trim()?.[0] ?? ''
+  const second = lastName?.trim()?.[0] ?? ''
+  return `${first}${second}`.toUpperCase() || '?'
+}
+
+// 👈 nuevo: componente de avatar circular con iniciales
+function SellerAvatar({ name, lastName, size = 'md' }: { name: string; lastName: string; size?: 'sm' | 'md' }) {
+  const fullName = `${name} ${lastName}`
+  const colorClass = colorForName(fullName)
+  const sizeClass = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${sizeClass} ${colorClass}`}
+    >
+      {getInitials(name, lastName)}
+    </div>
+  )
+}
+
 export default function SellersPage() {
   const [sellers, setSellers] = useState<Seller[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,10 +150,7 @@ export default function SellersPage() {
     fetchSellers()
   }, [includeInactive])
 
-  // 🌟 CAMBIO CLAVE: Definimos cuáles son los planes que no tienen límites de usuarios.
   const isUnlimitedPlan = tenantLimits.plan === 'business' || tenantLimits.plan === 'vip'
-  
-  // El límite se alcanza solo si NO es un plan ilimitado Y los usuarios activos superan el máximo asignado.
   const isLimitReached = !isUnlimitedPlan && tenantLimits.activeUsers >= tenantLimits.maxUsers
 
   const openCreate = () => {
@@ -284,13 +324,16 @@ export default function SellersPage() {
                     <Card key={s.id} className={!s.active ? 'opacity-60' : ''}>
                       <CardContent className="space-y-4 p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-card-foreground">
-                              {s.name} {s.lastName}
-                            </p>
-                            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                              <Briefcase className="h-4 w-4 shrink-0" />
-                              <span>{s.sector || 'Sin sector'}</span>
+                          <div className="flex items-center gap-3">
+                            <SellerAvatar name={s.name} lastName={s.lastName} />
+                            <div>
+                              <p className="font-medium text-card-foreground">
+                                {s.name} {s.lastName}
+                              </p>
+                              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                <Briefcase className="h-4 w-4 shrink-0" />
+                                <span>{s.sector || 'Sin sector'}</span>
+                              </div>
                             </div>
                           </div>
                           <Badge className={s.active ? 'bg-slate-100 text-slate-800' : 'bg-muted text-muted-foreground'}>
@@ -336,7 +379,12 @@ export default function SellersPage() {
                       <TableBody>
                         {sellers.map((s) => (
                           <TableRow key={s.id} className={!s.active ? 'opacity-60' : ''}>
-                            <TableCell className="font-medium">{s.name} {s.lastName}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-3">
+                                <SellerAvatar name={s.name} lastName={s.lastName} size="sm" />
+                                <span>{s.name} {s.lastName}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>{s.sector || '—'}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{s.email || s.phone || '—'}</TableCell>
                             <TableCell className="text-center">

@@ -15,9 +15,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Package, Tag, CircleDollarSign, Boxes } from 'lucide-react'
+import { Package, Tag, CircleDollarSign, Boxes, AlertTriangle, Wallet } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
-import { CATEGORY_LABELS, type ProductCategory } from '@/lib/types' // 👈 nuevo
+import { CATEGORY_LABELS, type ProductCategory } from '@/lib/types'
 
 type Product = {
   id: string
@@ -28,6 +28,9 @@ type Product = {
   active: boolean
   stock: number
 }
+
+const LOW_STOCK_THRESHOLD = 10
+const MEDIUM_STOCK_THRESHOLD = 30
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -43,10 +46,35 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-// 👈 nuevo: traduce la key del enum a su label en español, con fallback seguro
-// si algún día llega una categoría que no está en el diccionario (evita romper la UI)
 function categoryLabel(category: string): string {
   return CATEGORY_LABELS[category as ProductCategory] ?? category
+}
+
+// 👈 nuevo: define el estado visual del stock según el umbral
+function stockStatus(stock: number): {
+  label: string
+  dot: string
+  badge: string
+} {
+  if (stock < LOW_STOCK_THRESHOLD) {
+    return { label: 'Bajo', dot: 'bg-red-500', badge: 'bg-red-500/10 text-red-600 dark:text-red-400' }
+  }
+  if (stock < MEDIUM_STOCK_THRESHOLD) {
+    return { label: 'Medio', dot: 'bg-amber-500', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' }
+  }
+  return { label: 'Bien', dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }
+}
+
+function StockBadge({ stock }: { stock: number }) {
+  const status = stockStatus(stock)
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.badge}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+      {status.label}
+    </span>
+  )
 }
 
 export default function StockPage() {
@@ -62,6 +90,20 @@ export default function StockPage() {
     () => products.filter((p) => p.active),
     [products]
   )
+
+  // 👈 nuevo: métricas de resumen para las cards
+  const summary = useMemo(() => {
+    const totalProducts = activeProducts.length
+    const totalStockValue = activeProducts.reduce(
+      (acc, p) => acc + (p.price ?? 0) * (typeof p.stock === 'number' ? p.stock : 0),
+      0
+    )
+    const lowStockCount = activeProducts.filter(
+      (p) => (typeof p.stock === 'number' ? p.stock : 0) < LOW_STOCK_THRESHOLD
+    ).length
+
+    return { totalProducts, totalStockValue, lowStockCount }
+  }, [activeProducts])
 
   const [draft, setDraft] = useState<Record<string, number>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -123,6 +165,39 @@ export default function StockPage() {
       />
 
       <div className="p-4 md:p-6 lg:p-8">
+        {/* 👈 nuevo: cards de resumen */}
+        {!isLoading && activeProducts.length > 0 && (
+          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Boxes className="h-4 w-4" />
+                Productos activos
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-card-foreground">
+                {summary.totalProducts}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Wallet className="h-4 w-4" />
+                Valor total en stock
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-card-foreground">
+                {formatCurrency(summary.totalStockValue)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <AlertTriangle className="h-4 w-4" />
+                Stock bajo (&lt; {LOW_STOCK_THRESHOLD})
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-card-foreground">
+                {summary.lowStockCount}
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Productos activos</CardTitle>
@@ -158,6 +233,9 @@ export default function StockPage() {
                             <div className="text-right">
                               <p className="text-xs text-muted-foreground">Stock actual</p>
                               <p className="font-semibold">{p.stock ?? 0}</p>
+                              <div className="mt-1">
+                                <StockBadge stock={typeof p.stock === 'number' ? p.stock : 0} />
+                              </div>
                             </div>
                           </div>
 
@@ -233,6 +311,7 @@ export default function StockPage() {
                           <TableHead>Categoría</TableHead>
                           <TableHead className="text-right">Precio</TableHead>
                           <TableHead>Unidad</TableHead>
+                          <TableHead className="w-[100px]">Estado</TableHead>
                           <TableHead className="w-[180px]">Stock</TableHead>
                           {canEditStock && <TableHead className="w-[140px]" />}
                         </TableRow>
@@ -240,13 +319,16 @@ export default function StockPage() {
 
                       <TableBody>
                         {activeProducts.map((p) => (
-                          <TableRow key={p.id}>
+                          <TableRow key={p.id} className="hover:bg-muted/50">
                             <TableCell className="font-medium">{p.name}</TableCell>
                             <TableCell>{categoryLabel(p.category)}</TableCell>
                             <TableCell className="text-right">
                               {formatCurrency(p.price)}
                             </TableCell>
                             <TableCell>{p.unit}</TableCell>
+                            <TableCell>
+                              <StockBadge stock={typeof p.stock === 'number' ? p.stock : 0} />
+                            </TableCell>
                             <TableCell>
                               {canEditStock ? (
                                 <Input

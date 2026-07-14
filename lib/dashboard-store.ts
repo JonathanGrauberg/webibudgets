@@ -1,4 +1,6 @@
+//lib\dashboard-store.ts
 import { prisma } from '@/lib/prisma'
+import type { ProductCategory } from '@prisma/client' // 👈 nuevo
 
 export interface DashboardStats {
   totalClients: number
@@ -137,4 +139,52 @@ export async function getBudgetStatusStats(tenantId: string): Promise<BudgetStat
     status: g.status,
     count: g._count.status,
   }))
+}
+
+export interface TopRequestedProduct {
+  productServiceId: string
+  name: string
+  unit: string
+  category: ProductCategory // 👈 antes: string
+  requestCount: number // en cuántos presupuestos distintos apareció
+}
+
+export async function getTopRequestedProducts(
+  tenantId: string,
+  limit = 6
+): Promise<TopRequestedProduct[]> {
+  const grouped = await prisma.budgetItem.groupBy({
+    by: ['productServiceId'],
+    where: {
+      productServiceId: { not: null },
+      budget: { tenantId },
+    },
+    _count: { productServiceId: true },
+    orderBy: { _count: { productServiceId: 'desc' } },
+    take: limit,
+  })
+
+  const productIds = grouped
+    .map((g) => g.productServiceId)
+    .filter((id): id is string => id !== null)
+
+  const products = await prisma.productService.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true, unit: true, category: true },
+  })
+  const productMap = new Map(products.map((p) => [p.id, p]))
+
+  return grouped
+    .map((g) => {
+      const product = g.productServiceId ? productMap.get(g.productServiceId) : undefined
+      if (!product) return null
+      return {
+        productServiceId: product.id,
+        name: product.name,
+        unit: product.unit,
+        category: product.category,
+        requestCount: g._count.productServiceId,
+      }
+    })
+    .filter((x): x is TopRequestedProduct => x !== null)
 }

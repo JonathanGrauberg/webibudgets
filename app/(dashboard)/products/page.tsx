@@ -80,6 +80,27 @@ function getCostMetrics(product: ProductService) {
   return { cost, ganancia, margen, isM2 }
 }
 
+// 🌟 Métricas resumen del catálogo (sutiles, arriba de la tabla)
+function getCatalogMetrics(products: ProductService[]) {
+  const total = products.length
+  const active = products.filter((p) => p.active).length
+
+  const withMargin = products
+    .map((p) => {
+      if (p.cost == null || p.price <= 0) return null
+      return ((p.price - p.cost) / p.price) * 100
+    })
+    .filter((m): m is number => m !== null)
+
+  const avgMargin = withMargin.length
+    ? withMargin.reduce((acc, m) => acc + m, 0) / withMargin.length
+    : null
+
+  const lowMarginCount = withMargin.filter((m) => m < 25).length
+
+  return { total, active, avgMargin, lowMarginCount }
+}
+
 export default function ProductsPage() {
   const { canEdit } = usePermissions()
   const canEditProducts = canEdit('products')
@@ -214,6 +235,43 @@ export default function ProductsPage() {
           </PageHeader>
 
           <div className="p-4 md:p-6 lg:p-8">
+            {/* 🌟 Métricas sutiles del catálogo */}
+              {!isLoading && products.length > 0 && (() => {
+                const { total, active, avgMargin, lowMarginCount } = getCatalogMetrics(products)
+                return (
+                  <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-semibold text-card-foreground">{total}</span>
+                      <span className="text-muted-foreground">productos</span>
+                    </div>
+                    <div className="hidden h-3 w-px bg-border sm:block" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-card-foreground">{active}</span>
+                      <span className="text-muted-foreground">activos</span>
+                    </div>
+                    {avgMargin != null && (
+                      <>
+                        <div className="hidden h-3 w-px bg-border sm:block" />
+                        <div className="flex items-center gap-1.5">
+                          <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-semibold text-card-foreground">{avgMargin.toFixed(0)}%</span>
+                          <span className="text-muted-foreground">margen promedio</span>
+                        </div>
+                      </>
+                    )}
+                    {lowMarginCount > 0 && (
+                      <>
+                        <div className="hidden h-3 w-px bg-border sm:block" />
+                        <div className="flex items-center gap-1.5 text-orange-600">
+                          <span className="font-semibold">{lowMarginCount}</span>
+                          <span>con margen bajo</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
             {/* Filters */}
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full sm:max-w-md">

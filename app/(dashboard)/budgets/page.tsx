@@ -7,6 +7,14 @@ import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -24,7 +32,10 @@ import {
   AlertTriangle, 
   Sparkles, 
   BarChart3,
-  Pencil
+  Pencil,
+  Search,
+  CheckCircle2,
+  Wallet
 } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -45,6 +56,15 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
+// 🌟 nuevo: fecha corta para la columna de la tabla
+function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date))
+}
+
 export default function BudgetsPage() {
   const { data: session } = useSession()
   const { canEdit, filterBudgets } = usePermissions()
@@ -53,6 +73,25 @@ export default function BudgetsPage() {
   const budgets = filterBudgets(budgetsRaw)
 
   const [openUpgrade, setOpenUpgrade] = useState(false)
+
+  // 🌟 nuevo: buscador + filtro de estado
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  const filteredBudgets = useMemo(() => {
+    return budgets.filter((b) => {
+      const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
+      const budgetNum = String(b.budgetNumber ?? 0).padStart(6, '0')
+      const matchesSearch =
+        !searchQuery ||
+        clientName.includes(searchQuery.toLowerCase()) ||
+        budgetNum.includes(searchQuery)
+
+      const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+
+      return matchesSearch && matchesStatus
+    })
+  }, [budgets, searchQuery, statusFilter])
 
   // 🚨 CALCULADOR DE LÍMITE MENSUAL ESTRICTO
   const limitInfo = useMemo(() => {
@@ -81,6 +120,19 @@ export default function BudgetsPage() {
       percentage
     }
   }, [budgetsRaw, session])
+
+  // 🌟 nuevo: métricas resumen (sobre el total visible al usuario, respetando permisos)
+  const summary = useMemo(() => {
+    const total = budgets.length
+    const approved = budgets.filter((b) => b.status === 'approved')
+    const approvedTotal = approved.reduce((acc, b) => acc + (b.total ?? 0), 0)
+
+    return {
+      total,
+      approvedCount: approved.length,
+      approvedTotal,
+    }
+  }, [budgets])
 
   if (isLoading) {
     return (
@@ -133,6 +185,29 @@ export default function BudgetsPage() {
       </PageHeader>
 
       <div className="p-4 md:p-6 lg:p-8 space-y-6">
+
+        {/* 🌟 nuevo: tira de métricas sutil */}
+        {budgets.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
+            <div className="flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-semibold text-card-foreground">{summary.total}</span>
+              <span className="text-muted-foreground">presupuestos</span>
+            </div>
+            <div className="hidden h-3 w-px bg-border sm:block" />
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-semibold text-card-foreground">{summary.approvedCount}</span>
+              <span className="text-muted-foreground">aprobados</span>
+            </div>
+            <div className="hidden h-3 w-px bg-border sm:block" />
+            <div className="flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-semibold text-card-foreground">{formatCurrency(summary.approvedTotal)}</span>
+              <span className="text-muted-foreground">en aprobados</span>
+            </div>
+          </div>
+        )}
         
         {/* 📊 INDICADOR TOP SUPERIOR: Muestra el uso del plan actual de manera elegante */}
         {limitInfo.isStarter && (
@@ -172,6 +247,35 @@ export default function BudgetsPage() {
           </Card>
         )}
 
+        {/* 🌟 nuevo: buscador + filtro de estado (solo si hay presupuestos) */}
+        {budgets.length > 0 && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por cliente o número..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* CONTENEDOR PRINCIPAL */}
         {budgets.length === 0 ? (
           
@@ -206,11 +310,20 @@ export default function BudgetsPage() {
             </CardContent>
           </Card>
 
+        ) : filteredBudgets.length === 0 ? (
+          /* 🌟 nuevo: sin resultados por búsqueda/filtro (distinto del empty state real) */
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-center text-muted-foreground">
+                No se encontraron presupuestos con esos filtros
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <>
             {/* MOBILE: cards */}
             <div className="space-y-4 md:hidden">
-              {budgets.map((b) => (
+              {filteredBudgets.map((b) => (
                 <Card key={b.id}>
                   <CardContent className="space-y-4 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -218,8 +331,8 @@ export default function BudgetsPage() {
                         <p className="font-medium text-card-foreground">
                           {b.client?.company || b.client?.name || '-'}
                         </p>
-                        <p className="mt-1 font-mono text-xs text-muted-foreground">
-                          Presupuesto #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          #{String(b.budgetNumber ?? 0).padStart(6, '0')} · {formatDate(b.createdAt)}
                         </p>
                       </div>
                       <Badge className={STATUS_COLORS[b.status]}>
@@ -260,21 +373,25 @@ export default function BudgetsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>N°</TableHead>
                         <TableHead>Cliente</TableHead>
+                        <TableHead className="text-muted-foreground">N°</TableHead>
+                        <TableHead>Fecha</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {budgets.map((b) => (
-                        <TableRow key={b.id}>
-                          <TableCell className="font-mono text-xs">
+                      {filteredBudgets.map((b) => (
+                        <TableRow key={b.id} className="hover:bg-muted/40">
+                          <TableCell className="font-medium">
+                            {b.client?.company || b.client?.name || '-'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
                             #{String(b.budgetNumber ?? 0).padStart(6, '0')}
                           </TableCell>
-                          <TableCell>
-                            {b.client?.company || b.client?.name || '-'}
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(b.createdAt)}
                           </TableCell>
                           <TableCell>
                             <Badge className={STATUS_COLORS[b.status]}>

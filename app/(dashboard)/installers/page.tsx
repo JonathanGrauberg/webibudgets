@@ -61,6 +61,47 @@ const emptyForm = {
   active: true,
 }
 
+// 🌟 nuevo: mismo criterio de avatar que en Vendedores, para consistencia visual
+const AVATAR_COLORS = [
+  'bg-rose-100 text-rose-700',
+  'bg-amber-100 text-amber-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-sky-100 text-sky-700',
+  'bg-violet-100 text-violet-700',
+  'bg-fuchsia-100 text-fuchsia-700',
+  'bg-teal-100 text-teal-700',
+  'bg-orange-100 text-orange-700',
+]
+
+function colorForName(fullName: string): string {
+  let hash = 0
+  for (let i = 0; i < fullName.length; i++) {
+    hash = fullName.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length
+  return AVATAR_COLORS[index]
+}
+
+function getInitials(name: string, lastName: string): string {
+  const first = name?.trim()?.[0] ?? ''
+  const second = lastName?.trim()?.[0] ?? ''
+  return `${first}${second}`.toUpperCase() || '?'
+}
+
+function InstallerAvatar({ name, lastName, size = 'md' }: { name: string; lastName: string; size?: 'sm' | 'md' }) {
+  const fullName = `${name} ${lastName}`
+  const colorClass = colorForName(fullName)
+  const sizeClass = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${sizeClass} ${colorClass}`}
+    >
+      {getInitials(name, lastName)}
+    </div>
+  )
+}
+
 export default function InstallersPage() {
   const router = useRouter()
   const { data: session } = useSession()
@@ -72,21 +113,18 @@ export default function InstallersPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
 
   const [open, setOpen] = useState(false)
-  const [openUpgrade, setOpenUpgrade] = useState(false) // 🚨 Modal de upgrade premium
+  const [openUpgrade, setOpenUpgrade] = useState(false)
   const [editing, setEditing] = useState<Installer | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
-  // 🌟 FIX — antes tenía un switch hardcodeado desincronizado de PLAN_LIMITS
-  // (no contemplaba 'custom', y usaba 'pro' que no existe como PlanKey).
-  // Ahora lee la fuente única de verdad en lib/plan.ts, igual que el resto del sistema.
   const tenantLimits = useMemo(() => {
     const planKey = ((session?.user as any)?.plan || 'starter') as keyof typeof PLAN_LIMITS
     const limits = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.starter
 
     return {
       plan: planKey,
-      maxInstallers: limits.maxInstallers, // 👈 null = ilimitado
+      maxInstallers: limits.maxInstallers,
     }
   }, [session])
 
@@ -111,14 +149,11 @@ export default function InstallersPage() {
     [installers]
   )
 
-  // ¿Llegamos al tope máximo permitido?
-  // 🌟 FIX — null = ilimitado, ya no depende de comparar contra 'business' a mano
   const isLimitReached = useMemo(() => {
     if (tenantLimits.maxInstallers === null) return false
     return activeCount >= tenantLimits.maxInstallers
   }, [activeCount, tenantLimits])
 
-  // Interceptar el click en CUALQUIER intento de creación
   const openCreate = () => {
     if (isLimitReached) {
       setOpenUpgrade(true)
@@ -143,14 +178,12 @@ export default function InstallersPage() {
   }
 
   const onSave = async () => {
-    // 🛡️ BLINDAJE LÓGICO 1: Si es una creación y el límite ya está alcanzado, frenar.
     if (!editing && isLimitReached) {
       setOpen(false)
       setOpenUpgrade(true)
       return
     }
 
-    // 🛡️ BLINDAJE LÓGICO 2: Si está editando uno INACTIVO y lo quiere pasar a ACTIVO sin cupo.
     if (editing && !editing.active && form.active && isLimitReached) {
       setOpen(false)
       setOpenUpgrade(true)
@@ -308,13 +341,16 @@ export default function InstallersPage() {
                     <Card key={i.id} className={!i.active ? 'opacity-60' : ''}>
                       <CardContent className="space-y-4 p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-card-foreground">
-                              {i.name} {i.lastName}
-                            </p>
-                            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                              <Wrench className="h-4 w-4 shrink-0" />
-                              <span>Instalador</span>
+                          <div className="flex items-center gap-3">
+                            <InstallerAvatar name={i.name} lastName={i.lastName} />
+                            <div>
+                              <p className="font-medium text-card-foreground">
+                                {i.name} {i.lastName}
+                              </p>
+                              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                <Wrench className="h-4 w-4 shrink-0" />
+                                <span>Instalador</span>
+                              </div>
                             </div>
                           </div>
 
@@ -395,7 +431,10 @@ export default function InstallersPage() {
                         {installers.map((i) => (
                           <TableRow key={i.id} className={!i.active ? 'opacity-60' : ''}>
                             <TableCell className="font-medium">
-                              {i.name} {i.lastName}
+                              <div className="flex items-center gap-3">
+                                <InstallerAvatar name={i.name} lastName={i.lastName} size="sm" />
+                                <span>{i.name} {i.lastName}</span>
+                              </div>
                             </TableCell>
 
                             <TableCell>{i.city || '—'}</TableCell>
@@ -546,7 +585,7 @@ export default function InstallersPage() {
         </Dialog>
       )}
 
-      {/* 🚨 MODAL PREMIUM RE-ESTRUCTURADO AL ORIGINAL */}
+      {/* MODAL PREMIUM */}
       <Dialog open={openUpgrade} onOpenChange={setOpenUpgrade}>
         <DialogOverlay className="bg-black/80 backdrop-blur-[4px]" />
         <DialogContent className="sm:max-w-md text-center p-6 gap-0">
@@ -574,7 +613,6 @@ export default function InstallersPage() {
             <p>• Escalar tu plan para contar con soporte multiplaza y mayor volumen.</p>
           </div>
 
-          {/* DialogFooter original restablecido perfectamente */}
           <DialogFooter className="flex-col gap-2 sm:flex-col mt-2">
             <Button 
               onClick={() => router.push('/pricing')} 

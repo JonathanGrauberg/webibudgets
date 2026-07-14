@@ -1,6 +1,7 @@
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { LucideIcon } from 'lucide-react'
+import { ArrowRight, type LucideIcon } from 'lucide-react'
 
 interface StatCardProps {
   title: string
@@ -11,6 +12,7 @@ interface StatCardProps {
     value: number
     positive: boolean
   }
+  href?: string // 👈 nuevo — opcional, no rompe usos existentes sin este prop
   className?: string
 }
 
@@ -19,10 +21,17 @@ export function StatCard({
   value,
   icon: Icon,
   description,
+  href,
   className,
 }: StatCardProps) {
-  return (
-    <Card className={cn('overflow-hidden', className)}>
+  const content = (
+    <Card
+      className={cn(
+        'overflow-hidden transition-colors',
+        href && 'group-hover:border-foreground/20',
+        className
+      )}
+    >
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -32,11 +41,25 @@ export function StatCard({
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className="rounded-lg bg-primary/10 p-3">
-            <Icon className="h-6 w-6 text-primary" />
-          </div>
+          <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
         </div>
+
+        {href && (
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+            Ver detalle <ArrowRight className="h-3 w-3" />
+          </div>
+        )}
       </CardContent>
     </Card>
   )
+
+  if (href) {
+    return (
+      <Link href={href} className="group block">
+        {content}
+      </Link>
+    )
+  }
+
+  return content
 }
