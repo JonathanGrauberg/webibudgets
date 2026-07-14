@@ -1,5 +1,6 @@
 //lib\permissions.ts
 import type { BudgetStatus } from '@/lib/types'
+import { hasFeature, type FeatureKey } from '@/lib/features' // 👈 Importamos FeatureKey
 
 export type AppRole = 'owner' | 'admin' | 'seller' | 'installer' | 'viewer'
 
@@ -12,6 +13,7 @@ export type RouteKey =
   | 'budgets_new'
   | 'sellers'
   | 'installers'
+  | 'documents'
   | 'settings_company'
   | 'settings_team'
 
@@ -42,6 +44,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   installers: ['owner', 'admin', 'seller'],
   settings_company: ['owner', 'admin'],
   settings_team: ['owner', 'admin'],
+  documents: ['owner', 'admin', 'seller'],
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -115,6 +118,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/budgets' || pathname.startsWith('/budgets/')) return 'budgets'
   if (pathname === '/sellers' || pathname.startsWith('/sellers/')) return 'sellers'
   if (pathname === '/installers' || pathname.startsWith('/installers/')) return 'installers'
+  if (pathname === '/documents' || pathname.startsWith('/documents/')) return 'documents'
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -124,7 +128,8 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   return null
 }
 
-export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [
+// 👇 Cambiamos 'requiresFeature?: string' por 'requiresFeature?: FeatureKey'
+export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string; requiresFeature?: FeatureKey }[] = [
   { route: 'dashboard', name: 'Dashboard', href: '/dashboard', tooltip: 'Vista general del sistema' },
   { route: 'clients', name: 'Clientes', href: '/clients', tooltip: 'Gestionar clientes' },
   { route: 'products', name: 'Productos y Servicios', href: '/products', tooltip: 'Lista de precios y servicios' },
@@ -132,6 +137,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'sellers', name: 'Vendedores', href: '/sellers', tooltip: 'Crear y gestionar vendedores' },
   { route: 'stock', name: 'Stock', href: '/stock', tooltip: 'Consultar stock disponible' },
   { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
+  { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [
@@ -139,9 +145,13 @@ export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; too
   { route: 'settings_team', name: 'Equipo', href: '/settings/team', tooltip: 'Gestionar usuarios del equipo' },
 ]
 
-export function getVisibleNavItems(role: string | undefined) {
+export function getVisibleNavItems(role: string | undefined, tenantFeatures?: unknown) {
   if (!role) return []
-  return NAV_ROUTES.filter((item) => canAccessRoute(role, item.route))
+  return NAV_ROUTES.filter((item) => {
+    if (!canAccessRoute(role, item.route)) return false
+    if (item.requiresFeature && !hasFeature({ features: tenantFeatures }, item.requiresFeature)) return false
+    return true
+  })
 }
 
 export function getVisibleSettingsItems(role: string | undefined) {

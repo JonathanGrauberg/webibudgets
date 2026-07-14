@@ -10,12 +10,13 @@ import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import {
   LayoutDashboard, Users, Package, FileText,
-  Layers, UserRoundCog, Handshake, Menu, Settings,
+  Layers, UserRoundCog, Handshake, Menu, Settings, Receipt,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import type { TenantFeatures } from '@/lib/types'
 
 const NAV_ICONS: Record<string, ElementType> = {
   '/dashboard': LayoutDashboard,
@@ -25,6 +26,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/sellers': Handshake,
   '/stock': Layers,
   '/installers': UserRoundCog,
+  '/documents': Receipt,
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {
@@ -40,15 +42,12 @@ type Branding = {
   secondaryColor?: string | null
   accentColor?: string | null
   faviconUrl?: string | null
+  features?: TenantFeatures | null
 }
 
-// Genera el gradiente de fondo a partir del color primario de la empresa
-function buildSidebarStyle(
-  primaryColor?: string | null
-): React.CSSProperties {
+function buildSidebarStyle(primaryColor?: string | null): React.CSSProperties {
   return {
-    backgroundColor:
-      primaryColor || '#0a0a0a',
+    backgroundColor: primaryColor || '#0a0a0a',
   }
 }
 
@@ -62,7 +61,19 @@ function SidebarContent({
   userRole?: string
 }) {
   const pathname = usePathname()
-  const visibleNavigation = getVisibleNavItems(userRole)
+
+  // 1. Convertimos 'features' en un objeto plano de manera segura por si viniera serializado como string
+  const parsedFeatures = typeof branding?.features === 'string'
+    ? (() => {
+        try {
+          return JSON.parse(branding.features)
+        } catch {
+          return null
+        }
+      })()
+    : branding?.features
+
+  const visibleNavigation = getVisibleNavItems(userRole, parsedFeatures)
   const visibleSettings = getVisibleSettingsItems(userRole)
 
   return (
@@ -70,9 +81,6 @@ function SidebarContent({
       className="flex h-full w-full flex-col text-white"
       style={buildSidebarStyle(branding?.primaryColor)}
     >
-
-      
-
       {/* Header */}
       <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
@@ -95,7 +103,6 @@ function SidebarContent({
  
       {/* Nav */}
       <nav className="relative z-10 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3">
-
         <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
           Principal
         </p>
@@ -110,27 +117,26 @@ function SidebarContent({
             <Tooltip key={item.name} delayDuration={300}>
               <TooltipTrigger asChild>
                 <Link
-  href={item.href}
-  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
-  onClick={() => closeMenu?.()}
-  style={
-    isActive
-      ? {
-          backgroundColor:
-            branding?.accentColor ?? 'rgba(255,255,255,.12)',
-        }
-      : undefined
-  }
-  className={cn(
-    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
-    isActive
-      ? 'text-white'
-      : 'text-white/60 hover:bg-white/5 hover:text-white'
-  )}
->
-  <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white')} />
-  <span className="truncate">{item.name}</span>
-</Link>
+                  href={item.href}
+                  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
+                  onClick={() => closeMenu?.()}
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: branding?.accentColor ?? 'rgba(255,255,255,.12)',
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                    isActive
+                      ? 'text-white'
+                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  )}
+                >
+                  <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white')} />
+                  <span className="truncate">{item.name}</span>
+                </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{item.tooltip}</TooltipContent>
             </Tooltip>
@@ -156,27 +162,26 @@ function SidebarContent({
             <Tooltip key={item.name} delayDuration={300}>
               <TooltipTrigger asChild>
                 <Link
-  href={item.href}
-  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
-  onClick={() => closeMenu?.()}
-  style={
-    isActive
-      ? {
-          backgroundColor:
-            branding?.accentColor ?? 'rgba(255,255,255,.12)',
-        }
-      : undefined
-  }
-  className={cn(
-    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
-    isActive
-      ? 'text-white'
-      : 'text-white/60 hover:bg-white/5 hover:text-white'
-  )}
->
-  <Icon className="h-4 w-4 shrink-0" />
-  <span className="truncate">{item.name}</span>
-</Link>
+                  href={item.href}
+                  data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
+                  onClick={() => closeMenu?.()}
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: branding?.accentColor ?? 'rgba(255,255,255,.12)',
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                    isActive
+                      ? 'text-white'
+                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.name}</span>
+                </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{item.tooltip}</TooltipContent>
             </Tooltip>
@@ -205,7 +210,7 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
   return (
     <TooltipProvider>
       <>
-        {/* 📱 Mobile topbar: Ahora abarca el 100% horizontal de la parte superior */}
+        {/* 📱 Mobile topbar */}
         <div 
           className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b px-6 text-white lg:hidden shadow-sm shrink-0"
           style={{

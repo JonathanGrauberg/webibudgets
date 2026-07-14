@@ -1,4 +1,12 @@
-// Types for WebiBudgets Management System
+// lib/types.ts o donde tengas los tipos compartidos de tenant
+export type TenantFeatureKey =
+  | 'calculator'
+  | 'commissions'
+  | 'vouchers'
+  | 'dashboardMetrics'
+  | 'stockAnalytics'
+
+export type TenantFeatures = Partial<Record<TenantFeatureKey, boolean>>
 
 export interface Client {
   id: string
