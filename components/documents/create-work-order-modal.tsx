@@ -169,7 +169,7 @@ export function CreateWorkOrderModal({
           {/* Datos generales */}
           <div className="space-y-2">
             <Label>Título</Label>
-            <Input placeholder="Ej: Instalación de biodigestor 3000L" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input placeholder="Ej: Obra de instalación" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -251,7 +251,7 @@ export function CreateWorkOrderModal({
             <Label>Trabajo a realizar</Label>
             <Textarea
               rows={4}
-              placeholder={'Un ítem por línea, ej:\nInstalar biodigestor 3000L\nColocar cámara de inspección\nRealizar prueba hidráulica'}
+              placeholder={'Un ítem por línea, ej:\nCambiar filtro\nColocar cámara de inspección\nRealizar prueba hidráulica'}
               value={tasksText}
               onChange={(e) => setTasksText(e.target.value)}
             />
