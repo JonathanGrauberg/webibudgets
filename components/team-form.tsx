@@ -350,6 +350,29 @@ export function UserCard({
     }
   }
 
+  async function handleEditName() {
+  if (!onUpdate) return
+
+  const newName = prompt(`Nombre actual: ${user.name}\n\nEscribí el nuevo nombre:`, user.name)
+  if (newName === null) return
+  const trimmed = newName.trim()
+  if (trimmed === '') {
+    alert('❌ El nombre no puede estar vacío.')
+    return
+  }
+  if (trimmed === user.name) return
+
+  setIsUpdating(true)
+  try {
+    await onUpdate(user.id, { name: trimmed })
+    setShowActions(false)
+  } catch (err) {
+    alert('❌ No se pudo actualizar el nombre.')
+  } finally {
+    setIsUpdating(false)
+  }
+}
+
   return (
     <div className="p-4 border rounded-lg bg-card hover:shadow-sm transition">
       <div className="flex items-start justify-between">
@@ -429,6 +452,15 @@ export function UserCard({
               {isUpdating ? '...' : user.active ? '🚫 Desactivar usuario' : '✅ Activar usuario'}
             </button>
           )}
+
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={handleEditName}
+            className="px-3 py-1.5 text-sm rounded border border-zinc-200 text-zinc-700 hover:bg-accent text-left transition disabled:opacity-50"
+          >
+            {isUpdating ? '...' : '✏️ Editar nombre'}
+          </button>
 
           <button
             type="button"

@@ -44,7 +44,9 @@ type CompanyInfo = {
   address: string
   website?: string
   description: string
-  currency: string // 👈 nuevo
+  currency: string
+  cuit: string          // 👈 nuevo
+  condicionIva: string  // 👈 nuevo
 }
 
 type BrandingAssets = {
@@ -177,6 +179,13 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
   )
 }
 
+const CONDICION_IVA_OPTIONS = [
+      'Responsable Inscripto',
+      'Monotributista',
+      'Exento',
+      'Consumidor Final',
+    ]
+
 export default function CompanyBrandingSettingsClient({
   initialBranding,
   currentBudgets = 0,
@@ -190,8 +199,8 @@ export default function CompanyBrandingSettingsClient({
   const [activeTab, setActiveTab] = useState('company')
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
-    const dbName = effective.name ?? ''
-    const dbEmail = (initialBranding as any)?.email ?? ''
+  const dbName = effective.name ?? ''
+  const dbEmail = (initialBranding as any)?.email ?? ''
     return {
       name: dbName || session?.user?.name || '',
       email: dbEmail || session?.user?.email || '',
@@ -199,7 +208,9 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any)?.address ?? '',
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
-      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY, // 👈 nuevo
+      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
+      cuit: (initialBranding as any)?.cuit ?? '',                 // 👈 nuevo
+      condicionIva: (initialBranding as any)?.condicionIva ?? '', // 👈 nuevo
     }
   })
 
@@ -267,9 +278,12 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any)?.address ?? '',
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
-      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY, // 👈 nuevo
+      currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
+      cuit: (initialBranding as any)?.cuit ?? '',                 // 👈 nuevo
+      condicionIva: (initialBranding as any)?.condicionIva ?? '', // 👈 nuevo
     })
   })
+
   const [isSavingCompany, setIsSavingCompany] = useState(false)
   const [companySaveMessage, setCompanySaveMessage] = useState<string | null>(null)
 
@@ -335,7 +349,9 @@ export default function CompanyBrandingSettingsClient({
       address: (initialBranding as any).address ?? '',
       website: (initialBranding as any).website ?? '',
       description: (initialBranding as any).description ?? '',
-      currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY, // 👈 nuevo
+      currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
+      cuit: (initialBranding as any).cuit ?? '',                 // 👈 nuevo
+      condicionIva: (initialBranding as any).condicionIva ?? '', // 👈 nuevo
     })
 
     if (incomingCompanySerialized !== lastSeenCompanyPropsRef.current) {
@@ -346,7 +362,9 @@ export default function CompanyBrandingSettingsClient({
         address: (initialBranding as any).address ?? '',
         website: (initialBranding as any).website ?? '',
         description: (initialBranding as any).description ?? '',
-        currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY, // 👈 nuevo
+        currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
+        cuit: (initialBranding as any).cuit ?? '',                 // 👈 nuevo
+        condicionIva: (initialBranding as any).condicionIva ?? '', // 👈 nuevo
       })
       setSavedCompanySnapshot(incomingCompanySerialized)
       setSavedName(eff.name ?? '')
@@ -370,7 +388,9 @@ export default function CompanyBrandingSettingsClient({
       address: companyInfo.address,
       website: companyInfo.website ?? '',
       description: companyInfo.description,
-      currency: companyInfo.currency, // 👈 nuevo
+      currency: companyInfo.currency,
+      cuit: companyInfo.cuit,                 // 👈 nuevo
+      condicionIva: companyInfo.condicionIva, // 👈 nuevo
     }) !== savedCompanySnapshot
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
@@ -558,7 +578,9 @@ export default function CompanyBrandingSettingsClient({
       address: companyInfo.address,
       website: companyInfo.website ?? null,
       description: companyInfo.description,
-      currency: companyInfo.currency, // 👈 nuevo
+      currency: companyInfo.currency,
+      cuit: companyInfo.cuit || null,                 // 👈 nuevo
+      condicionIva: companyInfo.condicionIva || null,  // 👈 nuevo
     }
 
     try {
@@ -728,6 +750,38 @@ export default function CompanyBrandingSettingsClient({
                       <p className="text-xs text-slate-400">
                         Moneda usada por defecto en nuevos productos y presupuestos.
                       </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        CUIT
+                      </label>
+                      <input
+                        type="text"
+                        value={companyInfo.cuit}
+                        onChange={(e) => updateCompanyInfo('cuit', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-slate-900 dark:text-slate-50"
+                        placeholder="30-12345678-9"
+                      />
+                      <p className="text-xs text-slate-400">
+                        Se muestra en recibos, remitos y otros documentos legales.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Condición frente al IVA
+                      </label>
+                      <select
+                        value={companyInfo.condicionIva}
+                        onChange={(e) => updateCompanyInfo('condicionIva', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-slate-900 dark:text-slate-50"
+                      >
+                        <option value="">Sin especificar</option>
+                        {CONDICION_IVA_OPTIONS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-2 md:col-span-2">

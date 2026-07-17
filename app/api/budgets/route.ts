@@ -216,17 +216,19 @@ export async function POST(request: Request) {
             const isCustom = !item.productServiceId || item.isCustom || item.customName;
             
             return {
-              quantity: Number(item.quantity),
+              quantity: Number(item.quantity), // 👈 puede ser decimal — requiere quantity Float en el schema
               unitPrice: Number(item.unitPrice),
               subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
               discount: Number(item.discount ?? 0),
+              // Si es un producto libre, guardamos su nombre y NO conectamos productService
               customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
-              widthCm: item.widthCm ?? null,           // 👈 nuevo
-              heightCm: item.heightCm ?? null,         // 👈 nuevo
-              depthCm: item.depthCm ?? null,           // 👈 nuevo
-              direct: item.direct ?? null,             // 👈 nuevo
-              hours: item.hours ?? null,               // 👈 nuevo
-              calculatedM2: item.calculatedM2 ?? null, // 👈 nuevo
+              // 👈 campos de la calculadora (quedan null si el tenant no usa el módulo)
+              widthCm: item.widthCm ?? null,
+              heightCm: item.heightCm ?? null,
+              depthCm: item.depthCm ?? null,
+              direct: item.direct ?? null,
+              hours: item.hours ?? null,
+              calculatedM2: item.calculatedM2 ?? null,
               ...(!isCustom ? {
                 productService: {
                   connect: { id: item.productServiceId }

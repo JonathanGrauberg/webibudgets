@@ -150,6 +150,9 @@ export async function getTenantBranding(tenantId: string) {
       address: true,
       website: true,
       description: true,
+      currency: true,      // 👈 nuevo — esto también faltaba, mismo problema potencial con la moneda
+      cuit: true,           // 👈 nuevo
+      condicionIva: true,   // 👈 nuevo
       logoUrl: true,
       faviconUrl: true,
       watermarkUrl: true,
@@ -161,6 +164,7 @@ export async function getTenantBranding(tenantId: string) {
       showPageNumbers: true,
       showWebsiteInPdf: true,
       showFooterBranding: true,
+      features: true,
     },
   })
 }

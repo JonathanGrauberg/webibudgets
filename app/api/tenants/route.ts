@@ -21,7 +21,9 @@ export async function GET(request: Request) {
       address: true,
       website: true,
       description: true,
-      currency: true, // 👈 nuevo
+      currency: true,
+      cuit: true,          // 👈 nuevo
+      condicionIva: true,  // 👈 nuevo
 
       logoUrl: true,
       faviconUrl: true,
@@ -36,7 +38,7 @@ export async function GET(request: Request) {
       showWebsiteInPdf: true,
       showFooterBranding: true,
 
-      features: true, // 👈 nuevo — solo lectura, no se agrega a `allowed` del PUT a propósito
+      features: true,
     }
   })
 
@@ -77,7 +79,9 @@ export async function PUT(request: NextRequest) {
     'address',
     'website',
     'description',
-    'currency', // 👈 nuevo
+    'currency',
+    'cuit',          // 👈 nuevo
+    'condicionIva',  // 👈 nuevo
 
     'logoUrl',
     'faviconUrl',
@@ -91,14 +95,9 @@ export async function PUT(request: NextRequest) {
     'showPageNumbers',
     'showWebsiteInPdf',
     'showFooterBranding',
-    // 'preferredTheme' intentionally excluded for MVP: fixed corporate theme
 
     'plan',
     'maxUsers',
-    // 'features' intencionalmente EXCLUIDO: solo se edita vía
-    // /api/admin/tenants/[id]/features (owner-only de la plataforma).
-    // Si se agrega acá, cualquier admin/owner del propio tenant podría
-    // auto-habilitarse módulos Custom editando su propio branding.
   ]
   const updateData: Record<string, unknown> = {}
   for (const k of allowed) {

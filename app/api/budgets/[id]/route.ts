@@ -146,7 +146,6 @@ export async function PATCH(request: Request, { params }: Params) {
         tax: calculation.taxAmount,
         shippingCost: calculation.shippingCost,
         total: calculation.total,
-        revisionNumber: { increment: 1 }, // 👈 nuevo
       }
 
       if (data.status !== undefined) {
@@ -189,22 +188,22 @@ export async function PATCH(request: Request, { params }: Params) {
         prisma.budget.updateMany({ where: tenantWhereId(id, tenantId), data: updateData }),
         prisma.budgetItem.deleteMany({ where: { budgetId: id } }),
         prisma.budgetItem.createMany({
-        data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
-          budgetId: id,
-          productServiceId: item.productServiceId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          subtotal: item.subtotal,
-          discount: item.discount,
-          customName: item.customName,
-          widthCm: item.widthCm,       // 👈 nuevo
-          heightCm: item.heightCm,     // 👈 nuevo
-          depthCm: item.depthCm,       // 👈 nuevo
-          direct: item.direct,         // 👈 nuevo
-          hours: item.hours,           // 👈 nuevo
-          calculatedM2: item.calculatedM2, // 👈 nuevo
-        })),
-      }),
+          data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
+            budgetId: id,
+            productServiceId: item.productServiceId,
+            quantity: item.quantity, // 👈 puede ser decimal — requiere quantity Float en el schema
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            discount: item.discount,
+            customName: item.customName,
+            widthCm: item.widthCm,
+            heightCm: item.heightCm,
+            depthCm: item.depthCm,
+            direct: item.direct,
+            hours: item.hours,
+            calculatedM2: item.calculatedM2,
+          })),
+        }),
       ])
 
       if (result[0].count === 0) {

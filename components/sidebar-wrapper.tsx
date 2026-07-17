@@ -1,5 +1,5 @@
 'use client'
-
+//components\sidebar-wrapper.tsx
 import { useSession } from 'next-auth/react'
 import { AppSidebar as AppSidebarWithRoles } from './app-sidebar-with-roles'
 import { useBranding } from './branding-provider'

@@ -71,7 +71,7 @@ function SidebarContent({
           return null
         }
       })()
-    : branding?.features
+    : branding?.features 
 
   const visibleNavigation = getVisibleNavItems(userRole, parsedFeatures)
   const visibleSettings = getVisibleSettingsItems(userRole)

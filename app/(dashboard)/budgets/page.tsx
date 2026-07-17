@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\budgets\page.tsx
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
@@ -24,18 +24,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { 
-  Loader2, 
-  Eye, 
-  ArrowUpRight, 
-  Plus, 
-  FileText, 
-  AlertTriangle, 
-  Sparkles, 
-  BarChart3,
-  Pencil,
-  Search,
-  CheckCircle2,
-  Wallet
+  Loader2, Eye, ArrowUpRight, Plus, FileText, AlertTriangle, Sparkles, BarChart3,
+  Pencil, Search, CheckCircle2, Wallet,
+  Percent, TrendingUp, PackageMinus, Handshake, // 👈 nuevo
 } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -63,6 +54,34 @@ function formatDate(date: Date | string): string {
     month: 'short',
     year: 'numeric',
   }).format(new Date(date))
+}
+
+// 🌟 Ganancia = Total del presupuesto - costo de los productos que lo componen.
+// Ítems "libre" o sin `cost` cargado cuentan como costo $0 (inflan la ganancia mostrada).
+function computeBudgetCostMetrics(budget: Budget) {
+  let cost = 0
+  let hasMissingCost = false
+
+  for (const item of budget.items ?? []) {
+    const productCost = (item as any).productService?.cost
+    if (productCost != null) {
+      cost += productCost * item.quantity
+    } else {
+      hasMissingCost = true
+    }
+  }
+
+  const profit = budget.total - cost
+  const marginPct = budget.total > 0 ? (profit / budget.total) * 100 : 0
+
+  return { cost, profit, marginPct, hasMissingCost }
+}
+
+function summaryTotalForMargin(budgets: Budget[]): number {
+  const totalRevenue = budgets.reduce((acc, b) => acc + (b.total ?? 0), 0)
+  if (totalRevenue === 0) return 0
+  const totalProfit = budgets.reduce((acc, b) => acc + computeBudgetCostMetrics(b).profit, 0)
+  return (totalProfit / totalRevenue) * 100
 }
 
 export default function BudgetsPage() {
@@ -121,16 +140,33 @@ export default function BudgetsPage() {
     }
   }, [budgetsRaw, session])
 
-  // 🌟 nuevo: métricas resumen (sobre el total visible al usuario, respetando permisos)
+  const canViewFinancials = canEdit('budgets') // 👈 nuevo — mismo criterio que edición: owner/admin/seller
+
   const summary = useMemo(() => {
     const total = budgets.length
     const approved = budgets.filter((b) => b.status === 'approved')
     const approvedTotal = approved.reduce((acc, b) => acc + (b.total ?? 0), 0)
 
+    // 🌟 nuevo — costo/ganancia/margen agregados sobre TODO lo filtrado, no solo aprobados
+    let totalCost = 0
+    let totalProfit = 0
+    let anyMissingCost = false
+    for (const b of budgets) {
+      const { cost, profit, hasMissingCost } = computeBudgetCostMetrics(b)
+      totalCost += cost
+      totalProfit += profit
+      if (hasMissingCost) anyMissingCost = true
+    }
+    const avgMarginPct = summaryTotalForMargin(budgets)
+
     return {
       total,
       approvedCount: approved.length,
       approvedTotal,
+      totalCost,       // 👈 nuevo
+      totalProfit,     // 👈 nuevo
+      avgMarginPct,    // 👈 nuevo
+      anyMissingCost,  // 👈 nuevo
     }
   }, [budgets])
 
@@ -188,26 +224,52 @@ export default function BudgetsPage() {
 
         {/* 🌟 nuevo: tira de métricas sutil */}
         {budgets.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
-            <div className="flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-semibold text-card-foreground">{summary.total}</span>
-              <span className="text-muted-foreground">presupuestos</span>
-            </div>
-            <div className="hidden h-3 w-px bg-border sm:block" />
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-semibold text-card-foreground">{summary.approvedCount}</span>
-              <span className="text-muted-foreground">aprobados</span>
-            </div>
-            <div className="hidden h-3 w-px bg-border sm:block" />
-            <div className="flex items-center gap-1.5">
-              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-semibold text-card-foreground">{formatCurrency(summary.approvedTotal)}</span>
-              <span className="text-muted-foreground">en aprobados</span>
-            </div>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
+          <div className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-card-foreground">{summary.total}</span>
+            <span className="text-muted-foreground">presupuestos</span>
           </div>
-        )}
+          <div className="hidden h-3 w-px bg-border sm:block" />
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-card-foreground">{summary.approvedCount}</span>
+            <span className="text-muted-foreground">aprobados</span>
+          </div>
+          <div className="hidden h-3 w-px bg-border sm:block" />
+          <div className="flex items-center gap-1.5">
+            <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-card-foreground">{formatCurrency(summary.approvedTotal)}</span>
+            <span className="text-muted-foreground">en aprobados</span>
+          </div>
+
+          {canViewFinancials && (
+            <>
+              <div className="hidden h-3 w-px bg-border sm:block" />
+              <div className="flex items-center gap-1.5">
+                <PackageMinus className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-semibold text-card-foreground">{formatCurrency(summary.totalCost)}</span>
+                <span className="text-muted-foreground">costo total</span>
+              </div>
+              <div className="hidden h-3 w-px bg-border sm:block" />
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-semibold text-card-foreground">{formatCurrency(summary.totalProfit)}</span>
+                <span className="text-muted-foreground">ganancia total</span>
+              </div>
+              <div className="hidden h-3 w-px bg-border sm:block" />
+              <div className="flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-semibold text-card-foreground">{summary.avgMarginPct.toFixed(1)}%</span>
+                <span className="text-muted-foreground">margen promedio</span>
+                {summary.anyMissingCost && (
+                  <span className="ml-1 text-amber-600" title="Algunos ítems no tienen costo cargado — la ganancia real puede ser menor">⚠️</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
         
         {/* 📊 INDICADOR TOP SUPERIOR: Muestra el uso del plan actual de manera elegante */}
         {limitInfo.isStarter && (
@@ -323,7 +385,10 @@ export default function BudgetsPage() {
           <>
             {/* MOBILE: cards */}
             <div className="space-y-4 md:hidden">
-              {filteredBudgets.map((b) => (
+              {filteredBudgets.map((b) => {
+              const { marginPct, hasMissingCost } = computeBudgetCostMetrics(b) // 👈 nuevo
+
+              return (
                 <Card key={b.id}>
                   <CardContent className="space-y-4 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -339,12 +404,35 @@ export default function BudgetsPage() {
                         {STATUS_LABELS[b.status]}
                       </Badge>
                     </div>
+
+                    {b.seller && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <Handshake className="h-3.5 w-3.5" /> Vendedor
+                        </span>
+                        <span className="text-card-foreground">{b.seller.name} {b.seller.lastName}</span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Total</span>
                       <span className="font-semibold text-card-foreground">
                         {formatCurrency(b.total)}
                       </span>
                     </div>
+
+                    {canViewFinancials && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Margen</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Badge className={marginPct < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                            {marginPct.toFixed(1)}%
+                          </Badge>
+                          {hasMissingCost && <span className="text-amber-600 text-xs">⚠️</span>}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <Link href={`/budgets/${b.id}`} className="flex-1">
                         <Button variant="outline" className="w-full">
@@ -363,7 +451,8 @@ export default function BudgetsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )
+            })}
             </div>
 
             {/* DESKTOP/TABLET: table */}
@@ -374,53 +463,90 @@ export default function BudgetsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Cliente</TableHead>
+                        <TableHead>Vendedor</TableHead>
                         <TableHead className="text-muted-foreground">N°</TableHead>
                         <TableHead>Fecha</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">Total</TableHead>
+                        {canViewFinancials && (
+                          <>
+                            <TableHead className="text-right">Costo</TableHead>
+                            <TableHead className="text-right">Ganancia</TableHead>
+                            <TableHead className="text-right">Margen</TableHead>
+                          </>
+                        )}
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredBudgets.map((b) => (
-                        <TableRow key={b.id} className="hover:bg-muted/40">
-                          <TableCell className="font-medium">
-                            {b.client?.company || b.client?.name || '-'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            #{String(b.budgetNumber ?? 0).padStart(6, '0')}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {formatDate(b.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={STATUS_COLORS[b.status]}>
-                              {STATUS_LABELS[b.status]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(b.total)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Link href={`/budgets/${b.id}`}>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Ver
-                                </Button>
-                              </Link>
-                              {canCreateBudget && (
-                                <Link href={`/budgets/${b.id}/edit`}>
+                      {filteredBudgets.map((b) => {
+                        const { cost, profit, marginPct, hasMissingCost } = computeBudgetCostMetrics(b)
+
+                        return (
+                          <TableRow key={b.id} className="hover:bg-muted/40">
+                            <TableCell className="font-medium">
+                              {b.client?.company || b.client?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {b.seller ? `${b.seller.name} ${b.seller.lastName}` : '—'}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDate(b.createdAt)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={STATUS_COLORS[b.status]}>
+                                {STATUS_LABELS[b.status]}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(b.total)}
+                            </TableCell>
+
+                            {canViewFinancials && (
+                              <>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {formatCurrency(cost)}
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                  {formatCurrency(profit)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Badge className={marginPct < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                                      {marginPct.toFixed(1)}%
+                                    </Badge>
+                                    {hasMissingCost && (
+                                      <span title="Algún ítem sin costo cargado" className="text-amber-600 text-xs">⚠️</span>
+                                    )}
+                                  </span>
+                                </TableCell>
+                              </>
+                            )}
+
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Link href={`/budgets/${b.id}`}>
                                   <Button variant="outline" size="sm">
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Editar
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Ver
                                   </Button>
                                 </Link>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                {canCreateBudget && (
+                                  <Link href={`/budgets/${b.id}/edit`}>
+                                    <Button variant="outline" size="sm">
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Editar
+                                    </Button>
+                                  </Link>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

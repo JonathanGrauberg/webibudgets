@@ -1,5 +1,6 @@
 'use client'
 //app\(dashboard)\documents\page.tsx
+import { useState } from 'react'
 import useSWR from 'swr'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,9 @@ import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
 import { hasFeature } from '@/lib/features'
+import { CreateReceiptModal } from '@/components/documents/create-receipt-modal'
+import { History } from 'lucide-react' // 👈 nuevo
+import { ReceiptsHistoryModal } from '@/components/documents/receipts-history-modal'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -25,28 +29,49 @@ async function fetcher(url: string) {
   return res.json()
 }
 
-function DocumentButtons({ budgetId }: { budgetId: string }) {
+function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onReceiptCreated: () => void }) {
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false) // 👈 nuevo
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <a href={`/api/budgets/${budgetId}/receipt`} target="_blank" rel="noreferrer">
-        <Button variant="outline" size="sm" className="gap-1.5">
+    <>
+      <div className="flex flex-wrap gap-1.5">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setReceiptModalOpen(true)}>
           <Receipt className="h-3.5 w-3.5" /> Recibo
         </Button>
-      </a>
-      <a href={`/api/budgets/${budgetId}/work-order`} target="_blank" rel="noreferrer">
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <ClipboardList className="h-3.5 w-3.5" /> Orden de trabajo
+        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setHistoryModalOpen(true)}>
+          <History className="h-3.5 w-3.5" /> Ver recibos
         </Button>
-      </a>
-      <a href={`/api/budgets/${budgetId}/delivery-note`} target="_blank" rel="noreferrer">
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Truck className="h-3.5 w-3.5" /> Remito
-        </Button>
-      </a>
-    </div>
+        <a href={`/api/budgets/${budget.id}/work-order`} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <ClipboardList className="h-3.5 w-3.5" /> Orden de trabajo
+          </Button>
+        </a>
+        <a href={`/api/budgets/${budget.id}/delivery-note`} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Truck className="h-3.5 w-3.5" /> Remito
+          </Button>
+        </a>
+      </div>
+
+      <CreateReceiptModal
+        open={receiptModalOpen}
+        onOpenChange={setReceiptModalOpen}
+        budgetId={budget.id}
+        budgetTotal={budget.total}
+        budgetNumber={budget.budgetNumber ?? 0}
+        onCreated={onReceiptCreated}
+      />
+
+      <ReceiptsHistoryModal
+        open={historyModalOpen}
+        onOpenChange={setHistoryModalOpen}
+        budgetId={budget.id}
+        budgetNumber={budget.budgetNumber ?? 0}
+      />
+    </>
   )
 }
-
 export default function DocumentsPage() {
   const { filterBudgets } = usePermissions()
   const { data: budgetsRaw = [], isLoading } = useSWR<Budget[]>('/api/budgets', fetcher)
@@ -126,7 +151,7 @@ export default function DocumentsPage() {
                       </div>
                       <Badge className={STATUS_COLORS[b.status]}>{STATUS_LABELS[b.status]}</Badge>
                     </div>
-                    <DocumentButtons budgetId={b.id} />
+                    <DocumentButtons budget={b} onReceiptCreated={() => {}} />
                   </CardContent>
                 </Card>
               ))}
@@ -156,7 +181,7 @@ export default function DocumentsPage() {
                             <Badge className={STATUS_COLORS[b.status]}>{STATUS_LABELS[b.status]}</Badge>
                           </TableCell>
                           <TableCell>
-                            <DocumentButtons budgetId={b.id} />
+                            <DocumentButtons budget={b} onReceiptCreated={() => {}} />
                           </TableCell>
                         </TableRow>
                       ))}

@@ -208,7 +208,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { userId, role, active, newPassword } = body
+    const { userId, name, role, active, newPassword } = body 
 
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 })
@@ -238,8 +238,9 @@ export async function PUT(req: NextRequest) {
     }
 
     const updateData: any = {}
-    if (role !== undefined) updateData.role = role
-    if (active !== undefined) updateData.active = active
+      if (typeof name === 'string' && name.trim() !== '') updateData.name = name.trim() // 👈 nuevo
+      if (role !== undefined) updateData.role = role
+      if (active !== undefined) updateData.active = active
 
     if (newPassword !== undefined && newPassword !== null && newPassword !== '') {
       if (typeof newPassword !== 'string' || !PASSWORD_REGEX.test(newPassword)) {
@@ -267,8 +268,8 @@ export async function PUT(req: NextRequest) {
         },
       })
 
-      // Si se editó el rol, nos aseguramos de sincronizar los perfiles comerciales
-      if (role !== undefined) {
+      // Si se editó el rol O el nombre, sincronizamos los perfiles comerciales
+      if (role !== undefined || updateData.name !== undefined) {
         const profileInput = {
           userId: userUpdated.id,
           tenantId: tenantId,
@@ -277,9 +278,9 @@ export async function PUT(req: NextRequest) {
           active: userUpdated.active,
         }
 
-        if (role === 'seller') {
+        if ((role ?? targetUser.role) === 'seller') {
           await ensureSellerForUser(tx, profileInput)
-        } else if (role === 'installer') {
+        } else if ((role ?? targetUser.role) === 'installer') {
           await ensureInstallerForUser(tx, profileInput)
         }
       }

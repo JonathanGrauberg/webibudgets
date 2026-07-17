@@ -11,7 +11,8 @@ export type Branding = {
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
-  currency?: string | null // 👈 nuevo
+  currency?: string | null
+  features?: unknown // 👈 nuevo — lo tipamos unknown acá porque este archivo no conoce FeatureKey de lib/features; el sidebar y hasFeature() ya validan la forma real
 }
 
 export const SYSTEM_BRANDING: Branding = {
@@ -34,12 +35,13 @@ export function effectiveBranding(tenant?: Branding): Branding {
     name: tenant.name ?? SYSTEM_BRANDING.name,
     logoUrl: tenant.logoUrl ?? SYSTEM_BRANDING.logoUrl,
     faviconUrl: tenant.faviconUrl ?? SYSTEM_BRANDING.faviconUrl,
-      watermarkUrl: tenant.watermarkUrl ?? SYSTEM_BRANDING.watermarkUrl,
-      sidebarIconUrl: tenant.sidebarIconUrl ?? SYSTEM_BRANDING.sidebarIconUrl,
+    watermarkUrl: tenant.watermarkUrl ?? SYSTEM_BRANDING.watermarkUrl,
+    sidebarIconUrl: tenant.sidebarIconUrl ?? SYSTEM_BRANDING.sidebarIconUrl,
     primaryColor: tenant.primaryColor ?? SYSTEM_BRANDING.primaryColor,
     secondaryColor: tenant.secondaryColor ?? SYSTEM_BRANDING.secondaryColor,
     accentColor: tenant.accentColor ?? SYSTEM_BRANDING.accentColor,
-    currency: tenant.currency ?? SYSTEM_BRANDING.currency, // 👈 nuevo
+    currency: tenant.currency ?? SYSTEM_BRANDING.currency,
+    features: tenant.features ?? undefined, // 👈 nuevo — sin default de SYSTEM_BRANDING porque no tiene sentido un feature "de sistema"
   }
 }
 
