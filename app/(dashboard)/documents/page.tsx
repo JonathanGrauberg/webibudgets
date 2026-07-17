@@ -22,6 +22,8 @@ import { hasFeature } from '@/lib/features'
 import { CreateReceiptModal } from '@/components/documents/create-receipt-modal'
 import { History } from 'lucide-react' // 👈 nuevo
 import { ReceiptsHistoryModal } from '@/components/documents/receipts-history-modal'
+import { CreateDeliveryNoteModal } from '@/components/documents/create-delivery-note-modal' // 👈 nuevo
+import { DeliveryNotesHistoryModal } from '@/components/documents/delivery-notes-history-modal' // 👈 nuevo
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -31,7 +33,9 @@ async function fetcher(url: string) {
 
 function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onReceiptCreated: () => void }) {
   const [receiptModalOpen, setReceiptModalOpen] = useState(false)
-  const [historyModalOpen, setHistoryModalOpen] = useState(false) // 👈 nuevo
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false) // 👈 nuevo
+  const [deliveryHistoryOpen, setDeliveryHistoryOpen] = useState(false) // 👈 nuevo
 
   return (
     <>
@@ -42,14 +46,17 @@ function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onRecei
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setHistoryModalOpen(true)}>
           <History className="h-3.5 w-3.5" /> Ver recibos
         </Button>
+
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDeliveryModalOpen(true)}>
+          <Truck className="h-3.5 w-3.5" /> Remito
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setDeliveryHistoryOpen(true)}>
+          <History className="h-3.5 w-3.5" /> Ver remitos
+        </Button>
+
         <a href={`/api/budgets/${budget.id}/work-order`} target="_blank" rel="noreferrer">
           <Button variant="outline" size="sm" className="gap-1.5">
             <ClipboardList className="h-3.5 w-3.5" /> Orden de trabajo
-          </Button>
-        </a>
-        <a href={`/api/budgets/${budget.id}/delivery-note`} target="_blank" rel="noreferrer">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Truck className="h-3.5 w-3.5" /> Remito
           </Button>
         </a>
       </div>
@@ -62,10 +69,23 @@ function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onRecei
         budgetNumber={budget.budgetNumber ?? 0}
         onCreated={onReceiptCreated}
       />
-
       <ReceiptsHistoryModal
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
+        budgetId={budget.id}
+        budgetNumber={budget.budgetNumber ?? 0}
+      />
+
+      <CreateDeliveryNoteModal
+        open={deliveryModalOpen}
+        onOpenChange={setDeliveryModalOpen}
+        budgetId={budget.id}
+        budgetNumber={budget.budgetNumber ?? 0}
+        onCreated={() => {}}
+      />
+      <DeliveryNotesHistoryModal
+        open={deliveryHistoryOpen}
+        onOpenChange={setDeliveryHistoryOpen}
         budgetId={budget.id}
         budgetNumber={budget.budgetNumber ?? 0}
       />

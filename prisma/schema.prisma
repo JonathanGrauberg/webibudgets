@@ -11,6 +11,11 @@ datasource db {
    ENUMS
 ========================= */
 
+enum DeliveryNoteStatus {
+  active
+  voided
+}
+
 enum PaymentMethod {
   efectivo
   transferencia
@@ -120,11 +125,13 @@ model Tenant {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  currency String @default("ARS") // 👈 moneda por defecto del tenant
-  cuit         String?  // 👈 nuevo — CUIT de la empresa emisora
-  condicionIva String?  // 👈 nuevo — "Responsable Inscripto" | "Monotributista" | "Exento" | "Consumidor Final"
-  receiptSequence Int @default(1) // 👈 nuevo — numeración correlativa de recibos, mismo patrón que budgetSequence
-  receipts     Receipt[] // 👈 nuevo
+  currency String @default("ARS") 
+  cuit         String?  
+  condicionIva String?  
+  receiptSequence Int @default(1) 
+  deliveryNoteSequence Int @default(1) // 👈 nuevo
+  receipts     Receipt[] 
+  deliveryNotes DeliveryNote[] // 👈 nuevo
 }
 
 /* =========================
@@ -146,14 +153,15 @@ model User {
 
   role      UserRole @default(viewer)
   active    Boolean @default(true)
-  hasSeenOnboarding Boolean @default(false)   // 👈 nuevo
+  hasSeenOnboarding Boolean @default(false)   
 
   accounts  Account[]
   sessions  Session[]
   seller    Seller?
   installer Installer?
 
-  receipts Receipt[] // 👈 nuevo — recibos registrados por este usuario
+  receipts Receipt[] 
+  deliveryNotes DeliveryNote[] // 👈 nuevo
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -338,10 +346,11 @@ model Budget {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  currency String @default("ARS") // 👈 moneda única de ESTE presupuesto
-  revisionNumber Int @default(0) // 👈 nuevo — se incrementa en cada edición real (cambios en items)
+  currency String @default("ARS") 
+  revisionNumber Int @default(0) 
 
-  receipts Receipt[] // 👈 nuevo
+  receipts Receipt[] 
+  deliveryNotes DeliveryNote[] // 👈 nuevo
 
   @@index([tenantId])
   @@index([clientId])
@@ -525,6 +534,50 @@ model Receipt {
   registeredByUser   User?   @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
 
   status         ReceiptStatus @default(active)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([budgetId])
+}
+
+
+/* =========================
+   DELIVERY NOTES
+========================= */
+
+
+model DeliveryNote {
+  id               String   @id @default(uuid())
+
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  budgetId         String
+  budget           Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  deliveryNumber   Int
+
+  issueDate        DateTime @default(now())
+
+  // Transporte (todo opcional — no siempre hay transportista tercero)
+  vehicle          String?
+  driverName       String?
+  licensePlate     String?
+  carrierCompany   String?
+
+  // Recepción
+  receivedByName   String?
+  receivedByDni    String?
+  receivedAt       DateTime?
+
+  notes            String?
+
+  registeredByUserId String?
+  registeredByUser   User?   @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
+
+  status           DeliveryNoteStatus @default(active)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
