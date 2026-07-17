@@ -14,16 +14,23 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Receipt, ClipboardList, Truck } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Receipt, ClipboardList, Truck, History, Plus, ChevronDown } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
 import { hasFeature } from '@/lib/features'
 import { CreateReceiptModal } from '@/components/documents/create-receipt-modal'
-import { History } from 'lucide-react' // 👈 nuevo
 import { ReceiptsHistoryModal } from '@/components/documents/receipts-history-modal'
-import { CreateDeliveryNoteModal } from '@/components/documents/create-delivery-note-modal' // 👈 nuevo
-import { DeliveryNotesHistoryModal } from '@/components/documents/delivery-notes-history-modal' // 👈 nuevo
+import { CreateDeliveryNoteModal } from '@/components/documents/create-delivery-note-modal'
+import { DeliveryNotesHistoryModal } from '@/components/documents/delivery-notes-history-modal'
+import { CreateWorkOrderModal } from '@/components/documents/create-work-order-modal'
+import { WorkOrdersHistoryModal } from '@/components/documents/work-orders-history-modal'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -31,34 +38,71 @@ async function fetcher(url: string) {
   return res.json()
 }
 
+function DocumentTypeMenu({
+  icon: Icon,
+  label,
+  onNew,
+  onHistory,
+}: {
+  icon: React.ElementType
+  label: string
+  onNew: () => void
+  onHistory: () => void
+}) {
+  // 👇 diferimos la apertura para que el DropdownMenu termine de cerrarse antes
+  const handleNew = () => setTimeout(onNew, 0)
+  const handleHistory = () => setTimeout(onHistory, 0)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+          <ChevronDown className="h-3 w-3 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={handleNew} className="gap-2">
+          <Plus className="h-3.5 w-3.5" /> Nuevo
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleHistory} className="gap-2">
+          <History className="h-3.5 w-3.5" /> Ver historial
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onReceiptCreated: () => void }) {
   const [receiptModalOpen, setReceiptModalOpen] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
-  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false) // 👈 nuevo
-  const [deliveryHistoryOpen, setDeliveryHistoryOpen] = useState(false) // 👈 nuevo
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false)
+  const [deliveryHistoryOpen, setDeliveryHistoryOpen] = useState(false)
+  const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false)
+  const [workOrderHistoryOpen, setWorkOrderHistoryOpen] = useState(false)
 
   return (
     <>
       <div className="flex flex-wrap gap-1.5">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setReceiptModalOpen(true)}>
-          <Receipt className="h-3.5 w-3.5" /> Recibo
-        </Button>
-        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setHistoryModalOpen(true)}>
-          <History className="h-3.5 w-3.5" /> Ver recibos
-        </Button>
-
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDeliveryModalOpen(true)}>
-          <Truck className="h-3.5 w-3.5" /> Remito
-        </Button>
-        <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setDeliveryHistoryOpen(true)}>
-          <History className="h-3.5 w-3.5" /> Ver remitos
-        </Button>
-
-        <a href={`/api/budgets/${budget.id}/work-order`} target="_blank" rel="noreferrer">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <ClipboardList className="h-3.5 w-3.5" /> Orden de trabajo
-          </Button>
-        </a>
+        <DocumentTypeMenu
+          icon={Receipt}
+          label="Recibo"
+          onNew={() => setReceiptModalOpen(true)}
+          onHistory={() => setHistoryModalOpen(true)}
+        />
+        <DocumentTypeMenu
+          icon={Truck}
+          label="Remito"
+          onNew={() => setDeliveryModalOpen(true)}
+          onHistory={() => setDeliveryHistoryOpen(true)}
+        />
+        <DocumentTypeMenu
+          icon={ClipboardList}
+          label="Orden de trabajo"
+          onNew={() => setWorkOrderModalOpen(true)}
+          onHistory={() => setWorkOrderHistoryOpen(true)}
+        />
       </div>
 
       <CreateReceiptModal
@@ -89,20 +133,32 @@ function DocumentButtons({ budget, onReceiptCreated }: { budget: Budget; onRecei
         budgetId={budget.id}
         budgetNumber={budget.budgetNumber ?? 0}
       />
+
+      <CreateWorkOrderModal
+        open={workOrderModalOpen}
+        onOpenChange={setWorkOrderModalOpen}
+        budgetId={budget.id}
+        budgetNumber={budget.budgetNumber ?? 0}
+        onCreated={() => {}}
+      />
+      <WorkOrdersHistoryModal
+        open={workOrderHistoryOpen}
+        onOpenChange={setWorkOrderHistoryOpen}
+        budgetId={budget.id}
+        budgetNumber={budget.budgetNumber ?? 0}
+      />
     </>
   )
 }
+
 export default function DocumentsPage() {
   const { filterBudgets } = usePermissions()
   const { data: budgetsRaw = [], isLoading } = useSWR<Budget[]>('/api/budgets', fetcher)
   const budgets = filterBudgets(budgetsRaw)
 
-  // 🌟 nuevo: feature gate del tenant (mismo patrón que showMetrics en el dashboard)
   const { data: branding, isLoading: isLoadingBranding } = useSWR('/api/tenants', fetcher)
   const hasVouchersFeature = hasFeature({ features: branding?.features }, 'vouchers')
 
-  // 🌟 Mientras no sabemos si tiene el feature, no mostramos nada todavía
-  // (evita el flash de contenido que se ve un instante antes de bloquear)
   if (isLoadingBranding) {
     return (
       <div className="flex min-h-screen items-center justify-center text-muted-foreground">
@@ -111,7 +167,6 @@ export default function DocumentsPage() {
     )
   }
 
-  // 🌟 Bloqueo si el tenant no tiene el feature — va ANTES y SOLO, no envuelve el resto
   if (!hasVouchersFeature) {
     return (
       <div className="min-h-screen">
@@ -132,7 +187,6 @@ export default function DocumentsPage() {
     )
   }
 
-  // 🌟 Página normal — solo se llega acá si el tenant tiene el feature habilitado
   return (
     <div className="min-h-screen">
       <PageHeader

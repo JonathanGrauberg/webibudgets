@@ -11,6 +11,15 @@ datasource db {
    ENUMS
 ========================= */
 
+enum WorkOrderStatus {
+  pending
+  in_progress
+  paused
+  completed
+  cancelled
+  voided
+}
+
 enum DeliveryNoteStatus {
   active
   voided
@@ -132,6 +141,9 @@ model Tenant {
   deliveryNoteSequence Int @default(1) // 👈 nuevo
   receipts     Receipt[] 
   deliveryNotes DeliveryNote[] // 👈 nuevo
+
+  workOrderSequence Int @default(1) // 👈 nuevo
+  workOrders WorkOrder[] // 👈 nuevo
 }
 
 /* =========================
@@ -165,6 +177,9 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  workOrdersAssigned WorkOrder[] @relation("AssignedTechnician") // 👈 nuevo
+  workOrdersRegistered WorkOrder[] @relation("RegisteredBy") // 👈 nuevo
 
   @@index([tenantId])
 }
@@ -351,6 +366,7 @@ model Budget {
 
   receipts Receipt[] 
   deliveryNotes DeliveryNote[] // 👈 nuevo
+  workOrders WorkOrder[] // 👈 nuevo
 
   @@index([tenantId])
   @@index([clientId])
@@ -584,4 +600,69 @@ model DeliveryNote {
 
   @@index([tenantId])
   @@index([budgetId])
+}
+
+/* =========================
+   WORKORDERS
+========================= */
+
+
+model WorkOrder {
+  id             String   @id @default(uuid())
+
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  budgetId       String
+  budget         Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  workOrderNumber Int
+
+  status         WorkOrderStatus @default(pending)
+
+  pauseReason    String?  // 👈 nuevo — motivo de la pausa (ej: "se frenó por lluvia")
+
+  title          String?
+  description    String?
+
+  assignedToUserId String?
+  assignedToUser   User?  @relation("AssignedTechnician", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  scheduledDate  DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  estimatedHours Float?
+  actualHours    Float?
+
+  notes          String?
+
+  registeredByUserId String?
+  registeredByUser   User?  @relation("RegisteredBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
+
+  checklist      WorkOrderChecklistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([budgetId])
+  @@index([assignedToUserId])
+}
+
+model WorkOrderChecklistItem {
+  id          String   @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  label       String
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  order       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workOrderId])
 }
