@@ -91,8 +91,20 @@ function buildInstallerReference(installer: Installer): string {
   return parts.join(' - ')
 }
 
+/* Props compartidas entre la fila de tabla (desktop) y la card (mobile) */
+type BudgetItemCellProps = {
+  item: BudgetItemInput
+  currency: string
+  calculatorEnabled: boolean
+  expandedCalcIds: Set<string>
+  onToggleCalc: (id: string) => void
+  onUpdateField: (id: string, field: keyof BudgetItemInput, value: any) => void
+  onRemove: (id: string) => void
+  getStock: (id: string | null) => number
+}
+
 /* ================================
-   BUDGET ITEM ROW — memoizado para
+   BUDGET ITEM ROW (DESKTOP/TABLET) — memoizado para
    evitar re-renders y el loop del
    calculador
 ================================ */
@@ -105,16 +117,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
   onUpdateField,
   onRemove,
   getStock,
-}: {
-  item: BudgetItemInput
-  currency: string
-  calculatorEnabled: boolean
-  expandedCalcIds: Set<string>
-  onToggleCalc: (id: string) => void
-  onUpdateField: (id: string, field: keyof BudgetItemInput, value: any) => void
-  onRemove: (id: string) => void
-  getStock: (id: string | null) => number
-}) {
+}: BudgetItemCellProps) {
   // ✅ Callbacks estables: no se recrean salvo que cambie item.id o onUpdateField
   const handleQuantityChange = useCallback(
     (qty: number) => onUpdateField(item.id, 'quantity', qty),
@@ -249,6 +252,167 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
         </TableRow>
       )}
     </React.Fragment>
+  )
+})
+
+/* ================================
+   BUDGET ITEM CARD (MOBILE) — mismo
+   estado/lógica que la fila de tabla,
+   pero apilado verticalmente para no
+   forzar ancho horizontal en pantallas
+   chicas
+================================ */
+const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
+  item,
+  currency,
+  calculatorEnabled,
+  expandedCalcIds,
+  onToggleCalc,
+  onUpdateField,
+  onRemove,
+  getStock,
+}: BudgetItemCellProps) {
+  const handleQuantityChange = useCallback(
+    (qty: number) => onUpdateField(item.id, 'quantity', qty),
+    [item.id, onUpdateField]
+  )
+
+  const handleFieldChange = useCallback(
+    (field: keyof BudgetItemInput, value: any) => onUpdateField(item.id, field, value),
+    [item.id, onUpdateField]
+  )
+
+  const stock      = getStock(item.productServiceId)
+  const isExpanded = expandedCalcIds.has(item.id)
+  const showCalc   = calculatorEnabled && detectUnitType(item.unit) !== 'unit'
+  const overStock  = !item.isCustom && item.quantity > stock
+
+  return (
+    <div className="rounded-lg border p-3 space-y-3">
+      {/* ── NOMBRE + ELIMINAR ── */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {item.isCustom ? (
+            <div className="flex flex-col gap-1.5">
+              <Input
+                placeholder="Nombre del servicio o producto a medida..."
+                value={item.name}
+                className={!item.name.trim() ? 'border-amber-400 focus-visible:ring-amber-400' : ''}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+              />
+              <span className="inline-flex w-max items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Personalizado
+              </span>
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <p className="font-medium truncate">{item.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {item.category ? CATEGORY_LABELS[item.category] : '—'}
+              </p>
+            </div>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => onRemove(item.id)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+
+      {/* ── CANTIDAD + STOCK ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Cantidad</p>
+          <Input
+            type="number"
+            min={1}
+            step="any"
+            value={item.quantity === 0 ? '' : item.quantity}
+            className={
+              item.quantity <= 0 || overStock
+                ? 'border-destructive focus-visible:ring-destructive'
+                : ''
+            }
+            onChange={(e) => handleFieldChange('quantity', Number(e.target.value))}
+          />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Stock</p>
+          <div className="flex h-10 items-center text-sm">
+            {item.isCustom ? (
+              <span className="text-muted-foreground">—</span>
+            ) : (
+              <span className={overStock ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
+                {stock}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── PRECIO UNIT + SUBTOTAL ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Precio Unit.</p>
+          {item.isCustom ? (
+            <div className="relative">
+              <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+              <Input
+                type="number"
+                min={0}
+                className="pl-6"
+                value={item.unitPrice}
+                onChange={(e) => handleFieldChange('unitPrice', Number(e.target.value))}
+              />
+            </div>
+          ) : (
+            <div className="flex h-10 items-center text-sm">
+              {formatCurrency(item.unitPrice, currency)}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Subtotal</p>
+          <div className="flex h-10 items-center text-sm font-medium">
+            {formatCurrency(item.unitPrice * item.quantity, currency)}
+          </div>
+        </div>
+      </div>
+
+      {/* ── CALCULADORA DE MEDIDAS ── */}
+      {showCalc && (
+        <button
+          type="button"
+          onClick={() => onToggleCalc(item.id)}
+          className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Ruler className="h-3 w-3" />
+          {isExpanded ? 'Ocultar medidas' : 'Calcular medidas'}
+        </button>
+      )}
+
+      {showCalc && isExpanded && (
+        <div className="rounded-md bg-muted/20 p-2">
+          <BudgetItemCalculator
+            unit={item.unit}
+            unitPrice={item.unitPrice}
+            currency={currency}
+            widthCm={item.widthCm}
+            heightCm={item.heightCm}
+            depthCm={item.depthCm ?? null}
+            direct={item.direct ?? null}
+            hours={item.hours}
+            onChange={(field, value) => handleFieldChange(field, value)}
+            onQuantityChange={handleQuantityChange}
+          />
+        </div>
+      )}
+    </div>
   )
 })
 
@@ -536,7 +700,7 @@ export default function NewBudgetPage() {
   ================================ */
   return (
     <TooltipProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen overflow-x-hidden">
         <PageHeader title="Nuevo Presupuesto" description="Crea una nueva cotización">
           <Link href="/budgets">
             <Button variant="outline">
@@ -545,9 +709,9 @@ export default function NewBudgetPage() {
           </Link>
         </PageHeader>
 
-        <form onSubmit={handleSubmit} className="p-8">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8">
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
+            <div className="space-y-6 lg:col-span-2 min-w-0">
 
               {/* MONEDA */}
               <Card>
@@ -618,7 +782,7 @@ export default function NewBudgetPage() {
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Item Libre (On-the-fly)
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="min-w-0">
                   <div className="flex gap-2">
                     <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                       <SelectTrigger className="flex-1">
@@ -644,35 +808,55 @@ export default function NewBudgetPage() {
                   )}
 
                   {items.length > 0 && (
-                    <div className="mt-4 rounded-lg border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item</TableHead>
-                            <TableHead className="w-[100px]">Cant.</TableHead>
-                            <TableHead className="text-right w-[90px]">Stock</TableHead>
-                            <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
-                            <TableHead className="text-right">Subtotal</TableHead>
-                            <TableHead />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((item) => (
-                            <BudgetItemRow
-                              key={item.id}
-                              item={item}
-                              currency={currency}
-                              calculatorEnabled={calculatorEnabled}
-                              expandedCalcIds={expandedCalcIds}
-                              onToggleCalc={toggleCalcExpanded}
-                              onUpdateField={updateItemField}
-                              onRemove={removeItem}
-                              getStock={getStockByProductId}
-                            />
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <>
+                      {/* Mobile: lista de cards apiladas, sin scroll horizontal */}
+                      <div className="mt-4 space-y-3 sm:hidden">
+                        {items.map((item) => (
+                          <BudgetItemCardMobile
+                            key={item.id}
+                            item={item}
+                            currency={currency}
+                            calculatorEnabled={calculatorEnabled}
+                            expandedCalcIds={expandedCalcIds}
+                            onToggleCalc={toggleCalcExpanded}
+                            onUpdateField={updateItemField}
+                            onRemove={removeItem}
+                            getStock={getStockByProductId}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Tablet/desktop: tabla, con scroll propio si hace falta */}
+                      <div className="mt-4 hidden overflow-x-auto rounded-lg border sm:block">
+                        <Table className="min-w-[640px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Item</TableHead>
+                              <TableHead className="w-[100px]">Cant.</TableHead>
+                              <TableHead className="text-right w-[90px]">Stock</TableHead>
+                              <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
+                              <TableHead className="text-right">Subtotal</TableHead>
+                              <TableHead />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {items.map((item) => (
+                              <BudgetItemRow
+                                key={item.id}
+                                item={item}
+                                currency={currency}
+                                calculatorEnabled={calculatorEnabled}
+                                expandedCalcIds={expandedCalcIds}
+                                onToggleCalc={toggleCalcExpanded}
+                                onUpdateField={updateItemField}
+                                onRemove={removeItem}
+                                getStock={getStockByProductId}
+                              />
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -797,8 +981,8 @@ export default function NewBudgetPage() {
             </div>
 
             {/* RESUMEN */}
-            <div>
-              <Card className="sticky top-8">
+            <div className="min-w-0">
+              <Card className="lg:sticky lg:top-8">
                 <CardHeader><CardTitle>Resumen</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
