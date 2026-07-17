@@ -11,6 +11,13 @@ datasource db {
    ENUMS
 ========================= */
 
+enum WorkOrderPriority {
+  low
+  medium
+  high
+  urgent
+}
+
 enum WorkOrderStatus {
   pending
   in_progress
@@ -174,6 +181,7 @@ model User {
 
   receipts Receipt[] 
   deliveryNotes DeliveryNote[] // 👈 nuevo
+  workOrderHelperOf WorkOrderHelper[] @relation("WorkOrderHelpers") // 👈 nuevo
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -306,6 +314,7 @@ model ProductService {
   updatedAt DateTime @updatedAt
 
   currency String @default("ARS") // 👈 moneda en la que está cargado el precio
+  workOrderMaterials WorkOrderMaterial[] // 👈 nuevo
 
   @@index([tenantId])
 }
@@ -622,6 +631,16 @@ model WorkOrder {
 
   pauseReason    String?  // 👈 nuevo — motivo de la pausa (ej: "se frenó por lluvia")
 
+  priority           WorkOrderPriority @default(medium) // 👈 nuevo
+  scheduledTimeFrom  String?  // 👈 nuevo, ej "08:00"
+  scheduledTimeTo    String?  // 👈 nuevo, ej "12:00"
+  branch             String?  // 👈 nuevo, sucursal (mismo patrón que Receipt)
+
+  materials WorkOrderMaterial[] // 👈 nuevo
+  tasks     WorkOrderTask[]     // 👈 nuevo
+  tools     WorkOrderTool[]     // 👈 nuevo
+  helpers   WorkOrderHelper[]   // 👈 nuevo
+
   title          String?
   description    String?
 
@@ -631,6 +650,8 @@ model WorkOrder {
   scheduledDate  DateTime?
   startedAt      DateTime?
   completedAt    DateTime?
+
+  locationUrl        String?
 
   estimatedHours Float?
   actualHours    Float?
@@ -650,6 +671,7 @@ model WorkOrder {
   @@index([assignedToUserId])
 }
 
+
 model WorkOrderChecklistItem {
   id          String   @id @default(uuid())
 
@@ -665,4 +687,74 @@ model WorkOrderChecklistItem {
   updatedAt DateTime @updatedAt
 
   @@index([workOrderId])
+}
+
+
+model WorkOrderMaterial {
+  id          String   @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  productServiceId String?
+  productService   ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
+
+  customName  String?
+  quantity    Float
+  unit        String?
+  order       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workOrderId])
+}
+
+
+model WorkOrderTask {
+  id          String   @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  label       String
+  order       Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([workOrderId])
+}
+
+
+model WorkOrderTool {
+  id          String   @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  label       String
+  checked     Boolean @default(false)
+  order       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workOrderId])
+}
+
+
+model WorkOrderHelper {
+  id          String   @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User @relation("WorkOrderHelpers", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([workOrderId, userId])
+  @@index([workOrderId])
+  @@index([userId])
 }
