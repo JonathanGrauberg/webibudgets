@@ -100,10 +100,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'items are required' }, { status: 400 })
     }
 
-    // 🌟 MONEDA DEL PRESUPUESTO: viene del form, o cae al default del tenant
+    // 🌟 MONEDA DEL PRESUPUESTO
     const budgetCurrency = validateBudgetCurrency(data.currency) ?? tenantData?.currency ?? DEFAULT_CURRENCY
 
-    // 🌟 FILTRAMOS ID's: Solo extraemos id para ítems que NO sean personalizados (On-the-fly)
+    // 🌟 FILTRAMOS ID's
     const productIds = getBudgetItemProductIds(normalizedItems).filter(Boolean)
     const groupedQty = groupBudgetItemQuantities(normalizedItems)
 
@@ -128,7 +128,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid installerId for tenant' }, { status: 400 })
     }
 
-    // Corregimos la comparación: Solo validamos si faltan IDs del catálogo real
     if (products.length !== productIds.length) {
       const missingIds = findMissingProductIds(products, productIds)
       return NextResponse.json(
@@ -141,8 +140,6 @@ export async function POST(request: Request) {
     }
 
     const stockProblems = buildStockProblems(products, groupedQty)
-
-    // 🌟 VALIDACIÓN DE MONEDA: evita mezclar productos de distinta moneda en el mismo presupuesto
     const currencyProblems = buildCurrencyMismatchProblems(products, groupedQty, budgetCurrency)
 
     if (currencyProblems.length > 0) {
@@ -182,6 +179,9 @@ export async function POST(request: Request) {
       },
     })
 
+    // 🌟 Mapa de costo por producto para snapshotear en cada ítem (Mudado aquí adentro)
+    const productCostMap = new Map(products.map((p) => [p.id, p.cost ?? null]))
+
     // ===============================================
     // 💾 CREACIÓN DEL PRESUPUESTO EN BASE DE DATOS
     // ===============================================
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
         },
         status: 'draft',
         budgetNumber,
-        currency: budgetCurrency, // 👈 moneda del presupuesto, antes faltaba persistirla
+        currency: budgetCurrency,
         notes: typeof data.notes === 'string' ? data.notes : '',
         installationResponsible: data.installationResponsible ?? null,
         installerReference: data.installerReference ?? null,
@@ -210,19 +210,18 @@ export async function POST(request: Request) {
         ...(sellerId ? { seller: { connect: { id: sellerId } } } : {}),
         ...(installerId ? { installer: { connect: { id: installerId } } } : {}),
 
-        // 🌟 MAPEO INTELIGENTE DE ÍTEMS (NATIVOS VS LIBRES)
+        // 🌟 MAPEO INTELIGENTE DE ÍTEMS CON FOTO DE COSTO
         items: {
           create: normalizedItems.map((item: any) => {
             const isCustom = !item.productServiceId || item.isCustom || item.customName;
             
             return {
-              quantity: Number(item.quantity), // 👈 puede ser decimal — requiere quantity Float en el schema
+              quantity: Number(item.quantity), 
               unitPrice: Number(item.unitPrice),
               subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
               discount: Number(item.discount ?? 0),
-              // Si es un producto libre, guardamos su nombre y NO conectamos productService
               customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
-              // 👈 campos de la calculadora (quedan null si el tenant no usa el módulo)
+              cost: !isCustom ? productCostMap.get(item.productServiceId) ?? null : null, // 👈 Snapshot de costo agregado con éxito
               widthCm: item.widthCm ?? null,
               heightCm: item.heightCm ?? null,
               depthCm: item.depthCm ?? null,
@@ -250,6 +249,7 @@ export async function POST(request: Request) {
       },
     })
 
+    // El return final del POST ahora sí devuelve todo lo estructurado correctamente
     return NextResponse.json(
       {
         ...budget,
@@ -257,6 +257,7 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     )
+
   } catch (error) {
     console.error('Error creating budget:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })

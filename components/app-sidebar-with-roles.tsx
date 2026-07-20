@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import {
   LayoutDashboard, Users, Package, FileText,
-  Layers, UserRoundCog, Handshake, Menu, Settings, Receipt,
+  Layers, UserRoundCog, Handshake, Menu, Settings, Receipt, PiggyBank,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -27,6 +27,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/stock': Layers,
   '/installers': UserRoundCog,
   '/documents': Receipt,
+  '/rendiciones': PiggyBank, // 👈 nuevo
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {

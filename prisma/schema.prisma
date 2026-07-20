@@ -11,6 +11,11 @@ datasource db {
    ENUMS
 ========================= */
 
+enum RendicionStatus {
+  draft   // se está armando, todavía editable
+  closed  // cerrada: valores fijos, ya se pagó/exportó
+}
+
 enum WorkOrderPriority {
   low
   medium
@@ -125,9 +130,10 @@ model Tenant {
   mpSubscriptionId String?
 
   active Boolean @default(true)
-
   
   budgetSequence Int @default(1)
+
+  rendiciones    Rendicion[]
 
   users          User[]
   clients        Client[]
@@ -367,6 +373,8 @@ model Budget {
   paymentTerms String?
   validUntil   DateTime?
 
+  rendiciones RendicionBudget[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -442,6 +450,8 @@ model Seller {
 
   active    Boolean @default(true)
 
+  rendicionShares RendicionSellerShare[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -472,6 +482,8 @@ model BudgetItem {
   discount         Float @default(0)
 
   subtotal         Float?
+
+  cost             Float?
 
   widthCm          Float?
   heightCm         Float?
@@ -757,4 +769,79 @@ model WorkOrderHelper {
   @@unique([workOrderId, userId])
   @@index([workOrderId])
   @@index([userId])
+}
+
+/* =========================
+   RENDICIONES
+========================= */
+
+
+model Rendicion {
+  id             String   @id @default(uuid())
+
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  periodStart    DateTime
+  periodEnd      DateTime
+
+  status         RendicionStatus @default(draft)
+
+  // Totales cacheados al momento de generar/cerrar (evita recalcular
+  // y garantiza que lo exportado no cambie si después editan un presupuesto viejo)
+  presupuestosCompletados Int
+  totalFacturado Float
+  totalCosto     Float
+  totalGanancia  Float
+  margenPromedio Float
+
+  shares         RendicionSellerShare[]
+  budgets        RendicionBudget[]
+
+  closedAt       DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, periodStart, periodEnd])
+}
+
+model RendicionSellerShare {
+  id             String    @id @default(uuid())
+
+  rendicionId    String
+  rendicion      Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+
+  sellerId       String
+  seller         Seller    @relation(fields: [sellerId], references: [id])
+
+  // Métricas del vendedor en el período (cacheadas junto con el resto)
+  presupuestosCompletados Int
+  totalFacturado Float
+  ganancia       Float
+  margenPromedio Float
+
+  // Distribución editable
+  percentage     Float     // % asignado, editable por el usuario
+  gananciaAPagar Float     // = totalGanancia (de Rendicion) * percentage / 100
+
+  isDefault      Boolean   @default(true) // false si el usuario tocó el % a mano
+                                           // (así "Resetear" sabe si tiene algo que resetear)
+
+  @@unique([rendicionId, sellerId])
+  @@index([sellerId])
+}
+
+model RendicionBudget {
+  id          String    @id @default(uuid())
+
+  rendicionId String
+  rendicion   Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+
+  budgetId    String
+  budget      Budget    @relation(fields: [budgetId], references: [id])
+
+  @@unique([rendicionId, budgetId])
+  @@index([budgetId])
 }

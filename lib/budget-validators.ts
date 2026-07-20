@@ -52,7 +52,7 @@ export async function loadBudgetProducts(tenantId: string, productIds: string[])
 
   return prisma.productService.findMany({
     where: { id: { in: productIds }, tenantId, active: true },
-    select: { id: true, name: true, stock: true, currency: true },
+    select: { id: true, name: true, stock: true, currency: true, cost: true },
   })
 }
 

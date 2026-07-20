@@ -14,6 +14,7 @@ export type RouteKey =
   | 'sellers'
   | 'installers'
   | 'documents'
+  | 'commissions' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
 
@@ -45,6 +46,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   settings_company: ['owner', 'admin'],
   settings_team: ['owner', 'admin'],
   documents: ['owner', 'admin', 'seller'],
+  commissions: ['owner', 'admin'], //
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -119,6 +121,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/sellers' || pathname.startsWith('/sellers/')) return 'sellers'
   if (pathname === '/installers' || pathname.startsWith('/installers/')) return 'installers'
   if (pathname === '/documents' || pathname.startsWith('/documents/')) return 'documents'
+  if (pathname === '/rendiciones' || pathname.startsWith('/rendiciones/')) return 'commissions' // 👈 nuevo
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -138,6 +141,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'stock', name: 'Stock', href: '/stock', tooltip: 'Consultar stock disponible' },
   { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
   { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
+  { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias', requiresFeature: 'commissions' }, // 👈 nuevo
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [

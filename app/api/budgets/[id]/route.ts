@@ -184,25 +184,32 @@ export async function PATCH(request: Request, { params }: Params) {
         updateData.installerId = installerId
       }
 
+      // 🌟 SOLUCIÓN: Creamos el mapa de costos aquí usando los "products" cargados arriba
+      const productCostMap = new Map(products.map((p) => [p.id, p.cost ?? null]))
+
       const result = await prisma.$transaction([
         prisma.budget.updateMany({ where: tenantWhereId(id, tenantId), data: updateData }),
         prisma.budgetItem.deleteMany({ where: { budgetId: id } }),
         prisma.budgetItem.createMany({
-          data: buildBudgetItemCreatePayload(normalizedItems).map((item) => ({
-            budgetId: id,
-            productServiceId: item.productServiceId,
-            quantity: item.quantity, // 👈 puede ser decimal — requiere quantity Float en el schema
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
-            discount: item.discount,
-            customName: item.customName,
-            widthCm: item.widthCm,
-            heightCm: item.heightCm,
-            depthCm: item.depthCm,
-            direct: item.direct,
-            hours: item.hours,
-            calculatedM2: item.calculatedM2,
-          })),
+          data: buildBudgetItemCreatePayload(normalizedItems).map((item: any) => {
+            const pId = item.productServiceId || item.productId; // Previene discrepancias de nombres en el validador
+            return {
+              budgetId: id,
+              productServiceId: pId || null,
+              quantity: item.quantity, 
+              unitPrice: item.unitPrice,
+              subtotal: item.subtotal,
+              discount: item.discount,
+              customName: item.customName,
+              cost: pId ? productCostMap.get(pId) ?? null : null, // 👈 Ahora sí funciona perfectamente
+              widthCm: item.widthCm,
+              heightCm: item.heightCm,
+              depthCm: item.depthCm,
+              direct: item.direct,
+              hours: item.hours,
+              calculatedM2: item.calculatedM2,
+            }
+          }),
         }),
       ])
 
