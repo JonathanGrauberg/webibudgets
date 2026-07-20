@@ -1,3 +1,4 @@
+//app\api\rendiciones\[id]\shares\[shareId]\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'

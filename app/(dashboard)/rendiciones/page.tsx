@@ -1,7 +1,7 @@
 'use client'
-//app\(dashboard)\rendiciones\page.tsx
+// app\(dashboard)\rendiciones\page.tsx
 import { useState, useCallback } from 'react'
-import useSWR, { mutate } from 'swr'
+import useSWR from 'swr'
 import RendicionesPage, { type RendicionData } from '@/components/rendiciones/RendicionesPage'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
@@ -38,13 +38,16 @@ function exportToCsv(data: RendicionData) {
   URL.revokeObjectURL(url)
 }
 
+// 🌟 Evitamos recrear la referencia si tenantUsers viene indefinido
+const EMPTY_USERS_ARRAY: any[] = [];
+
 export default function RendicionesRoute() {
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [periodStart, setPeriodStart] = useState(firstDayOfMonth())
   const [periodEnd, setPeriodEnd] = useState(today())
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const { data, isLoading } = useSWR<RendicionData>(
+  const { data, isLoading, mutate } = useSWR<RendicionData>(
     currentId ? `/api/rendiciones/${currentId}` : null,
     fetcher
   )
@@ -68,25 +71,10 @@ export default function RendicionesRoute() {
     }
   }, [])
 
-  const handleUpdatePercentage = useCallback(async (shareId: string, percentage: number) => {
-    if (!currentId) return
-    await fetch(`/api/rendiciones/${currentId}/shares/${shareId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ percentage }),
-    })
-    mutate(`/api/rendiciones/${currentId}`)
-  }, [currentId])
-
-  const handleResetPercentage = useCallback(async (shareId: string) => {
-    if (!currentId) return
-    await fetch(`/api/rendiciones/${currentId}/shares/${shareId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reset: true }),
-    })
-    mutate(`/api/rendiciones/${currentId}`)
-  }, [currentId])
+  // 🌟 Agregamos una función limpia para refrescar la UI al guardar desgloses
+  const handleRefresh = useCallback(() => {
+    if (currentId) mutate()
+  }, [currentId, mutate])
 
   // Sin rendición generada todavía: selector de período
   if (!currentId) {
@@ -130,9 +118,10 @@ export default function RendicionesRoute() {
     <div className="p-4 md:p-6 lg:p-8">
       <RendicionesPage
         data={data}
-        onDateRangeChange={() => setCurrentId(null)} // vuelve al selector de período
-        onUpdatePercentage={handleUpdatePercentage}
-        onResetPercentage={handleResetPercentage}
+        tenantUsers={data.tenantUsers || EMPTY_USERS_ARRAY} // 🌟 Referencia estática controlada
+        onDateRangeChange={() => setCurrentId(null)}
+        onUpdatePercentage={handleRefresh} // 🌟 Reutilizamos para refrescar SWR cuando el hijo guarde
+        onResetPercentage={handleRefresh}
         onExport={() => exportToCsv(data)}
       />
     </div>
