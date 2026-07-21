@@ -1,4 +1,4 @@
-// lib/types.ts o donde tengas los tipos compartidos de tenant
+// lib/types.ts
 export type TenantFeatureKey =
   | 'calculator'
   | 'commissions'
@@ -39,6 +39,17 @@ export interface ProductService {
   unit: string
   active: boolean
   stock?: number
+  createdAt: Date
+  updatedAt: Date
+  variants?: ProductVariant[]
+}
+
+export interface ProductVariant {
+  id: string
+  productServiceId: string
+  label: string
+  stock: number
+  active: boolean
   createdAt: Date
   updatedAt: Date
 }

@@ -1,3 +1,4 @@
+//app\api\stock\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
@@ -18,20 +19,42 @@ export async function POST(req: Request) {
       )
     }
 
-    const product = await prisma.productService.findFirst({
-      where: { id: productServiceId, tenantId },
-      select: { id: true, stock: true, name: true },
-    })
+    const productVariantId: string | null = body.productVariantId ?? null
 
-    if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found or tenant mismatch' },
-        { status: 404 }
-      )
-    }
+const product = await prisma.productService.findFirst({
+  where: { id: productServiceId, tenantId },
+  select: { id: true, stock: true, name: true, variants: { where: { active: true }, select: { id: true } } },
+})
 
-    const currentStock = product.stock ?? 0
-    const newStock = currentStock + delta
+if (!product) {
+  return NextResponse.json(
+    { error: 'Product not found or tenant mismatch' },
+    { status: 404 }
+  )
+}
+
+// Si el producto tiene variantes, no se puede mover el stock "general" —
+// hay que decir cuál variante (color, talle, etc.)
+if (product.variants.length > 0 && !productVariantId) {
+  return NextResponse.json(
+    { error: 'Este producto tiene variantes: especificá productVariantId' },
+    { status: 400 }
+  )
+}
+
+let variant: { id: string; stock: number } | null = null
+if (productVariantId) {
+  variant = await prisma.productVariant.findFirst({
+    where: { id: productVariantId, productServiceId },
+    select: { id: true, stock: true },
+  })
+  if (!variant) {
+    return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
+  }
+}
+
+const currentStock = variant ? variant.stock : (product.stock ?? 0)
+const newStock = currentStock + delta
 
     // 🚫 no permitir negativo
     if (newStock < 0) {
@@ -49,28 +72,39 @@ export async function POST(req: Request) {
     // transacción = actualizar stock + guardar movimiento
     // Transacción tenant-safe: actualizar usando filters y registrar movimiento con tenantId
     const txResult = await prisma.$transaction(async (tx) => {
-      const updateRes = await tx.productService.updateMany({
-        where: { id: productServiceId, tenantId },
-        data: { stock: newStock },
-      })
-
-      if (updateRes.count === 0) {
-        throw new Error('Product not found or tenant mismatch during update')
-      }
-
-      await tx.stockMovement.create({
-        data: {
-          productServiceId,
-          delta,
-          type,
-          reason,
-          tenantId,
-        },
-      })
-
-      const updated = await tx.productService.findFirst({ where: { id: productServiceId, tenantId } })
-      return updated
+  if (variant) {
+    const updateRes = await tx.productVariant.updateMany({
+      where: { id: variant.id, productServiceId },
+      data: { stock: newStock },
     })
+    if (updateRes.count === 0) {
+      throw new Error('Variant not found during update')
+    }
+  } else {
+    const updateRes = await tx.productService.updateMany({
+      where: { id: productServiceId, tenantId },
+      data: { stock: newStock },
+    })
+    if (updateRes.count === 0) {
+      throw new Error('Product not found or tenant mismatch during update')
+    }
+  }
+
+  await tx.stockMovement.create({
+    data: {
+      productServiceId,
+      productVariantId: variant?.id ?? null,
+      delta,
+      type,
+      reason,
+      tenantId,
+    },
+  })
+
+  return variant
+    ? tx.productVariant.findFirst({ where: { id: variant.id } })
+    : tx.productService.findFirst({ where: { id: productServiceId, tenantId } })
+})
 
     return NextResponse.json(txResult)
   } catch (error) {

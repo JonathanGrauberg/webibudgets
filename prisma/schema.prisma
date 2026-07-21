@@ -312,6 +312,7 @@ model ProductService {
   active      Boolean @default(true)
 
   stock       Int @default(0)
+  variants    ProductVariant[]
 
   items            BudgetItem[]
   stockMovements   StockMovement[]
@@ -485,6 +486,9 @@ model BudgetItem {
 
   cost             Float?
 
+  productVariantId  String?
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
   widthCm          Float?
   heightCm         Float?
   hours            Float?
@@ -531,6 +535,10 @@ model StockMovement {
   reason    String?
 
   createdAt DateTime @default(now())
+
+  productVariantId String?
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
 
   @@index([tenantId])
 }
@@ -844,4 +852,26 @@ model RendicionBudget {
 
   @@unique([rendicionId, budgetId])
   @@index([budgetId])
+}
+
+/*VARIANTES DE PRODUCTOS ---------------------------- */
+
+model ProductVariant {
+  id               String  @id @default(uuid())
+
+  productServiceId String
+  productService   ProductService @relation(fields: [productServiceId], references: [id], onDelete: Cascade)
+
+  label            String  // "Rojo", "Mate", "Talle L"... genérico
+  stock            Int     @default(0)
+  active           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  budgetItems BudgetItem[]
+  stockMovements StockMovement[]
+
+  @@unique([productServiceId, label])
+  @@index([productServiceId])
 }

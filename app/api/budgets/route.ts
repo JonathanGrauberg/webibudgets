@@ -228,6 +228,13 @@ export async function POST(request: Request) {
               direct: item.direct ?? null,
               hours: item.hours ?? null,
               calculatedM2: item.calculatedM2 ?? null,
+              ...(item.productVariantId
+                ? {
+                    productVariant: {
+                      connect: { id: item.productVariantId },
+                    },
+                  }
+                : {}),
               ...(!isCustom ? {
                 productService: {
                   connect: { id: item.productServiceId }

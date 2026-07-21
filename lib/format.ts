@@ -14,3 +14,10 @@ export function formatCurrency(amount: number, currencyCode: string = DEFAULT_CU
     return `${config.code} ${amount.toFixed(2)}`
   }
 }
+
+export function formatHoursAsClock(decimalHours: number): string {
+  const totalMinutes = Math.round(decimalHours * 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}HS`
+}

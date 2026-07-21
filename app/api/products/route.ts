@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const products = await prisma.productService.findMany({
       where: tenantWhere(tenantId),
       orderBy: { createdAt: 'desc' },
+      include: { variants: { orderBy: { label: 'asc' } } },
     })
 
     return NextResponse.json(products)

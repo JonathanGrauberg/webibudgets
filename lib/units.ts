@@ -221,3 +221,31 @@ export function computeQuantity(
       return { quantity: inputs.direct ?? 1, label: '', isComplete: false }
   }
 }
+
+/** Convierte horas decimales a formato "HH:MM" para <input type="time"> */
+export function decimalHoursToTimeInput(decimalHours: number | null): string {
+  if (!decimalHours || decimalHours <= 0) return ''
+  const totalMinutes = Math.round(decimalHours * 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** Convierte "HH:MM" (de un <input type="time">) a horas decimales */
+export function timeInputToDecimalHours(value: string): number | null {
+  if (!value) return null
+  const [hStr, mStr] = value.split(':')
+  const h = Number(hStr), m = Number(mStr)
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  return h + m / 60
+}
+
+/** Calcula la duración entre "Desde" y "Hasta" (ambos "HH:MM") */
+export function computeRangeHours(from: string, to: string): number | null {
+  const f = timeInputToDecimalHours(from)
+  const t = timeInputToDecimalHours(to)
+  if (f === null || t === null) return null
+  let diff = t - f
+  if (diff < 0) diff += 24 // cruza medianoche
+  return Math.round(diff * 100) / 100
+}

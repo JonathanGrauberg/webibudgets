@@ -22,8 +22,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { HelpCircle } from 'lucide-react'
-import type { ProductService, ProductCategory } from '@/lib/types'
+import { HelpCircle, Plus, Trash2 } from 'lucide-react'
+import useSWR, { mutate } from 'swr'
+import type { ProductService, ProductCategory, ProductVariant } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { UNIT_OPTIONS, detectUnitType } from '@/lib/units'
@@ -70,6 +71,84 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
   // Estado local del select de unidad (puede diferir de formData.unit cuando es custom)
   const [unitSelect, setUnitSelect]   = useState(initialSelect)
   const [customUnit, setCustomUnit]   = useState(isKnownUnit ? '' : savedUnit)
+
+  const variantsUrl = product?.id ? `/api/products/${product.id}/variants` : null
+const { data: variants = [], isLoading: variantsLoading } = useSWR<ProductVariant[]>(
+  variantsUrl,
+  (url: string) => fetch(url).then((r) => r.json())
+)
+
+const [variantDrafts, setVariantDrafts] = useState<Record<string, { label: string; stock: string }>>({})
+const [savingVariantId, setSavingVariantId] = useState<string | null>(null)
+const [newVariantLabel, setNewVariantLabel] = useState('')
+const [newVariantStock, setNewVariantStock] = useState('')
+const [isAddingVariant, setIsAddingVariant] = useState(false)
+
+const handleAddVariant = async () => {
+  if (!product?.id || !newVariantLabel.trim()) return
+  setIsAddingVariant(true)
+  try {
+    const res = await fetch(`/api/products/${product.id}/variants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: newVariantLabel.trim(), stock: Number(newVariantStock) || 0 }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => null)
+      throw new Error(err?.error || 'No se pudo crear la variante')
+    }
+    setNewVariantLabel('')
+    setNewVariantStock('')
+    mutate(variantsUrl)
+  } catch (err) {
+    console.error(err)
+    alert(err instanceof Error ? err.message : 'Error al crear la variante')
+  } finally {
+    setIsAddingVariant(false)
+  }
+}
+
+const handleSaveVariant = async (variant: ProductVariant) => {
+  if (!product?.id) return
+  const draft = variantDrafts[variant.id]
+  if (!draft) return
+  setSavingVariantId(variant.id)
+  try {
+    const res = await fetch(`/api/products/${product.id}/variants/${variant.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: draft.label, stock: Number(draft.stock) || 0 }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => null)
+      throw new Error(err?.error || 'No se pudo guardar la variante')
+    }
+    setVariantDrafts((prev) => {
+      const next = { ...prev }
+      delete next[variant.id]
+      return next
+    })
+    mutate(variantsUrl)
+  } catch (err) {
+    console.error(err)
+    alert(err instanceof Error ? err.message : 'Error al guardar la variante')
+  } finally {
+    setSavingVariantId(null)
+  }
+}
+
+const handleDeleteVariant = async (variantId: string) => {
+  if (!product?.id) return
+  if (!confirm('¿Eliminar esta variante? Los presupuestos que ya la usaron no se ven afectados.')) return
+  try {
+    const res = await fetch(`/api/products/${product.id}/variants/${variantId}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('No se pudo eliminar la variante')
+    mutate(variantsUrl)
+  } catch (err) {
+    console.error(err)
+    alert('Error al eliminar la variante')
+  }
+}
 
   const handleUnitSelectChange = (val: string) => {
     setUnitSelect(val)
@@ -310,11 +389,11 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
             </div>
           </div>
 
-          {/* Activo */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+          {/* Activo (Switch independiente y limpio) */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-card">
             <div className="space-y-0.5">
-              <Label htmlFor="active">Producto activo</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="active" className="cursor-pointer font-medium">Producto activo</Label>
+              <p className="text-xs text-muted-foreground">
                 Los productos inactivos no aparecen al crear presupuestos
               </p>
             </div>
@@ -324,6 +403,138 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
               onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
             />
           </div>
+
+          {/* Seccion Variantes Independiente */}
+          {product?.id ? (
+            <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/10">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-semibold">Variantes y Stock</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Permite gestionar variantes (color, talle, terminación) con stock independiente para cada una.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                {variants.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {variants.length} {variants.length === 1 ? 'variante' : 'variantes'}
+                  </Badge>
+                )}
+              </div>
+
+              {variantsLoading ? (
+                <p className="text-xs text-muted-foreground py-2">Cargando variantes...</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {variants.map((v) => {
+                    const draft = variantDrafts[v.id] ?? { label: v.label, stock: String(v.stock) }
+                    const hasChanges = draft.label !== v.label || Number(draft.stock) !== v.stock
+
+                    return (
+                      <div key={v.id} className="flex items-center gap-2 bg-background p-1.5 rounded-md border border-border/60">
+                        <Input
+                          value={draft.label}
+                          onChange={(e) =>
+                            setVariantDrafts((prev) => ({
+                              ...prev,
+                              [v.id]: { ...draft, label: e.target.value }
+                            }))
+                          }
+                          className="flex-1 h-8 text-sm"
+                          placeholder="Ej: Rojo / XL"
+                        />
+                        <div className="w-28 relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={draft.stock}
+                            onChange={(e) =>
+                              setVariantDrafts((prev) => ({
+                                ...prev,
+                                [v.id]: { ...draft, stock: e.target.value }
+                              }))
+                            }
+                            className="h-8 text-sm pr-11"
+                            placeholder="Stock"
+                          />
+                          <span className="absolute right-2 top-1.5 text-[10px] text-muted-foreground font-medium pointer-events-none">
+                            un.
+                          </span>
+                        </div>
+
+                        {hasChanges && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs"
+                            onClick={() => handleSaveVariant(v)}
+                            disabled={savingVariantId === v.id}
+                          >
+                            {savingVariantId === v.id ? '...' : 'Guardar'}
+                          </Button>
+                        )}
+                        
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteVariant(v.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+
+                  {variants.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic py-1">
+                      No hay variantes creadas para este producto.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Formulario de Alta rápida de variante */}
+              <div className="flex items-center gap-2 border-t border-border pt-3">
+                <Input
+                  value={newVariantLabel}
+                  onChange={(e) => setNewVariantLabel(e.target.value)}
+                  placeholder="Agregar variante (ej: Azul, Talle M)..."
+                  className="flex-1 h-8 text-sm"
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  value={newVariantStock}
+                  onChange={(e) => setNewVariantStock(e.target.value)}
+                  placeholder="Stock"
+                  className="w-24 h-8 text-sm"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 gap-1"
+                  onClick={handleAddVariant}
+                  disabled={isAddingVariant || !newVariantLabel.trim()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">Agregar</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-3 text-center bg-muted/20">
+              <p className="text-xs text-muted-foreground">
+                💡 Podrás agregar variantes (colores, talles, stock por opción) inmediatamente después de guardar y crear el producto.
+              </p>
+            </div>
+          )}
 
         </div>
 

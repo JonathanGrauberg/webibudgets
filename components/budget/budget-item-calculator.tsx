@@ -1,7 +1,7 @@
 'use client'
 
 // components/budget/budget-item-calculator.tsx
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Ruler, Weight, Droplets, Clock, Maximize2 } from 'lucide-react'
@@ -9,10 +9,13 @@ import {
   detectUnitType,
   getUnitDef,
   computeQuantity,
+  decimalHoursToTimeInput,
+  timeInputToDecimalHours,
+  computeRangeHours,
   type CalculatorInputs,
   type UnitType,
 } from '@/lib/units'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatHoursAsClock  } from '@/lib/format'
 
 interface BudgetItemCalculatorProps {
   unit: string | null | undefined
@@ -88,6 +91,9 @@ export function BudgetItemCalculator({
   onQuantityChange,
 }: BudgetItemCalculatorProps) {
   const unitType = detectUnitType(unit)
+  const [showRange, setShowRange] = useState(false)
+  const [fromTime, setFromTime] = useState('')
+  const [toTime, setToTime] = useState('')
   const unitDef  = getUnitDef(unit)
   const Icon     = TYPE_ICONS[unitType]
 
@@ -166,20 +172,71 @@ export function BudgetItemCalculator({
         )}
 
         {unitType === 'time' && (
-          <NumInput
-            label="Horas"
-            value={hours}
-            placeholder="ej: 4"
-            onChange={(v) => onChange('hours', v)}
-          />
-        )}
+        <div className="col-span-full space-y-2">
+          <div className="space-y-1">
+            <Label className="text-[10px] font-normal text-muted-foreground">Duración</Label>
+            <Input
+              type="time"
+              step={60}
+              value={decimalHoursToTimeInput(hours)}
+              disabled={showRange}
+              onChange={(e) => onChange('hours', timeInputToDecimalHours(e.target.value))}
+              className="h-8 text-xs w-32"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowRange((v) => !v)}
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <Clock className="h-3 w-3" />
+            {showRange ? 'Ocultar franja horaria' : 'Especificar franja horaria'}
+          </button>
+
+          {showRange && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-normal text-muted-foreground">Desde</Label>
+                <Input
+                  type="time"
+                  value={fromTime}
+                  onChange={(e) => {
+                    setFromTime(e.target.value)
+                    const h = computeRangeHours(e.target.value, toTime)
+                    if (h !== null) onChange('hours', h)
+                  }}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-normal text-muted-foreground">Hasta</Label>
+                <Input
+                  type="time"
+                  value={toTime}
+                  onChange={(e) => {
+                    setToTime(e.target.value)
+                    const h = computeRangeHours(fromTime, e.target.value)
+                    if (h !== null) onChange('hours', h)
+                  }}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       </div>
 
       {result.isComplete && (
         <div className="rounded-md bg-foreground/5 px-3 py-2 text-xs space-y-0.5">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Cantidad calculada</span>
-            <span className="font-semibold text-foreground">{result.label || `${result.quantity} ${unitDef.symbol}`}</span>
+            <span className="font-semibold text-foreground">
+              {unitType === 'time'
+                ? formatHoursAsClock(result.quantity)
+                : result.label || `${result.quantity} ${unitDef.symbol}`}
+            </span>
           </div>
           {subtotalEstimado !== null && (
             <div className="flex items-center justify-between">

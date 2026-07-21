@@ -42,6 +42,8 @@ import { Label } from '@/components/ui/label'
 type BudgetItemInput = {
   id: string
   productServiceId: string | null
+  productVariantId: string | null
+  variantLabel: string | null 
   name: string
   category?: ProductCategory
   quantity: number
@@ -100,13 +102,11 @@ type BudgetItemCellProps = {
   onToggleCalc: (id: string) => void
   onUpdateField: (id: string, field: keyof BudgetItemInput, value: any) => void
   onRemove: (id: string) => void
-  getStock: (id: string | null) => number
+  getStock: (item: BudgetItemInput) => number
 }
 
 /* ================================
-   BUDGET ITEM ROW (DESKTOP/TABLET) — memoizado para
-   evitar re-renders y el loop del
-   calculador
+   BUDGET ITEM ROW (DESKTOP/TABLET)
 ================================ */
 const BudgetItemRow = React.memo(function BudgetItemRow({
   item,
@@ -118,7 +118,6 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
   onRemove,
   getStock,
 }: BudgetItemCellProps) {
-  // ✅ Callbacks estables: no se recrean salvo que cambie item.id o onUpdateField
   const handleQuantityChange = useCallback(
     (qty: number) => onUpdateField(item.id, 'quantity', qty),
     [item.id, onUpdateField]
@@ -129,7 +128,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
     [item.id, onUpdateField]
   )
 
-  const stock      = getStock(item.productServiceId)
+  const stock      = getStock(item)
   const isExpanded = expandedCalcIds.has(item.id)
   const showCalc   = calculatorEnabled && detectUnitType(item.unit) !== 'unit'
 
@@ -155,6 +154,11 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               <p className="font-medium">{item.name}</p>
               <p className="text-xs text-muted-foreground">
                 {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                {item.variantLabel && (
+                  <span className="ml-1 font-medium text-foreground">
+                    · {item.variantLabel}
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -166,7 +170,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
             >
               <Ruler className="h-3 w-3" />
-              {isExpanded ? 'Ocultar medidas' : 'Calcular medidas'}
+              {isExpanded ? 'Ocultar' : 'Calcular'}
             </button>
           )}
         </TableCell>
@@ -176,7 +180,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           <Input
             type="number"
             min={1}
-            step= "any"
+            step="any"
             value={item.quantity === 0 ? '' : item.quantity}
             className={
               item.quantity <= 0 || (!item.isCustom && item.quantity > stock)
@@ -256,11 +260,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
 })
 
 /* ================================
-   BUDGET ITEM CARD (MOBILE) — mismo
-   estado/lógica que la fila de tabla,
-   pero apilado verticalmente para no
-   forzar ancho horizontal en pantallas
-   chicas
+   BUDGET ITEM CARD (MOBILE)
 ================================ */
 const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
   item,
@@ -282,7 +282,7 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
     [item.id, onUpdateField]
   )
 
-  const stock      = getStock(item.productServiceId)
+  const stock      = getStock(item)
   const isExpanded = expandedCalcIds.has(item.id)
   const showCalc   = calculatorEnabled && detectUnitType(item.unit) !== 'unit'
   const overStock  = !item.isCustom && item.quantity > stock
@@ -309,6 +309,11 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
               <p className="font-medium truncate">{item.name}</p>
               <p className="text-xs text-muted-foreground">
                 {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                {item.variantLabel && (
+                  <span className="ml-1 font-medium text-foreground">
+                    · {item.variantLabel}
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -451,7 +456,17 @@ export default function NewBudgetPage() {
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
 
-  // Moneda por defecto del tenant
+  const [selectedVariantId, setSelectedVariantId] = useState('')
+
+  const selectedProductForAdd = useMemo(
+    () => products.find((p) => p.id === selectedProductId),
+    [products, selectedProductId]
+  )
+  const selectedProductVariants = useMemo(
+    () => selectedProductForAdd?.variants?.filter((v) => v.active) ?? [],
+    [selectedProductForAdd]
+  )
+
   useEffect(() => {
     if (branding?.currency) setCurrency(branding.currency)
   }, [branding])
@@ -493,25 +508,42 @@ export default function NewBudgetPage() {
   /* ================================
      STOCK HELPERS
   ================================ */
-  const getStockByProductId = useCallback(
-    (productServiceId: string | null): number => {
-      if (!productServiceId) return 999999
-      const p = products.find((x) => x.id === productServiceId)
-      return typeof p?.stock === 'number' ? p.stock : 0
+  const getStockForItem = useCallback(
+    (item: Pick<BudgetItemInput, 'productServiceId' | 'productVariantId'>): number => {
+      if (!item.productServiceId) return 999999
+      const p = products.find((x) => x.id === item.productServiceId)
+      if (!p) return 0
+      if (item.productVariantId) {
+        const v = p.variants?.find((v) => v.id === item.productVariantId)
+        return typeof v?.stock === 'number' ? v.stock : 0
+      }
+      return typeof p.stock === 'number' ? p.stock : 0
     },
     [products]
   )
 
   const stockIssues = useMemo(() => {
-    return items
-      .filter((i) => !i.isCustom && i.productServiceId)
-      .map((i) => {
-        const stock   = getStockByProductId(i.productServiceId)
-        const missing = Math.max(0, i.quantity - stock)
-        return { id: i.productServiceId!, stock, missing }
+    const totals = new Map<string, { productServiceId: string; productVariantId: string | null; label: string; quantity: number }>()
+    for (const i of items) {
+      if (i.isCustom || !i.productServiceId) continue
+      const key = `${i.productServiceId}::${i.productVariantId ?? ''}`
+      const existing = totals.get(key)
+      if (existing) existing.quantity += i.quantity
+      else totals.set(key, {
+        productServiceId: i.productServiceId,
+        productVariantId: i.productVariantId,
+        label: i.variantLabel ? `${i.name} (${i.variantLabel})` : i.name,
+        quantity: i.quantity,
+      })
+    }
+    return Array.from(totals.entries())
+      .map(([key, t]) => {
+        const stock = getStockForItem(t)
+        const missing = Math.max(0, t.quantity - stock)
+        return { id: key, label: t.label, stock, missing }
       })
       .filter((x) => x.missing > 0)
-  }, [items, getStockByProductId])
+  }, [items, getStockForItem])
 
   const hasStockIssues = stockIssues.length > 0
 
@@ -523,35 +555,52 @@ export default function NewBudgetPage() {
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) return
 
+    const activeVariants = product.variants?.filter((v) => v.active) ?? []
+    const hasVariants = activeVariants.length > 0
+    if (hasVariants && !selectedVariantId) return
+
+    const isMeasured = detectUnitType(product.unit) !== 'unit'
+    const chosenVariant = activeVariants.find((v) => v.id === selectedVariantId) ?? null
+
     setItems((prev) => {
-      if (prev.some((i) => i.productServiceId === selectedProductId)) {
-        return prev.map((i) =>
-          i.productServiceId === selectedProductId
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
+      if (!isMeasured && !hasVariants) {
+        const existing = prev.find((i) => i.productServiceId === selectedProductId)
+        if (existing) {
+          return prev.map((i) => (i === existing ? { ...i, quantity: i.quantity + 1 } : i))
+        }
+      }
+      if (!isMeasured && hasVariants) {
+        const existing = prev.find(
+          (i) => i.productServiceId === selectedProductId && i.productVariantId === selectedVariantId
         )
+        if (existing) {
+          return prev.map((i) => (i === existing ? { ...i, quantity: i.quantity + 1 } : i))
+        }
       }
       return [
         ...prev,
         {
-          id:               crypto.randomUUID(),
+          id: crypto.randomUUID(),
           productServiceId: product.id,
-          name:             product.name,
-          category:         product.category as ProductCategory,
-          quantity:         1,
-          unitPrice:        product.price,
-          unit:             product.unit,
-          isCustom:         false,
-          widthCm:          null,
-          heightCm:         null,
-          depthCm:          null,
-          direct:           null,
-          hours:            null,
+          productVariantId: hasVariants ? selectedVariantId : null,
+          variantLabel: chosenVariant?.label ?? null,
+          name: product.name,
+          category: product.category as ProductCategory,
+          quantity: 1,
+          unitPrice: product.price,
+          unit: product.unit,
+          isCustom: false,
+          widthCm: null,
+          heightCm: null,
+          depthCm: null,
+          direct: null,
+          hours: null,
         },
       ]
     })
     setSelectedProductId('')
-  }, [selectedProductId, products])
+    setSelectedVariantId('')
+  }, [selectedProductId, selectedVariantId, products])
 
   const addCustomItem = useCallback(() => {
     setItems((prev) => [
@@ -559,13 +608,15 @@ export default function NewBudgetPage() {
       {
         id:               crypto.randomUUID(),
         productServiceId: null,
+        productVariantId: null,
+        variantLabel:     null,
         name:             '',
         quantity:         1,
         unitPrice:        0,
         unit:             'un.',
         isCustom:         true,
         widthCm:          null,
-        heightCm:         null,
+        heightCm:          null,
         depthCm:          null,
         direct:           null,
         hours:            null,
@@ -573,7 +624,6 @@ export default function NewBudgetPage() {
     ])
   }, [])
 
-  // ✅ useCallback con [] — setItems es siempre estable
   const updateItemField = useCallback(
     (id: string, field: keyof BudgetItemInput, value: any) => {
       setItems((prev) =>
@@ -671,6 +721,7 @@ export default function NewBudgetPage() {
           shippingCost:  shippingIncluded ? safeShippingCost : null,
           items: items.map((i) => ({
             productServiceId: i.productServiceId,
+            productVariantId: i.productVariantId,
             customName:       i.isCustom ? i.name : null,
             quantity:         i.quantity,
             unitPrice:        i.unitPrice,
@@ -768,7 +819,7 @@ export default function NewBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* PRODUCTOS */}
+              {/* PRODUCTOS / SERVICIOS */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <CardTitle>Productos / Servicios</CardTitle>
@@ -782,34 +833,80 @@ export default function NewBudgetPage() {
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Item Libre (On-the-fly)
                   </Button>
                 </CardHeader>
-                <CardContent className="min-w-0">
-                  <div className="flex gap-2">
-                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <CardContent className="min-w-0 space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    {/* Select Principal de Productos */}
+                    <Select 
+                      value={selectedProductId} 
+                      onValueChange={(value) => {
+                        setSelectedProductId(value)
+                        setSelectedVariantId('') // Resetea la variante al cambiar de producto
+                      }}
+                    >
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar de la lista base..." />
+                        <SelectValue placeholder="Seleccionar producto o servicio..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeProducts.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} – {formatCurrency(p.price, p.currency)}
-                          </SelectItem>
-                        ))}
+                        {activeProducts.map((p) => {
+                          const variantCount = p.variants?.filter((v) => v.active)?.length ?? 0
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} – {formatCurrency(p.price, p.currency)}
+                              {variantCount > 0 ? ` (${variantCount} opciones)` : ''}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
-                    <Button type="button" onClick={addItem}>
-                      <Plus className="h-4 w-4" />
+
+                    {/* Desplegable de Variantes (Aparece automáticamente si el producto tiene variantes activas) */}
+                    {selectedProductVariants.length > 0 && (
+                      <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                        <SelectTrigger className="w-full sm:w-[220px] border-amber-500/50 bg-amber-50/30">
+                          <SelectValue placeholder="Elegí variante (color, talle)..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedProductVariants.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.label} — {v.stock} disp.
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {/* Botón para agregar al presupuesto */}
+                    <Button 
+                      type="button" 
+                      onClick={addItem} 
+                      disabled={
+                        !selectedProductId || 
+                        (selectedProductVariants.length > 0 && !selectedVariantId)
+                      }
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4 mr-1 sm:mr-0" />
+                      <span className="sm:hidden">Agregar al presupuesto</span>
                     </Button>
                   </div>
 
-                  {activeProducts.length === 0 && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      No hay productos cargados en {currency}. Podés usar "Item Libre" o cambiar la moneda.
+                  {/* Alerta de ayuda si seleccionó un producto pero le falta elegir variante */}
+                  {selectedProductId && selectedProductVariants.length > 0 && !selectedVariantId && (
+                    <p className="text-xs text-amber-600 font-medium animate-in fade-in-50">
+                      ⚠️ Seleccioná una variante (ej: Borravino, Negro) para poder agregar este producto.
                     </p>
                   )}
 
+                  {activeProducts.length === 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      No hay productos cargados en {currency}. Podés usar &quot;Item Libre&quot; o cambiar la moneda.
+                    </p>
+                  )}
+
+                  {/* Lista / Tabla de Items agregados */}
                   {items.length > 0 && (
                     <>
-                      {/* Mobile: lista de cards apiladas, sin scroll horizontal */}
+                      {/* Mobile */}
                       <div className="mt-4 space-y-3 sm:hidden">
                         {items.map((item) => (
                           <BudgetItemCardMobile
@@ -821,12 +918,12 @@ export default function NewBudgetPage() {
                             onToggleCalc={toggleCalcExpanded}
                             onUpdateField={updateItemField}
                             onRemove={removeItem}
-                            getStock={getStockByProductId}
+                            getStock={getStockForItem}
                           />
                         ))}
                       </div>
 
-                      {/* Tablet/desktop: tabla, con scroll propio si hace falta */}
+                      {/* Desktop */}
                       <div className="mt-4 hidden overflow-x-auto rounded-lg border sm:block">
                         <Table className="min-w-[640px]">
                           <TableHeader>
@@ -850,7 +947,7 @@ export default function NewBudgetPage() {
                                 onToggleCalc={toggleCalcExpanded}
                                 onUpdateField={updateItemField}
                                 onRemove={removeItem}
-                                getStock={getStockByProductId}
+                                getStock={getStockForItem}
                               />
                             ))}
                           </TableBody>
@@ -1076,15 +1173,12 @@ export default function NewBudgetPage() {
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                       <p className="font-semibold text-destructive">Stock insuficiente</p>
                       <ul className="mt-2 list-disc pl-5 space-y-1">
-                        {stockIssues.map((s) => {
-                          const it = items.find((i) => i.productServiceId === s.id)
-                          return (
-                            <li key={s.id}>
-                              <span className="font-medium">{it?.name ?? 'Item'}</span> — faltan{' '}
-                              <span className="font-semibold">{s.missing}</span>
-                            </li>
-                          )
-                        })}
+                        {stockIssues.map((s) => (
+                          <li key={s.id}>
+                            <span className="font-medium">{s.label}</span> — faltan{' '}
+                            <span className="font-semibold">{s.missing}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   )}

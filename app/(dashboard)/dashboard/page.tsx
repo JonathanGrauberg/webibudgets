@@ -1,12 +1,30 @@
 'use client'
-//app\(dashboard)\dashboard\page.tsx
+// app\(dashboard)\dashboard\page.tsx
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { StatCard } from '@/components/stat-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
-import { Users, Package, FileText, CheckCircle, Clock, DollarSign } from 'lucide-react'
+import { 
+  Users, 
+  Package, 
+  FileText, 
+  CheckCircle, 
+  Clock, 
+  DollarSign, 
+  TrendingUp, 
+  Plus, 
+  ArrowUpRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Sparkles,
+  BarChart3,
+  LayoutDashboard,
+  Wallet
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePermissions } from '@/hooks/use-permissions'
 import useSWR from 'swr'
@@ -30,7 +48,6 @@ type DashboardBudget = {
   }[]
 }
 
-
 interface DashboardResponse {
   stats: {
     totalClients: number
@@ -53,11 +70,10 @@ interface DashboardResponse {
   }[]
 }
 
-
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currency: string = 'ARS'): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS',
+    currency: currency,
     minimumFractionDigits: 0,
   }).format(amount)
 }
@@ -77,13 +93,17 @@ async function fetcher(url: string) {
 }
 
 export default function DashboardPage() {
-  const { canAccess, filterBudgets } = usePermissions()
+  const { canAccess, filterBudgets, canEdit } = usePermissions()
   const canViewBudgets = canAccess('budgets')
+  const canEditBudgets = canEdit('budgets')
+  
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 🌟 Hooks siempre arriba, sin duplicar y sin depender de `data`/`stats`
-  // (que todavía pueden ser null en el primer render)
+  // Control de colapso de secciones
+  const [showRecentBudgets, setShowRecentBudgets] = useState(true)
+  const [showMetricsSection, setShowMetricsSection] = useState(true)
+
   const { data: branding } = useSWR('/api/tenants', fetcher)
   const showMetrics = hasFeature({ features: branding?.features }, 'dashboardMetrics')
 
@@ -102,15 +122,16 @@ export default function DashboardPage() {
   if (!data) {
     return (
       <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        Error cargando dashboard
+        Error cargando el panel de control
       </div>
     )
   }
 
   const { stats, recentBudgets } = data
   const budgets = filterBudgets(recentBudgets ?? [])
+  const currency = branding?.currency ?? 'ARS'
 
-  // 🌟 Ahora sí, después de confirmar que `data`/`stats` existen
+  // Métricas avanzadas
   const avgTicket =
     (stats?.approvedBudgets ?? 0) > 0
       ? (stats?.totalRevenue ?? 0) / (stats?.approvedBudgets ?? 1)
@@ -121,173 +142,330 @@ export default function DashboardPage() {
       ? Math.round(((stats?.approvedBudgets ?? 0) / (stats?.totalBudgets ?? 1)) * 100)
       : 0
 
+  // Cálculo estimado de Pipeline (Suma de los pendientes)
+  const pendingBudgetsList = budgets.filter(
+  (b) => b.status === 'draft' || b.status === 'sent'
+)
+
+const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0), 0)
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background pb-12">
       <PageHeader
-        title="Dashboard"
-        description="Sistema de gestión .budgets by Webi."
-      />
-
-      <div className="p-8">
-        {/* Stats Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <StatCard
-            title="Clientes"
-            value={stats?.totalClients ?? 0}
-            icon={Users}
-            description="Registrados"
-            href="/clients"
-          />
-          <StatCard
-            title="Servicios"
-            value={stats?.totalProducts ?? 0}
-            icon={Package}
-            description="Activos"
-            href="/products"
-          />
-          <StatCard
-            title="Presupuestos"
-            value={stats?.totalBudgets ?? 0}
-            icon={FileText}
-            description="Creados"
-            href="/budgets"
-          />
-          <StatCard
-            title="Aprobados"
-            value={stats?.approvedBudgets ?? 0}
-            icon={CheckCircle}
-            description="Confirmados"
-            href="/budgets"
-          />
-          <StatCard
-            title="Pendientes"
-            value={stats?.pendingBudgets ?? 0}
-            icon={Clock}
-            description="En gestión"
-            href="/budgets"
-          />
-        </div>
-
-        {canViewBudgets && (
-          <Card className="mt-8">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Presupuestos Recientes</CardTitle>
-              <Link
-                href="/budgets"
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Ver todos
+        title="Dashboard Ejecutivo"
+        description="Panel de control e inteligencia comercial de .budgets"
+      >
+        {canEditBudgets && (
+          <div className="flex gap-2">
+            <Button asChild size="sm" className="shadow-sm">
+              <Link href="/budgets/new">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nuevo Presupuesto
               </Link>
-            </CardHeader>
-
-            <CardContent>
-              {budgets.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">
-                  No hay presupuestos creados aún
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {budgets.map((budget: DashboardBudget) => (
-                    <Link
-                      key={budget.id}
-                      href={`/budgets/${budget.id}`}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium text-card-foreground">
-                          {budget.client?.company || budget.client?.name || 'Cliente'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {budget.items?.length || 0} item(s) · {formatDate(budget.createdAt)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <Badge className={STATUS_COLORS[budget.status]}>
-                          {STATUS_LABELS[budget.status]}
-                        </Badge>
-                        <span className="font-semibold text-card-foreground">
-                          {formatCurrency(budget.total)}
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {showMetrics && (
-          <div className="mt-10 space-y-6">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-semibold text-card-foreground">Métricas avanzadas</h2>
-              <span className="text-xs text-muted-foreground">Solo visible para tu plan</span>
-            </div>
-
-            {/* Chips de insight */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <p className="text-xs text-muted-foreground">Tasa de aprobación</p>
-                <p className="mt-1 text-2xl font-semibold text-card-foreground">{approvalRate}%</p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <p className="text-xs text-muted-foreground">Ticket promedio aprobado</p>
-                <p className="mt-1 text-2xl font-semibold text-card-foreground">
-                  {formatCurrency(avgTicket)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <p className="text-xs text-muted-foreground">Ítem más solicitado</p>
-                <p className="mt-1 truncate text-2xl font-semibold text-card-foreground">
-                  {data.topRequestedProducts?.[0]?.name ?? '—'}
-                </p>
-              </div>
-            </div>
-
-            {/* Donut + Barras */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="text-base">Estado de presupuestos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StatusDonut statusStats={data.statusStats ?? []} accentColor={branding?.primaryColor} />
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="text-base">Ingresos aprobados por mes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RevenueBarChart
-                    revenue={data.revenue ?? []}
-                    currency={branding?.currency ?? 'ARS'}
-                    accentColor={branding?.primaryColor}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Más solicitados */}
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-base">Más solicitados en presupuestos</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Cantidad de presupuestos distintos donde se incluyó cada producto o servicio
-                  (no implica que se haya concretado el trabajo)
-                </p>
-              </CardHeader>
-              <CardContent>
-                <TopRequestedProducts
-                  products={data.topRequestedProducts ?? []}
-                  accentColor={branding?.primaryColor}
-                />
-              </CardContent>
-            </Card>
+            </Button>
           </div>
         )}
+      </PageHeader>
+
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+        
+        {/* BANNER FINANCIERO DESTACADO (HERO BI) */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/30">
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                  Ingresos Totales Aprobados
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">
+                  {formatCurrency(stats?.totalRevenue ?? 0, currency)}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3 text-emerald-500" />
+                  Facturación real confirmada
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <DollarSign className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-500/30">
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                  Pipeline en Cotización
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">
+                  {formatCurrency(pipelineValue, currency)}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-blue-500" />
+                  {stats?.pendingBudgets ?? 0} presupuestos en negociación
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                <Wallet className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500/10 via-background to-background border-purple-500/30">
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                  Ratio de Conversión
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">
+                  {approvalRate}%
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-purple-500" />
+                  Ticket Promedio: {formatCurrency(avgTicket, currency)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ORGANIZACIÓN CON PESTAÑAS (TABS) O VISTA COMPLETA */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <div className="flex items-center justify-between border-b pb-2">
+            <TabsList className="bg-muted/60">
+              <TabsTrigger value="overview" className="gap-2">
+                <LayoutDashboard className="h-4 w-4" />
+                Vista General
+              </TabsTrigger>
+              {showMetrics && (
+                <TabsTrigger value="bi" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Business Intelligence
+                </TabsTrigger>
+              )}
+            </TabsList>
+            
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Última actualización: En tiempo real
+            </span>
+          </div>
+
+          {/* TAB 1: VISTA GENERAL */}
+          <TabsContent value="overview" className="space-y-6 mt-0">
+            {/* KPI Cards Grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <StatCard
+                title="Clientes"
+                value={stats?.totalClients ?? 0}
+                icon={Users}
+                description="Registrados en base"
+                href="/clients"
+              />
+              <StatCard
+                title="Catálogo"
+                value={stats?.totalProducts ?? 0}
+                icon={Package}
+                description="Productos y servicios"
+                href="/products"
+              />
+              <StatCard
+                title="Presupuestos"
+                value={stats?.totalBudgets ?? 0}
+                icon={FileText}
+                description="Emitidos en total"
+                href="/budgets"
+              />
+              <StatCard
+                title="Aprobados"
+                value={stats?.approvedBudgets ?? 0}
+                icon={CheckCircle}
+                description="Cerrados con éxito"
+                href="/budgets"
+              />
+              <StatCard
+                title="Pendientes"
+                value={stats?.pendingBudgets ?? 0}
+                icon={Clock}
+                description="Esperando respuesta"
+                href="/budgets"
+              />
+            </div>
+
+            {/* SECCIÓN COLAPSABLE: Presupuestos Recientes */}
+            {canViewBudgets && (
+              <Card className="rounded-xl shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-semibold">
+                      Presupuestos Recientes
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                      {budgets.length}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/budgets"
+                      className="text-xs font-medium text-primary hover:underline flex items-center gap-1 mr-2"
+                    >
+                      Ver todos
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setShowRecentBudgets(!showRecentBudgets)}
+                    >
+                      {showRecentBudgets ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </CardHeader>
+
+                {showRecentBudgets && (
+                  <CardContent className="pt-0">
+                    {budgets.length === 0 ? (
+                      <p className="py-8 text-center text-xs text-muted-foreground">
+                        No hay presupuestos creados aún.
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {budgets.slice(0, 5).map((budget: DashboardBudget) => (
+                          <Link
+                            key={budget.id}
+                            href={`/budgets/${budget.id}`}
+                            className="flex items-center justify-between py-3.5 px-2 transition-colors hover:bg-muted/40 rounded-lg group"
+                          >
+                            <div className="space-y-1">
+                              <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                                {budget.client?.company || budget.client?.name || 'Cliente sin nombre'}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                <span>{budget.items?.length || 0} ítems</span>
+                                <span>•</span>
+                                <span>{formatDate(budget.createdAt)}</span>
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <Badge className={STATUS_COLORS[budget.status]}>
+                                {STATUS_LABELS[budget.status]}
+                              </Badge>
+                              <span className="font-semibold text-sm text-foreground w-28 text-right">
+                                {formatCurrency(budget.total, currency)}
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* TAB 2: BUSINESS INTELLIGENCE & MÉTRICAS */}
+          {showMetrics && (
+            <TabsContent value="bi" className="space-y-6 mt-0">
+              {/* ACCORDEÓN O HEADER DE MÉTRICAS */}
+              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    Analítica Avanzada de Ventas
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Gráficos comparativos y demanda de productos
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMetricsSection(!showMetricsSection)}
+                >
+                  {showMetricsSection ? 'Plegar Gráficos' : 'Desplegar Gráficos'}
+                </Button>
+              </div>
+
+              {showMetricsSection && (
+                <>
+                  {/* Chips KPI de BI */}
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Card className="p-4 border-l-4 border-l-emerald-500">
+                      <p className="text-xs text-muted-foreground font-medium">Efectividad Comercial</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">{approvalRate}%</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Presupuestos ganados vs. emitidos</p>
+                    </Card>
+
+                    <Card className="p-4 border-l-4 border-l-blue-500">
+                      <p className="text-xs text-muted-foreground font-medium">Ticket Promedio Venta</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">
+                        {formatCurrency(avgTicket, currency)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Promedio por presupuesto aprobado</p>
+                    </Card>
+
+                    <Card className="p-4 border-l-4 border-l-purple-500">
+                      <p className="text-xs text-muted-foreground font-medium">Producto Estrella</p>
+                      <p className="mt-1 truncate text-xl font-bold text-foreground">
+                        {data.topRequestedProducts?.[0]?.name ?? 'Sin datos'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">El más cotizado en presupuestos</p>
+                    </Card>
+                  </div>
+
+                  {/* Donut + Barras */}
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <Card className="rounded-xl shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold">Distribución por Estados</CardTitle>
+                        <CardDescription className="text-xs">Estado actual de los presupuestos emitidos</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <StatusDonut statusStats={data.statusStats ?? []} accentColor={branding?.primaryColor} />
+                      </CardContent>
+                    </Card>
+
+                    <Card className="rounded-xl shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold">Evolución de Ingresos Aprobados</CardTitle>
+                        <CardDescription className="text-xs">Facturación mensual consolidada</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <RevenueBarChart
+                          revenue={data.revenue ?? []}
+                          currency={currency}
+                          accentColor={branding?.primaryColor}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Más Solicitados */}
+                  <Card className="rounded-xl shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Productos y Servicios Más Requeridos</CardTitle>
+                      <CardDescription className="text-xs">
+                        Frecuencia de aparición en cotizaciones
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <TopRequestedProducts
+                        products={data.topRequestedProducts ?? []}
+                        accentColor={branding?.primaryColor}
+                      />
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+          )}
+        </Tabs>
 
       </div>
     </div>

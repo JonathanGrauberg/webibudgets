@@ -1,11 +1,12 @@
 'use client'
-//app\(dashboard)\products\page.tsx
-import { Suspense, useState } from 'react'
+// app\(dashboard)\products\page.tsx
+import React, { Suspense, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -36,14 +37,13 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { ProductForm } from '@/components/product-form'
 import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
 import { formatCurrency } from '@/lib/format'
-
 
 async function fetchProducts() {
   const res = await fetch('/api/products')
@@ -68,7 +68,6 @@ function Loading() {
   return null
 }
 
-// 🌟 Helper de costo/ganancia/margen — usado en tabla desktop y cards mobile
 function getCostMetrics(product: ProductService) {
   const cost = product.cost ?? null
   const ganancia = cost != null ? product.price - cost : null
@@ -80,7 +79,6 @@ function getCostMetrics(product: ProductService) {
   return { cost, ganancia, margen, isM2 }
 }
 
-// 🌟 Métricas resumen del catálogo (sutiles, arriba de la tabla)
 function getCatalogMetrics(products: ProductService[]) {
   const total = products.length
   const active = products.filter((p) => p.active).length
@@ -106,18 +104,30 @@ export default function ProductsPage() {
   const canEditProducts = canEdit('products')
   
   const { data: products = [], isLoading } = useSWR<ProductService[]>('/api/products', fetchProducts)
-  const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding) // 👈 nuevo
+  const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding)
+  
+  // Estados para Filtros
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [showInactive, setShowInactive] = useState(false) // 👈 Ocultos por defecto
+
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductService | null>(null)
 
-  // 🌟 Estados para la actualización masiva de precios
+  // Desplegable de variantes
+  const [expandedProductIds, setExpandedProductIds] = useState<Record<string, boolean>>({})
+
+  const toggleExpand = (id: string) => {
+    setExpandedProductIds((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  // Actualización masiva de precios
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkPercentage, setBulkPercentage] = useState('')
   const [bulkCategory, setBulkCategory] = useState('all')
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false)
 
+  // Aplicación de los Filtros (Búsqueda, Categoría y Estado Inactivo)
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -126,7 +136,9 @@ export default function ProductsPage() {
     const matchesCategory =
       categoryFilter === 'all' || product.category === categoryFilter
 
-    return matchesSearch && matchesCategory
+    const matchesActiveStatus = showInactive ? true : product.active
+
+    return matchesSearch && matchesCategory && matchesActiveStatus
   })
 
   const handleCreate = () => {
@@ -140,7 +152,7 @@ export default function ProductsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar este producto/servicio?')) return
+    if (!confirm('¿Está seguro de eliminar o inhabilitar este producto/servicio?')) return
 
     await fetch(`/api/products/${id}`, { method: 'DELETE' })
     mutate('/api/products')
@@ -152,7 +164,6 @@ export default function ProductsPage() {
     mutate('/api/products')
   }
 
-  // 🌟 Manejador para enviar el aumento por porcentaje al endpoint
   const handleBulkUpdateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const pct = Number(bulkPercentage)
@@ -187,7 +198,6 @@ export default function ProductsPage() {
       const result = await res.json()
       alert(`¡Éxito! Se actualizaron los precios de ${result.count} productos.`)
       
-      // Limpiamos estados y refrescamos la lista con SWR
       setBulkPercentage('')
       setBulkCategory('all')
       setIsBulkOpen(false)
@@ -210,7 +220,6 @@ export default function ProductsPage() {
           >
             {canEditProducts && (
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                {/* 🌟 Botón de actualización masiva */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button onClick={() => setIsBulkOpen(true)} variant="outline" className="w-full sm:w-auto">
@@ -235,68 +244,92 @@ export default function ProductsPage() {
           </PageHeader>
 
           <div className="p-4 md:p-6 lg:p-8">
-            {/* 🌟 Métricas sutiles del catálogo */}
-              {!isLoading && products.length > 0 && (() => {
-                const { total, active, avgMargin, lowMarginCount } = getCatalogMetrics(products)
-                return (
-                  <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-semibold text-card-foreground">{total}</span>
-                      <span className="text-muted-foreground">productos</span>
-                    </div>
-                    <div className="hidden h-3 w-px bg-border sm:block" />
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-card-foreground">{active}</span>
-                      <span className="text-muted-foreground">activos</span>
-                    </div>
-                    {avgMargin != null && (
-                      <>
-                        <div className="hidden h-3 w-px bg-border sm:block" />
-                        <div className="flex items-center gap-1.5">
-                          <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-semibold text-card-foreground">{avgMargin.toFixed(0)}%</span>
-                          <span className="text-muted-foreground">margen promedio</span>
-                        </div>
-                      </>
-                    )}
-                    {lowMarginCount > 0 && (
-                      <>
-                        <div className="hidden h-3 w-px bg-border sm:block" />
-                        <div className="flex items-center gap-1.5 text-orange-600">
-                          <span className="font-semibold">{lowMarginCount}</span>
-                          <span>con margen bajo</span>
-                        </div>
-                      </>
-                    )}
+            {!isLoading && products.length > 0 && (() => {
+              const { total, active, avgMargin, lowMarginCount } = getCatalogMetrics(products)
+              return (
+                <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-card-foreground">{total}</span>
+                    <span className="text-muted-foreground">productos</span>
                   </div>
-                )
-              })()}
-            {/* Filters */}
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar productos o servicios..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+                  <div className="hidden h-3 w-px bg-border sm:block" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-card-foreground">{active}</span>
+                    <span className="text-muted-foreground">activos</span>
+                  </div>
+                  {avgMargin != null && (
+                    <>
+                      <div className="hidden h-3 w-px bg-border sm:block" />
+                      <div className="flex items-center gap-1.5">
+                        <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="font-semibold text-card-foreground">{avgMargin.toFixed(0)}%</span>
+                        <span className="text-muted-foreground">margen promedio</span>
+                      </div>
+                    </>
+                  )}
+                  {lowMarginCount > 0 && (
+                    <>
+                      <div className="hidden h-3 w-px bg-border sm:block" />
+                      <div className="flex items-center gap-1.5 text-orange-600">
+                        <span className="font-semibold">{lowMarginCount}</span>
+                        <span>con margen bajo</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Barra de Filtros + Switch Ocultar/Mostrar Inactivos */}
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
+                <div className="relative w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar productos o servicios..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-full sm:w-[220px]">
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-[220px]">
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las categorías</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Toggle de Inactivos */}
+              <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs font-medium shrink-0 self-start sm:self-auto">
+                <Switch
+                  id="show-inactive"
+                  checked={showInactive}
+                  onCheckedChange={setShowInactive}
+                />
+                <Label htmlFor="show-inactive" className="cursor-pointer flex items-center gap-1.5">
+                  {showInactive ? (
+                    <>
+                      <Eye className="h-3.5 w-3.5 text-primary" />
+                      <span>Mostrando inactivos</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Ocultando inactivos</span>
+                    </>
+                  )}
+                </Label>
+              </div>
             </div>
 
             {isLoading ? (
@@ -310,7 +343,7 @@ export default function ProductsPage() {
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <p className="text-center text-muted-foreground">
                     {searchQuery || categoryFilter !== 'all'
-                      ? 'No se encontraron productos'
+                      ? 'No se encontraron productos con los filtros aplicados.'
                       : 'No hay productos registrados'}
                   </p>
 
@@ -323,13 +356,15 @@ export default function ProductsPage() {
               </Card>
             ) : (
               <>
-                {/* MOBILE: cards */}
+                {/* MOBILE: cards con acordeón */}
                 <div className="space-y-4 md:hidden">
                   {filteredProducts.map((product) => {
                     const { cost, margen } = getCostMetrics(product)
+                    const hasVariants = product.variants && product.variants.length > 0
+                    const isExpanded = !!expandedProductIds[product.id]
 
                     return (
-                      <Card key={product.id}>
+                      <Card key={product.id} className={!product.active ? 'opacity-60 bg-muted/20' : ''}>
                         <CardContent className="space-y-4 p-4">
                           <div className="space-y-1">
                             <p className="font-medium text-card-foreground">
@@ -352,58 +387,33 @@ export default function ProductsPage() {
 
                           <div className="space-y-2 text-sm">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <CircleDollarSign className="h-4 w-4 shrink-0" />
-                                <span>Precio</span>
-                              </div>
+                              <span className="text-muted-foreground">Precio</span>
                               <span className="font-semibold text-card-foreground">
                                 {formatCurrency(product.price, product.currency)}
                               </span>
                             </div>
 
-                            {/* 🌟 Costo (solo si está cargado) */}
-                            {cost != null && (
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <CircleDollarSign className="h-4 w-4 shrink-0" />
-                                  <span>Costo</span>
-                                </div>
-                                <span className="text-card-foreground">
-                                  {formatCurrency(cost, product.currency)}
-                                </span>
-                              </div>
-                            )}
+                            {hasVariants && (
+                              <div className="mt-2 rounded-md border bg-muted/20 p-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(product.id)}
+                                  className="flex w-full items-center justify-between text-xs font-semibold text-primary"
+                                >
+                                  <span>Variantes ({product.variants?.length})</span>
+                                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </button>
 
-                            {/* 🌟 Margen Bruto (solo si hay costo cargado) */}
-                            {margen != null && (
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <Percent className="h-4 w-4 shrink-0" />
-                                  <span>Margen</span>
-                                </div>
-                                <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
-                                  {margen.toFixed(0)}%
-                                </Badge>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Package className="h-4 w-4 shrink-0" />
-                                <span>Unidad</span>
-                              </div>
-                              <span className="text-card-foreground">
-                                {product.unit}
-                              </span>
-                            </div>
-
-                            {'stock' in product && typeof product.stock === 'number' && (
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <Tag className="h-4 w-4 shrink-0" />
-                                  <span>Stock</span>
-                                </div>
-                                <span className="text-card-foreground">{product.stock}</span>
+                                {isExpanded && (
+                                  <div className="mt-2 space-y-1 border-t pt-2">
+                                    {product.variants?.map((v) => (
+                                      <div key={v.id} className="flex justify-between text-xs text-muted-foreground">
+                                        <span>• {v.label}</span>
+                                        <span className="font-mono">{v.stock} disp.</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -435,17 +445,17 @@ export default function ProductsPage() {
                   })}
                 </div>
 
-                {/* DESKTOP/TABLET: table */}
+                {/* DESKTOP: Tabla */}
                 <Card className="hidden md:block">
                   <CardContent className="p-0">
                     <div className="w-full overflow-x-auto">
                       <Table className="table-fixed">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[28%]">Producto / Servicio</TableHead>
+                            <TableHead className="w-[30px]"></TableHead>
+                            <TableHead className="w-[26%]">Producto / Servicio</TableHead>
                             <TableHead>Categoría</TableHead>
                             <TableHead className="text-right">Costo</TableHead>
-                            <TableHead className="text-right">Costo m²</TableHead>
                             <TableHead className="text-right">Precio</TableHead>
                             <TableHead className="text-right">Ganancia</TableHead>
                             <TableHead className="text-right">Margen</TableHead>
@@ -459,98 +469,152 @@ export default function ProductsPage() {
 
                         <TableBody>
                           {filteredProducts.map((product) => {
-                            const { cost, ganancia, margen, isM2 } = getCostMetrics(product)
+                            const { cost, ganancia, margen } = getCostMetrics(product)
+                            const hasVariants = product.variants && product.variants.length > 0
+                            const isExpanded = !!expandedProductIds[product.id]
 
                             return (
-                              <TableRow key={product.id}>
-                                <TableCell>
-                                  <div className="space-y-1">
-                                    <p className="line-clamp-2 font-medium text-card-foreground break-words">
-                                      {product.name}
-                                    </p>
-                                    <p className="line-clamp-2 break-words text-sm text-muted-foreground">
-                                      {product.description}
-                                    </p>
-                                  </div>
-                                </TableCell>
+                              <React.Fragment key={product.id}>
+                                <TableRow className={`${isExpanded ? 'bg-muted/30 border-b-0' : ''} ${!product.active ? 'opacity-60 bg-muted/10' : ''}`}>
+                                  {/* Flechita para desplegar */}
+                                  <TableCell className="p-2">
+                                    {hasVariants ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => toggleExpand(product.id)}
+                                      >
+                                        {isExpanded ? (
+                                          <ChevronDown className="h-4 w-4 text-primary" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                      </Button>
+                                    ) : null}
+                                  </TableCell>
 
-                                <TableCell>
-                                  <Badge className={CATEGORY_COLORS[product.category]}>
-                                    {CATEGORY_LABELS[product.category]}
-                                  </Badge>
-                                </TableCell>
-
-                                {/* 🌟 Costo / Costo m² / Precio / Ganancia / Margen */}
-                                <TableCell className="text-right">
-                                  {cost != null ? formatCurrency(cost, product.currency) : '—'}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {cost != null && isM2 ? formatCurrency(cost, product.currency) : '—'}
-                                </TableCell>
-                                <TableCell className="text-right font-medium">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    {formatCurrency(product.price, product.currency)}
-                                    {product.currency !== 'ARS' && (
-                                      <Badge variant="outline" className="text-[10px] px-1.5">
-                                        {product.currency}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {ganancia != null ? formatCurrency(ganancia, product.currency) : '—'}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {margen != null ? (
-                                    <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
-                                      {margen.toFixed(0)}%
-                                    </Badge>
-                                  ) : '—'}
-                                </TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                  {product.unit}
-                                </TableCell>
-
-                                <TableCell>
-                                  <Badge variant={product.active ? 'default' : 'secondary'}>
-                                    {product.active ? 'Activo' : 'Inactivo'}
-                                  </Badge>
-                                </TableCell>
-
-                                {canEditProducts && (
                                   <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleEdit(product)}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Editar producto</TooltipContent>
-                                      </Tooltip>
-
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleDelete(product.id)}
-                                            className="text-destructive hover:text-destructive"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Eliminar producto</TooltipContent>
-                                      </Tooltip>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="line-clamp-2 font-medium text-card-foreground break-words">
+                                          {product.name}
+                                        </p>
+                                        {hasVariants && (
+                                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
+                                            {product.variants?.length} variantes
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="line-clamp-2 break-words text-xs text-muted-foreground">
+                                        {product.description}
+                                      </p>
                                     </div>
                                   </TableCell>
+
+                                  <TableCell>
+                                    <Badge className={CATEGORY_COLORS[product.category]}>
+                                      {CATEGORY_LABELS[product.category]}
+                                    </Badge>
+                                  </TableCell>
+
+                                  <TableCell className="text-right">
+                                    {cost != null ? formatCurrency(cost, product.currency) : '—'}
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-right font-medium">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      {formatCurrency(product.price, product.currency)}
+                                      {product.currency !== 'ARS' && (
+                                        <Badge variant="outline" className="text-[10px] px-1.5">
+                                          {product.currency}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+
+                                  <TableCell className="text-right">
+                                    {ganancia != null ? formatCurrency(ganancia, product.currency) : '—'}
+                                  </TableCell>
+
+                                  <TableCell className="text-right">
+                                    {margen != null ? (
+                                      <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                                        {margen.toFixed(0)}%
+                                      </Badge>
+                                    ) : '—'}
+                                  </TableCell>
+
+                                  <TableCell className="text-muted-foreground">
+                                    {product.unit}
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <Badge variant={product.active ? 'default' : 'secondary'}>
+                                      {product.active ? 'Activo' : 'Inactivo'}
+                                    </Badge>
+                                  </TableCell>
+
+                                  {canEditProducts && (
+                                    <TableCell>
+                                      <div className="flex items-center gap-1">
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleEdit(product)}
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Editar producto</TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleDelete(product.id)}
+                                              className="text-destructive hover:text-destructive"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Eliminar producto</TooltipContent>
+                                        </Tooltip>
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+
+                                {/* FILA DESPLEGABLE CON VARIANTES */}
+                                {hasVariants && isExpanded && (
+                                  <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                    <TableCell colSpan={10} className="py-2 pl-12 pr-6">
+                                      <div className="rounded-lg border bg-background p-3">
+                                        <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                          Variantes disponibles
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                          {product.variants?.map((v) => (
+                                            <div
+                                              key={v.id}
+                                              className="flex items-center justify-between rounded border bg-muted/10 px-3 py-1.5 text-xs"
+                                            >
+                                              <span className="font-medium text-foreground">{v.label}</span>
+                                              <Badge variant="secondary" className="font-mono text-[10px]">
+                                                {v.stock} u.
+                                              </Badge>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
                                 )}
-                              </TableRow>
+                              </React.Fragment>
                             )
                           })}
                         </TableBody>
@@ -562,7 +626,7 @@ export default function ProductsPage() {
             )}
           </div>
 
-          {/* Modal Edición / Creación tradicional */}
+          {/* Modal Edición / Creación */}
           {canEditProducts && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
@@ -583,7 +647,7 @@ export default function ProductsPage() {
             </Dialog>
           )}
 
-          {/* 🌟 NUEVO: Modal de Actualización Masiva por Porcentaje */}
+          {/* Modal Actualización Masiva */}
           {canEditProducts && (
             <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
               <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
@@ -607,9 +671,6 @@ export default function ProductsPage() {
                       />
                       <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Colocá valores positivos para recargos por inflación o negativos para descuentos generales.
-                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -653,7 +714,6 @@ export default function ProductsPage() {
               </DialogContent>
             </Dialog>
           )}
-
         </div>
       </TooltipProvider>
     </Suspense>
