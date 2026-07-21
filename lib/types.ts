@@ -1,4 +1,5 @@
 // lib/types.ts
+
 export type TenantFeatureKey =
   | 'calculator'
   | 'commissions'
@@ -15,8 +16,8 @@ export interface Client {
   email: string
   phone: string
   address: string
-  city?: string | null // 👈 nuevo
-  province?: string | null // 👈 nuevo
+  city?: string | null
+  province?: string | null
   notes: string
   createdAt: Date
   updatedAt: Date
@@ -34,8 +35,8 @@ export interface ProductService {
   description: string
   category: ProductCategory
   price: number
-  cost?: number | null // 👈 nuevo
-  currency: string 
+  cost?: number | null
+  currency: string
   unit: string
   active: boolean
   stock?: number
@@ -93,13 +94,12 @@ export type BudgetStatus =
 export interface BudgetItem {
   id: string
   budgetId: string
-  productServiceId: string | null // 👈 corregido: puede ser null en ítems on-the-fly
+  productServiceId: string | null
   productService?: ProductService
-  customName?: string | null // 👈 nuevo: nombre del ítem cuando es personalizado
+  customName?: string | null
   quantity: number
   unitPrice: number
   subtotal: number
-  // 👈 nuevo: campos de la calculadora (solo presentes si el tenant tiene el módulo activo)
   widthCm?: number | null
   heightCm?: number | null
   hours?: number | null
@@ -142,7 +142,7 @@ export interface Budget {
   notes: string
 
   // 💰 Montos
-  currency: string // 👈 nuevo — moneda única de este presupuesto
+  currency: string
   subtotal: number
   discount: number
   tax: number
@@ -164,9 +164,58 @@ export interface Budget {
   updatedAt: Date
 }
 
+// -----------------------------------------------------------------------------
+// 🧾 MÓDULO DE DOCUMENTOS / COMPROBANTES (Vouchers)
+// -----------------------------------------------------------------------------
+
+export interface Receipt {
+  id: string
+  receiptNumber?: number | null
+  receipt_number?: number | null
+  budgetId?: string | null
+  budget_id?: string | null
+  amount: number
+  paymentMethod?: string | null
+  payment_method?: string | null
+  notes?: string | null
+  status?: 'active' | 'cancelled' | 'anulado' | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  budget?: {
+    id: string
+    budgetNumber?: number | null
+  }
+}
+
+export interface DeliveryNote {
+  id: string
+  deliveryNumber?: number | null
+  budgetId?: string | null
+  budget_id?: string | null
+  notes?: string | null
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export interface WorkOrder {
+  id: string
+  orderNumber?: number | null
+  budgetId?: string | null
+  budget_id?: string | null
+  notes?: string | null
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+// -----------------------------------------------------------------------------
+// 🏷 MAPPINGS Y CONSTANTES
+// -----------------------------------------------------------------------------
+
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   biodigesters: 'Equipos',
-  grease_traps: 'Accesorios', 
+  grease_traps: 'Accesorios',
   maintenance: 'Servicios',
   other: 'Otros',
 }

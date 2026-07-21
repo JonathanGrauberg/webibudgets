@@ -33,8 +33,10 @@ import {
   DollarSign,
   CheckCircle2,
   ChevronDown,
+  AlertCircle,
+  Clock,
 } from 'lucide-react'
-import type { Budget } from '@/lib/types'
+import type { Budget, Receipt as ReceiptType } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
 import { hasFeature } from '@/lib/features'
@@ -119,7 +121,45 @@ function DirectDocButton({
   )
 }
 
-// Acciones para vista Mobile (Tres Puntos)
+// Componente para ver el Estado del Cobro / Saldo Pendiente
+function PaymentStatusBadge({
+  total,
+  collected,
+}: {
+  total: number
+  collected: number
+}) {
+  const pending = Math.max(0, total - collected)
+
+  if (collected >= total && total > 0) {
+    return (
+      <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 font-medium gap-1">
+        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Saldado
+      </Badge>
+    )
+  }
+
+  if (collected > 0 && pending > 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 font-medium gap-1 w-fit">
+          <Clock className="h-3 w-3 text-amber-600" /> Falta {formatCurrency(pending)}
+        </Badge>
+        <span className="text-[10px] text-slate-500 font-normal">
+          Cobrado: {formatCurrency(collected)}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 font-medium gap-1">
+      <AlertCircle className="h-3 w-3 text-slate-400" /> Pendiente {formatCurrency(pending)}
+    </Badge>
+  )
+}
+
+// Acciones para vista Mobile
 function MobileActionsMenu({
   onNewReceipt,
   onHistoryReceipt,
@@ -257,11 +297,48 @@ function DocumentRow({
 export default function DocumentsPage() {
   const [search, setSearch] = useState('')
   const { filterBudgets } = usePermissions()
-  const { data: budgetsRaw = [], isLoading } = useSWR<Budget[]>('/api/budgets', fetcher)
+
+  // Obtenemos presupuestos y todos los recibos
+  const {
+    data: budgetsRaw = [],
+    mutate: mutateBudgets,
+    isLoading: isLoadingBudgets,
+  } = useSWR<Budget[]>('/api/budgets', fetcher)
+
+  const {
+    data: receipts = [],
+    mutate: mutateReceipts,
+    isLoading: isLoadingReceipts,
+  } = useSWR<ReceiptType[]>('/api/receipts', fetcher)
+
   const budgets = filterBudgets(budgetsRaw)
 
   const { data: branding, isLoading: isLoadingBranding } = useSWR('/api/tenants', fetcher)
   const hasVouchersFeature = hasFeature({ features: branding?.features }, 'vouchers')
+
+  // Mapeo seguro de cobrados por cada presupuesto
+  const collectedMap: Record<string, number> = {}
+
+  receipts.forEach((r: any) => {
+    // Detectamos el ID vengar como venga (budgetId, budget_id o sub-objeto budget.id)
+    const bId = r.budgetId ?? r.budget_id ?? r.budget?.id
+
+    if (bId !== undefined && bId !== null && r.status !== 'cancelled' && r.status !== 'anulado') {
+      const key = String(bId)
+      const amount = Number(r.amount || 0)
+      collectedMap[key] = (collectedMap[key] || 0) + amount
+    }
+  })
+
+  // Función helper para consultar saldo cobrado seguro por ID de presupuesto
+  const getCollectedAmount = (budgetId: string | number) => {
+    return collectedMap[String(budgetId)] || 0
+  }
+
+  // LOGS DE VERIFICACIÓN EN CONSOLA
+  console.log('📌 [DocumentsPage] Recibos cargados desde la API:', receipts)
+  console.log('📌 [DocumentsPage] Mapa de cobrados generado:', collectedMap)
+  console.log('📌 [DocumentsPage] Presupuestos cargados:', budgets)
 
   // Filtrado de búsquedas
   const filteredBudgets = budgets.filter((b) => {
@@ -271,11 +348,26 @@ export default function DocumentsPage() {
     return clientName.includes(term) || budgetNum.includes(term)
   })
 
-  // KPIs Financieros y de Métricas Rápidas
-  const totalApprovedAndCompleted = budgets.filter(
+  // KPIs
+  const totalApproved = budgets.filter(
     (b) => b.status === 'approved' || b.status === 'completed'
   )
-  const totalAmount = totalApprovedAndCompleted.reduce((acc, b) => acc + (b.total || 0), 0)
+  const totalAmount = totalApproved.reduce((acc, b) => acc + (b.total || 0), 0)
+
+  // Suma total cobrada en recibos (solo activos)
+  const totalCollected = receipts.reduce((acc: number, r: any) => {
+    if (r.status !== 'cancelled' && r.status !== 'anulado') {
+      return acc + Number(r.amount || 0)
+    }
+    return acc
+  }, 0)
+
+  const totalPending = Math.max(0, totalAmount - totalCollected)
+
+  const handleDocumentChange = () => {
+    mutateBudgets()
+    mutateReceipts()
+  }
 
   if (isLoadingBranding) {
     return (
@@ -314,7 +406,7 @@ export default function DocumentsPage() {
       />
 
       <div className="p-4 md:p-6 lg:p-8 pt-0 space-y-6">
-        {/* KPI Cards superiores para enriquecer la pantalla */}
+        {/* KPI Cards superiores */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="border-slate-200 shadow-xs">
             <CardContent className="p-4 flex items-center gap-3.5">
@@ -322,9 +414,23 @@ export default function DocumentsPage() {
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Presupuestos Aprobados</p>
+                <p className="text-xs text-slate-500 font-medium">Cobrado en Recibos</p>
                 <p className="text-xl font-bold text-slate-900 mt-0.5">
-                  {totalApprovedAndCompleted.length}
+                  {formatCurrency(totalCollected)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-xs">
+            <CardContent className="p-4 flex items-center gap-3.5">
+              <div className="rounded-lg bg-amber-50 p-2.5 text-amber-600">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Saldo por Cobrar</p>
+                <p className="text-xl font-bold text-slate-900 mt-0.5">
+                  {formatCurrency(totalPending)}
                 </p>
               </div>
             </CardContent>
@@ -336,22 +442,10 @@ export default function DocumentsPage() {
                 <DollarSign className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Monto Total Aprobado</p>
+                <p className="text-xs text-slate-500 font-medium">Monto Aprobado Total</p>
                 <p className="text-xl font-bold text-slate-900 mt-0.5">
                   {formatCurrency(totalAmount)}
                 </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-xs">
-            <CardContent className="p-4 flex items-center gap-3.5">
-              <div className="rounded-lg bg-purple-50 p-2.5 text-purple-600">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Presupuestos Totales</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">{budgets.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -370,10 +464,10 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoadingBudgets || isLoadingReceipts ? (
           <Card className="border-slate-200">
             <CardContent className="flex items-center justify-center py-16 text-slate-400 text-sm">
-              Cargando presupuestos...
+              Cargando presupuestos y recibos...
             </CardContent>
           </Card>
         ) : filteredBudgets.length === 0 ? (
@@ -385,73 +479,93 @@ export default function DocumentsPage() {
           </Card>
         ) : (
           <Card className="border-slate-200 shadow-xs overflow-hidden">
-            {/* MOBILE: Tarjetas limpias */}
+            {/* MOBILE */}
             <div className="divide-y divide-slate-100 md:hidden">
-              {filteredBudgets.map((b) => (
-                <div key={b.id} className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-xs font-bold text-slate-500">
-                        #{String(b.budgetNumber ?? 0).padStart(6, '0')}
-                      </span>
-                      <h4 className="font-semibold text-slate-900 text-sm mt-0.5">
-                        {b.client?.company || b.client?.name || '-'}
-                      </h4>
+              {filteredBudgets.map((b) => {
+                const collected = getCollectedAmount(b.id)
+                return (
+                  <div key={b.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-bold text-slate-500">
+                          #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                        </span>
+                        <h4 className="font-semibold text-slate-900 text-sm mt-0.5">
+                          {b.client?.company || b.client?.name || '-'}
+                        </h4>
+                      </div>
+                      <Badge className={STATUS_COLORS[b.status]}>
+                        {STATUS_LABELS[b.status]}
+                      </Badge>
                     </div>
-                    <Badge className={STATUS_COLORS[b.status]}>
-                      {STATUS_LABELS[b.status]}
-                    </Badge>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {formatCurrency(b.total || 0)}
+                      </span>
+                      <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                    </div>
+                    <div className="flex items-center justify-end pt-2 border-t border-slate-100">
+                      <DocumentRow
+                        budget={b}
+                        onReceiptCreated={handleDocumentChange}
+                        isMobile
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatCurrency(b.total || 0)}
-                    </span>
-                    <DocumentRow budget={b} onReceiptCreated={() => {}} isMobile />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
-            {/* DESKTOP: Tabla directa y clara */}
+            {/* DESKTOP */}
             <div className="hidden md:block w-full overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                    <TableHead className="w-[110px] font-semibold text-slate-700">N° Presup.</TableHead>
+                    <TableHead className="w-[100px] font-semibold text-slate-700">N° Presup.</TableHead>
                     <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
                     <TableHead className="font-semibold text-slate-700">Fecha</TableHead>
                     <TableHead className="font-semibold text-slate-700">Monto Total</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Estado Presup.</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Estado de Cobro</TableHead>
                     <TableHead className="text-right font-semibold text-slate-700 pr-6">
                       Generar Documentos
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBudgets.map((b) => (
-                    <TableRow key={b.id} className="hover:bg-slate-50/60 transition-colors">
-                      <TableCell className="text-xs font-semibold text-slate-500">
-                        #{String(b.budgetNumber ?? 0).padStart(6, '0')}
-                      </TableCell>
-                      <TableCell className="font-medium text-slate-900">
-                        {b.client?.company || b.client?.name || '-'}
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-500">
-                        {formatDate(b.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-sm font-semibold text-slate-900">
-                        {formatCurrency(b.total || 0)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_COLORS[b.status]}>
-                          {STATUS_LABELS[b.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right pr-6 py-3">
-                        <DocumentRow budget={b} onReceiptCreated={() => {}} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredBudgets.map((b) => {
+                    const collected = getCollectedAmount(b.id)
+                    return (
+                      <TableRow key={b.id} className="hover:bg-slate-50/60 transition-colors">
+                        <TableCell className="text-xs font-semibold text-slate-500">
+                          #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                        </TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {b.client?.company || b.client?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {formatDate(b.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-slate-900">
+                          {formatCurrency(b.total || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={STATUS_COLORS[b.status]}>
+                            {STATUS_LABELS[b.status]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                        </TableCell>
+                        <TableCell className="text-right pr-6 py-3">
+                          <DocumentRow
+                            budget={b}
+                            onReceiptCreated={handleDocumentChange}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
