@@ -91,3 +91,15 @@
 - **Recursos de Marca:** Carga personalizada de Logo de Empresa, Favicon, Marca de Agua para PDF e Ícono de Barra Lateral.
 - **Sistema de Colores Dinámico:** Ajuste de Color Principal, Secundario y Acento mediante códigos HEX. Los presupuestos en PDF adaptan sus colores y estilo al branding de la empresa en tiempo real.
 - **Configuración de PDF:** Control de intensidad de marca de agua, numeración de páginas y firma/pie de página personalizado.
+## 🛠️ Herramientas Interactivas y Demos en Vivo (Landing Page)
+Los visitantes pueden probar simulaciones en tiempo real directamente en la landing page desde el botón superior **"Testeá en vivo"**:
+- **Calculadora interactiva:** Permite simular presupuestos calculados por m², m³ o fórmulas personalizadas.
+- **Reparto de Ganancias:** Demostración en vivo del cálculo de split de socios y división de costos.
+- **Flujo de trabajo (1 clic):** Muestra la conversión directa de Cotización a Remito y Recibo.
+- **Cortesías y descuentos:** Simulación de configuración de ítems bonificados automáticamente.
+
+## 💰 Planes y Precios
+- **Inicial ($0/mes):** Ideal para empezar a cotizar de forma gratuita y conocer la plataforma.
+- **Negocio ($5.990/mes):** Pensado para negocios en crecimiento que necesitan herramientas avanzadas de gestión y seguimiento.
+- **Empresa ($19.990/mes):** Para empresas consolidadas, equipos comerciales con múltiples vendedores y alto volumen de presupuestación.
+- **Custom / Personalizado (Anual):** Diseñado a medida para empresas o negocios con grandes flujos de trabajo. Incluye desarrollo de módulos a medida, personalización avanzada de ítems y funcionalidades extra. Se cotiza en minutos directamente junto al equipo de Webi. Studio Digital.

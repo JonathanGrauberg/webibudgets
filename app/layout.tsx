@@ -1,4 +1,4 @@
-//app\layout.tsx
+// app/layout.tsx
 import React from "react"
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
@@ -6,12 +6,12 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
 import { Inter } from 'next/font/google'
+import { DifyChatbot } from '@/components/dify-chatbot' // 👈 1. Importamos el componente
 
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-sans',
 })
-
 
 export const metadata: Metadata = {
   title: '.budgets | Presupuestos, Stock y Gestión para Pymes',
@@ -32,7 +32,6 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favico.ico', media: '(prefers-color-scheme: light)' },
       { url: '/favico.ico', media: '(prefers-color-scheme: dark)' },
-      // 👈 si no tenés un .svg real, sacá esta entrada — el type no coincidía con el archivo
     ],
     apple: '/favico.ico',
   },
@@ -85,6 +84,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <Toaster />
+          <DifyChatbot /> {/* 🤖 2. Lo agregamos acá */}
         </Providers>
         <Analytics />
       </body>
