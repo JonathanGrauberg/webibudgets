@@ -1,5 +1,6 @@
 'use client'
-//components\landing\landing-sections.tsx
+// components/landing/landing-sections.tsx
+
 import {
   ArrowRight, Check, FileText, Download,
   Users, Package, Palette, Share2, HelpCircle,
@@ -7,33 +8,24 @@ import {
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
 } from 'lucide-react'
 import Link from 'next/link'
-import {
-  features, faqs, plans,
-} from './landing-data'
+import { faqs, plans } from './landing-data'
 
 import { ProductosBanner } from '../productos-banner'
 import Image from "next/image"
-import { useState, useEffect } from 'react';
-import { PresenceMap } from "@/components/PresenceMap";
-
-// 1. Mapeamos TODOS los iconos que tenías en tu archivo original
-const featureIcons = { 
-  FileText, 
-  Download, 
-  Users, 
-  Package, 
-  Palette, 
-  Share2, 
-  UsersRound,
-  HelpCircle 
-} as const
+import { useState, useEffect } from 'react'
+import { PresenceMap } from "@/components/PresenceMap"
+import { LandingCalculatorBento } from './calculator-showcase'
+import { LandingFreeItemBento } from './LandingFreeItemBento'
+import { LandingProfitSplitBento } from './LandingProfitSplitBento'
+import { LandingWorkflowBento } from './LandingWorkflowBento'
+import { FeaturesGrid } from './FeaturesGrid'
 
 const fonts = [
   'font-sans', 
   'font-serif', 
   'font-mono', 
   'font-black tracking-tighter'
-];
+]
 
 const colors = [
   'text-amber-500',
@@ -42,7 +34,7 @@ const colors = [
   'text-rose-500',
   'text-violet-500',
   'text-orange-500'
-];
+]
 
 const whatsappUrl =
   'https://wa.me/5493436959359?text=' +
@@ -88,23 +80,23 @@ function BrandingMock() {
 }
 
 function DynamicText({ text, delay = 2000 }: { text: string; delay?: number }) {
-  const [fontIndex, setFontIndex] = useState(0);
-  const [colorIndex, setColorIndex] = useState(0);
+  const [fontIndex, setFontIndex] = useState(0)
+  const [colorIndex, setColorIndex] = useState(0)
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setFontIndex((prev) => (prev + 1) % fonts.length);
-      setColorIndex((prev) => (prev + 1) % colors.length);
-    }, delay);
+      setFontIndex((prev) => (prev + 1) % fonts.length)
+      setColorIndex((prev) => (prev + 1) % colors.length)
+    }, delay)
 
-    return () => clearInterval(interval);
-  }, [delay]);
+    return () => clearInterval(interval)
+  }, [delay])
 
   return (
     <span className={`transition-all duration-500 ease-in-out ${fonts[fontIndex]} ${colors[colorIndex]}`}>
       {text}
     </span>
-  );
+  )
 }
 
 export function LandingSections({
@@ -145,7 +137,7 @@ export function LandingSections({
       <ProductosBanner />
 
       {/* ── BRANDING SECTION ── */}
-      <section className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <section id="branding" className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
           <div className="pointer-events-none absolute -right-32 top-1/2 hidden h-[640px] w-[640px] -translate-y-1/2 rounded-full bg-neutral-950 lg:block" />
 
@@ -166,43 +158,31 @@ export function LandingSections({
         </div>
       </section>
 
-      {/* ── PRESENCE MAP ── */}
+      {/* ── PROFIT SPLIT BENTO ── */}
+      <section id="demo-profit">
+        <LandingProfitSplitBento />
+      </section>
 
+      {/* ── CALCULATOR SHOWCASE ── */}
+      <section id="demo-calculator">
+        <LandingCalculatorBento />
+      </section>
+
+      {/* ── TEMPLATES BENTO ── */}
+      <section id="demo-workflow">
+        <LandingWorkflowBento />
+      </section>
+
+      {/* ── FREE ITEM BENTO ── */}
+      <section id="demo-freeitem">
+        <LandingFreeItemBento /> 
+      </section>
+
+      {/* ── PRESENCE MAP ── */}
       <PresenceMap />
 
-      {/* ── FEATURES ── */}
-      <section id="features" className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-              Todo lo que necesitás
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-              Funciones diseñadas para negocios modernos que quieren control y flexibilidad.
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, i) => {
-              // 🛡️ Salvaguarda: si el icono no existe en el objeto, usa FileText por defecto para no crashear
-              const Icon = featureIcons[feature.icon as keyof typeof featureIcons] || FileText
-              
-              return (
-                <div
-                  key={i}
-                  className="group rounded-3xl border border-border bg-card p-7 transition hover:shadow-md"
-                >
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground text-background transition group-hover:scale-105">
-                    <Icon size={22} />
-                  </div>
-                  <h3 className="mb-2 text-base font-bold text-card-foreground">{feature.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+      {/* ── FEATURES GRID ── */}
+      <FeaturesGrid />
 
       {/* ── PRICING ── */}
       <section id="pricing" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -293,8 +273,6 @@ export function LandingSections({
           </div>
         </div>
       </section>
-
-
 
       {/* ── FAQ ── */}
       <section id="faq" className="px-4 py-24 sm:px-6 lg:px-8">

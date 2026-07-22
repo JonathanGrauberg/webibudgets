@@ -168,7 +168,7 @@ export default function RegisterForm() {
 
           <h1 className="mt-5 mb-2 text-sm font-semibold text-foreground">Crear cuenta</h1>
           <p className="mb-6 text-xs text-muted-foreground">
-            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '14 días gratis, sin tarjeta de crédito'}
+            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '7 días gratis, sin tarjeta de crédito'}
           </p>
 
           <button
