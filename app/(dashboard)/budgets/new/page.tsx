@@ -505,6 +505,17 @@ export default function NewBudgetPage() {
     [getProductCurrency]
   )
 
+  const PAYMENT_TERMS_OPTIONS = [
+    '50% seña, 50% contra entrega',
+    'Contado',
+    'Transferencia bancaria',
+    'Tarjeta de crédito',
+    'A convenir',
+  ]
+  const OTHER_PAYMENT_TERMS = '__other__'
+
+  const [paymentTermsOption, setPaymentTermsOption] = useState('')
+
   /* ================================
      STOCK HELPERS
   ================================ */
@@ -1053,12 +1064,32 @@ export default function NewBudgetPage() {
                       <Label htmlFor="paymentTerms" className="text-sm font-normal text-muted-foreground">
                         Condiciones de pago
                       </Label>
-                      <Input
-                        id="paymentTerms"
-                        placeholder="Ej: 50% seña, 50% contra entrega"
-                        value={paymentTerms}
-                        onChange={(e) => setPaymentTerms(e.target.value)}
-                      />
+                      <Select
+                        value={paymentTermsOption}
+                        onValueChange={(v) => {
+                          setPaymentTermsOption(v)
+                          setPaymentTerms(v === OTHER_PAYMENT_TERMS ? '' : v)
+                        }}
+                      >
+                        <SelectTrigger id="paymentTerms">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                          <SelectItem value={OTHER_PAYMENT_TERMS}>Otro (especificar)</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {paymentTermsOption === OTHER_PAYMENT_TERMS && (
+                        <Input
+                          placeholder="Ej: 50% efectivo, 50% transferencia"
+                          value={paymentTerms}
+                          onChange={(e) => setPaymentTerms(e.target.value)}
+                          className="mt-1.5"
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-2">

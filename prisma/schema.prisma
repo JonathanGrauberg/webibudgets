@@ -348,6 +348,8 @@ model Budget {
 
   notes     String @default("")
 
+  active    Boolean @default(true)
+
   // Vendedor
   sellerId  String?
   seller    Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)

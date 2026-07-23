@@ -2,7 +2,7 @@
 //app\(dashboard)\budgets\page.tsx
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import useSWR from 'swr'
+import useSWR, { mutate } from 'swr'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -32,6 +32,7 @@ import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useSession } from 'next-auth/react'
+
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -96,21 +97,27 @@ export default function BudgetsPage() {
   // 🌟 nuevo: buscador + filtro de estado
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')  // 👈 subido acá
 
   const filteredBudgets = useMemo(() => {
-    return budgets.filter((b) => {
-      const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
-      const budgetNum = String(b.budgetNumber ?? 0).padStart(6, '0')
-      const matchesSearch =
-        !searchQuery ||
-        clientName.includes(searchQuery.toLowerCase()) ||
-        budgetNum.includes(searchQuery)
+  return budgets.filter((b) => {
+    const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
+    const budgetNum = String(b.budgetNumber ?? 0).padStart(6, '0')
+    const matchesSearch =
+      !searchQuery ||
+      clientName.includes(searchQuery.toLowerCase()) ||
+      budgetNum.includes(searchQuery)
 
-      const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+    const matchesStatus = statusFilter === 'all' || b.status === statusFilter
 
-      return matchesSearch && matchesStatus
-    })
-  }, [budgets, searchQuery, statusFilter])
+    // 👈 nuevo
+    const isActive = b.active !== false
+    const matchesActive =
+      activeFilter === 'all' ? true : activeFilter === 'active' ? isActive : !isActive
+
+    return matchesSearch && matchesStatus && matchesActive
+  })
+}, [budgets, searchQuery, statusFilter, activeFilter])
 
   // 🚨 CALCULADOR DE LÍMITE MENSUAL ESTRICTO
   const limitInfo = useMemo(() => {
@@ -189,6 +196,22 @@ export default function BudgetsPage() {
   const handleUpgradeRedirect = () => {
     alert("Alcanzaste el límite de 30 presupuestos mensuales de tu plan Starter. Por favor, actualizá tu plan para continuar cotizando.")
     window.location.href = "/settings/team" // O tu ruta de billing/pricing
+  }
+
+  const handleToggleActive = async (budgetId: string, reactivate: boolean) => {
+    if (!confirm(reactivate ? '¿Reactivar este presupuesto?' : '¿Desactivar este presupuesto? Podés reactivarlo cuando quieras.')) return
+    try {
+      const res = await fetch(`/api/budgets/${budgetId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: reactivate }),
+      })
+      if (!res.ok) throw new Error('No se pudo actualizar el presupuesto')
+      mutate('/api/budgets')
+    } catch (err) {
+      console.error(err)
+      alert('Error al actualizar el presupuesto')
+    }
   }
 
   return (
@@ -333,6 +356,17 @@ export default function BudgetsPage() {
                     {label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={activeFilter} onValueChange={(v: 'active' | 'inactive' | 'all') => setActiveFilter(v)}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Activos</SelectItem>
+                <SelectItem value="inactive">Inactivos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -541,6 +575,16 @@ export default function BudgetsPage() {
                                       Editar
                                     </Button>
                                   </Link>
+                                )}
+                                {canCreateBudget && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={ b.active === false ? 'text-emerald-600' : 'text-destructive hover:text-destructive'}
+                                    onClick={() => handleToggleActive(b.id, b.active === false)}
+                                  >
+                                    {b.active === false ? 'Reactivar' : 'Desactivar'}
+                                  </Button>
                                 )}
                               </div>
                             </TableCell>

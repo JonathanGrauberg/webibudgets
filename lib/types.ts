@@ -138,6 +138,8 @@ export interface Budget {
 
   history?: BudgetStatusHistory[]
 
+  active: boolean
+
   status: BudgetStatus
   notes: string
 

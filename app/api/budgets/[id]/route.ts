@@ -1,4 +1,4 @@
-//app\api\budgets\[id]\route.ts
+//app\api\budgets\[id]\route.ts 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -240,6 +240,7 @@ export async function PATCH(request: Request, { params }: Params) {
         status: data.status,
         notes: data.notes,
         total: data.total,
+        active: data.active,   // 👈 nuevo — undefined si no viene, Prisma lo ignora igual que el resto
       },
     })
 
@@ -276,13 +277,35 @@ export async function DELETE(request: Request, { params }: Params) {
   const { id } = await params
 
   if (!id) {
-    return NextResponse.json(
-      { error: 'Missing budget id param' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Missing budget id param' }, { status: 400 })
   }
 
   try {
+    const budget = await prisma.budget.findFirst({
+      where: tenantWhereId(id, tenantId),
+      select: {
+        id: true,
+        _count: {
+          select: { receipts: true, deliveryNotes: true, workOrders: true, rendiciones: true },
+        },
+      },
+    })
+
+    if (!budget) {
+      return NextResponse.json({ error: 'Budget not found or tenant mismatch' }, { status: 404 })
+    }
+
+    const { receipts, deliveryNotes, workOrders, rendiciones } = budget._count
+    if (receipts > 0 || deliveryNotes > 0 || workOrders > 0 || rendiciones > 0) {
+      return NextResponse.json(
+        {
+          error: 'Este presupuesto tiene documentos generados (recibos, remitos, órdenes de trabajo o rendiciones) y no se puede eliminar. Podés desactivarlo en su lugar.',
+          hasDocuments: true,
+        },
+        { status: 409 }
+      )
+    }
+
     const result = await prisma.budget.deleteMany({
       where: tenantWhereId(id, tenantId),
     })
@@ -294,9 +317,6 @@ export async function DELETE(request: Request, { params }: Params) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting budget:', error)
-    return NextResponse.json(
-      { error: String(error) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
