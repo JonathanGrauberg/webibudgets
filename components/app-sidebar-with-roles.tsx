@@ -1,7 +1,6 @@
-//components\app-sidebar-with-roles.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { ElementType } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
@@ -11,11 +10,20 @@ import Image from 'next/image'
 import {
   LayoutDashboard, Users, Package, FileText,
   Layers, UserRoundCog, Handshake, Menu, Settings, Receipt, PiggyBank,
+  PanelLeftClose, PanelLeftOpen, LogOut, User
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { TenantFeatures } from '@/lib/types'
 
 const NAV_ICONS: Record<string, ElementType> = {
@@ -27,7 +35,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/stock': Layers,
   '/installers': UserRoundCog,
   '/documents': Receipt,
-  '/rendiciones': PiggyBank, // 👈 nuevo
+  '/rendiciones': PiggyBank,
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {
@@ -56,14 +64,17 @@ function SidebarContent({
   closeMenu,
   branding,
   userRole,
+  isCollapsed = false,
+  toggleCollapse,
 }: {
   closeMenu?: () => void
   branding?: Branding
   userRole?: string
+  isCollapsed?: boolean
+  toggleCollapse?: () => void
 }) {
   const pathname = usePathname()
 
-  // 1. Convertimos 'features' en un objeto plano de manera segura por si viniera serializado como string
   const parsedFeatures = typeof branding?.features === 'string'
     ? (() => {
         try {
@@ -79,34 +90,66 @@ function SidebarContent({
 
   return (
     <div
-      className="flex h-full w-full flex-col text-white"
+      className="flex h-full w-full flex-col text-white transition-all duration-300 ease-in-out"
       style={buildSidebarStyle(branding?.primaryColor)}
     >
-      {/* Header */}
-      <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-          <Image
-            src={branding?.faviconUrl ?? '/placeholder-logo.png'}
-            alt={branding?.name ?? '.budgets'}
-            width={24}
-            height={24}
-            className="object-contain"
-            priority
-          />
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold leading-tight text-white">
-            {branding?.name ?? '.budgets'}
-          </h1>
-          <p className="text-[10px] text-white/40">Sistema de Gestión</p>
-        </div>
+      {/* 1. HEADER ESTILO GEMINI */}
+      <div className={cn(
+        "flex h-16 items-center border-b border-white/10 px-3 transition-all duration-300",
+        isCollapsed ? "flex-col justify-center gap-2 py-3 h-auto" : "justify-between"
+      )}>
+        <button
+          type="button"
+          onClick={isCollapsed ? toggleCollapse : undefined}
+          className={cn(
+            "flex items-center gap-3 overflow-hidden text-left focus:outline-none rounded-xl p-1 transition-colors",
+            isCollapsed && "hover:bg-white/10 cursor-pointer"
+          )}
+          title={isCollapsed ? "Expandir menú" : undefined}
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+            <Image
+              src={branding?.faviconUrl ?? '/placeholder-logo.png'}
+              alt={branding?.name ?? '.budgets'}
+              width={24}
+              height={24}
+              className="object-contain"
+              priority
+            />
+          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col truncate">
+              <h1 className="text-sm font-semibold leading-tight text-white truncate">
+                {branding?.name ?? '.budgets'}
+              </h1>
+              <p className="text-[10px] text-white/40">Sistema de Gestión</p>
+            </div>
+          )}
+        </button>
+
+        {toggleCollapse && (
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+            title={isCollapsed ? "Expandir menú" : "Contraer menú"}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="h-5 w-5" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" />
+            )}
+          </button>
+        )}
       </div>
- 
-      {/* Nav */}
-      <nav className="relative z-10 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3">
-        <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
-          Principal
-        </p>
+
+      {/* 2. NAVEGACIÓN */}
+      <nav className="relative z-10 flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
+        {!isCollapsed && (
+          <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+            Principal
+          </p>
+        )}
 
         {visibleNavigation.map((item) => {
           const Icon = NAV_ICONS[item.href] ?? LayoutDashboard
@@ -115,7 +158,7 @@ function SidebarContent({
             (item.href !== '/' && pathname.startsWith(item.href))
 
           return (
-            <Tooltip key={item.name} delayDuration={300}>
+            <Tooltip key={item.name} delayDuration={200}>
               <TooltipTrigger asChild>
                 <Link
                   href={item.href}
@@ -129,17 +172,20 @@ function SidebarContent({
                       : undefined
                   }
                   className={cn(
-                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all',
+                    isCollapsed ? 'justify-center px-0' : 'px-3.5',
                     isActive
                       ? 'text-white'
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   )}
                 >
                   <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white')} />
-                  <span className="truncate">{item.name}</span>
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">{item.tooltip}</TooltipContent>
+              <TooltipContent side="right" hidden={!isCollapsed}>
+                {item.name}
+              </TooltipContent>
             </Tooltip>
           )
         })}
@@ -147,9 +193,11 @@ function SidebarContent({
         {visibleSettings.length > 0 && (
           <>
             <div className="my-3 border-t border-white/10" />
-            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
-              Configuración
-            </p>
+            {!isCollapsed && (
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+                Configuración
+              </p>
+            )}
           </>
         )}
 
@@ -160,7 +208,7 @@ function SidebarContent({
             (item.href !== '/' && pathname.startsWith(item.href))
 
           return (
-            <Tooltip key={item.name} delayDuration={300}>
+            <Tooltip key={item.name} delayDuration={200}>
               <TooltipTrigger asChild>
                 <Link
                   href={item.href}
@@ -174,32 +222,64 @@ function SidebarContent({
                       : undefined
                   }
                   className={cn(
-                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all',
+                    isCollapsed ? 'justify-center px-0' : 'px-3.5',
                     isActive
                       ? 'text-white'
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{item.name}</span>
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">{item.tooltip}</TooltipContent>
+              <TooltipContent side="right" hidden={!isCollapsed}>
+                {item.name}
+              </TooltipContent>
             </Tooltip>
           )
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="relative z-10 border-t border-white/10 p-3 space-y-2">
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="w-full rounded-xl border border-white/12 bg-white/8 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/15 hover:text-white"
-        >
-          Cerrar sesión
-        </button>
-        <p className="text-center text-[10px] text-white/25">v1.2.0 · Creado por Webistudio.net</p>
+      {/* 3. FOOTER */}
+      <div className="relative z-10 border-t border-white/10 p-2.5 space-y-2">
+        {isCollapsed ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-10 w-full items-center justify-center rounded-xl bg-white/5 hover:bg-white/15 text-white transition-colors"
+                title="Cuenta y Opciones"
+              >
+                <User className="h-5 w-5 text-white/80" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="end" className="w-48 bg-neutral-900 text-white border-neutral-800">
+              <DropdownMenuLabel className="text-xs text-neutral-400">Mi Cuenta</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-neutral-800" />
+              <DropdownMenuItem
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-red-400 focus:bg-red-500/10 focus:text-red-300 cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/12 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Cerrar sesión</span>
+          </button>
+        )}
+
+        {!isCollapsed && (
+          <p className="text-center text-[10px] text-white/25">v1.2.0 · Webistudio.net</p>
+        )}
       </div>
     </div>
   )
@@ -207,6 +287,28 @@ function SidebarContent({
 
 export function AppSidebar({ branding, userRole }: { branding?: Branding; userRole?: string }) {
   const [open, setOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  
+  // Referencia al contenedor Desktop del sidebar para detectar clics fuera
+  const sidebarRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      // Si el sidebar está expandido (!isCollapsed) y el clic ocurre fuera del sidebar, se colapsa
+      if (
+        !isCollapsed &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node)
+      ) {
+        setIsCollapsed(true)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isCollapsed])
 
   return (
     <TooltipProvider>
@@ -249,14 +351,30 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú de navegación</SheetTitle>
               </SheetHeader>
-              <SidebarContent closeMenu={() => setOpen(false)} branding={branding} userRole={userRole} />
+              <SidebarContent 
+                closeMenu={() => setOpen(false)} 
+                branding={branding} 
+                userRole={userRole} 
+                isCollapsed={false}
+              />
             </SheetContent>
           </Sheet>
         </div>
 
         {/* 💻 Desktop sidebar */}
-        <aside className="hidden h-full w-64 shrink-0 lg:flex">
-          <SidebarContent branding={branding} userRole={userRole} />
+        <aside 
+          ref={sidebarRef}
+          className={cn(
+            "hidden h-full shrink-0 lg:flex transition-all duration-300 ease-in-out z-30",
+            isCollapsed ? "w-16" : "w-64"
+          )}
+        >
+          <SidebarContent 
+            branding={branding} 
+            userRole={userRole} 
+            isCollapsed={isCollapsed}
+            toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          />
         </aside>
       </>
     </TooltipProvider>
