@@ -42,7 +42,7 @@ export type BudgetCalculationResult = {
   subtotal: number
   discountAmount: number
   taxAmount: number
-  shippingCost: number
+  shippingCost: number | null
   total: number
   items: NormalizedBudgetItem[]
 }
@@ -156,14 +156,20 @@ export function calculateBudgetTotals({
 
   const taxedBase = Math.max(0, subtotal - discountAmount)
   const taxAmount = taxedBase * (Math.max(0, taxPercentage) / 100)
-  const safeShippingCost = shippingCost === null || shippingCost === undefined ? 0 : Math.max(0, shippingCost)
-  const total = taxedBase + taxAmount + safeShippingCost
+
+  // Solo para la cuenta del total, nunca se guarda ni se devuelve
+  const shippingAmountForTotal = shippingCost === null || shippingCost === undefined ? 0 : Math.max(0, shippingCost)
+  const total = taxedBase + taxAmount + shippingAmountForTotal
+
+  // Normalizamos el valor original: null se mantiene null, negativos/NaN quedan en null también
+  const normalizedShippingCost =
+    shippingCost === null || shippingCost === undefined ? null : Math.max(0, shippingCost)
 
   return {
     subtotal,
     discountAmount,
     taxAmount,
-    shippingCost: safeShippingCost,
+    shippingCost: normalizedShippingCost, // 👈 ahora sí propaga el null
     total,
     items,
   }

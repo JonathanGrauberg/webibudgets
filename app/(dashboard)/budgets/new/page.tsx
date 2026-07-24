@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles, Ruler } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, ChevronDown } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
@@ -35,6 +35,7 @@ import { hasFeature } from '@/lib/features'
 import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator'
 import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
+
 
 /* ================================
    TYPES & INTERFACES
@@ -450,8 +451,11 @@ export default function NewBudgetPage() {
   const [discountType, setDiscountType]     = useState<'percentage' | 'fixed' | null>(null)
   const [discountValue, setDiscountValue]   = useState(0)
   const [taxPercentage, setTaxPercentage]   = useState(0)
-  const [shippingIncluded, setShippingIncluded] = useState(false)
+  // shippingIncluded = true  -> el envío ya está incluido en el precio (sin cargo aparte)
+  // shippingIncluded = false -> el envío se cobra aparte (input habilitado; puede ser 0 = envío gratis declarado)
+  const [shippingIncluded, setShippingIncluded] = useState(true)
   const [shippingCost, setShippingCost]     = useState(0)
+  const [shippingSectionOpen, setShippingSectionOpen] = useState(false) // 👈 nuevo
   const [paymentTerms, setPaymentTerms]     = useState('')
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
@@ -697,7 +701,9 @@ export default function NewBudgetPage() {
   const discountAmount  = Math.min(rawDiscountAmount, subtotal)
   const taxedBase       = Math.max(0, subtotal - discountAmount)
   const taxAmount       = taxedBase * (safeTaxPercentage / 100)
-  const shippingAmount  = shippingIncluded ? safeShippingCost : 0
+  // Si el envío está incluido en el precio, no se suma nada extra al total.
+  // Si no está incluido, se suma el costo declarado (que puede ser 0 = envío gratis, itemizado).
+  const shippingAmount  = shippingIncluded ? 0 : safeShippingCost
   const total           = taxedBase + taxAmount + shippingAmount
 
   const hasInvalidQuantities = items.some((i) => i.quantity <= 0)
@@ -729,7 +735,10 @@ export default function NewBudgetPage() {
           sellerId:      sellerId || null,
           paymentTerms,
           validUntil,
-          shippingCost:  shippingIncluded ? safeShippingCost : null,
+          // null = envío no discriminado (nunca abrieron el acordeón) o incluido en el precio
+          // 0 = envío gratis declarado aparte (lo discriminaron y tildaron "no incluido" con costo 0)
+          // >0 = costo de envío discriminado
+          shippingCost: shippingSectionOpen && !shippingIncluded ? safeShippingCost : null,
           items: items.map((i) => ({
             productServiceId: i.productServiceId,
             productVariantId: i.productVariantId,
@@ -1169,29 +1178,48 @@ export default function NewBudgetPage() {
 
                   {/* ENVÍO */}
                   <div className="space-y-2 border-t pt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Envío incluido</span>
-                      <Switch
-                        checked={shippingIncluded}
-                        onCheckedChange={(checked) => {
-                          setShippingIncluded(checked)
-                          if (!checked) setShippingCost(0)
-                        }}
+                    <button
+                      type="button"
+                      onClick={() => setShippingSectionOpen((v) => !v)}
+                      className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      <span>Discriminar envío</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${shippingSectionOpen ? 'rotate-180' : ''}`}
                       />
-                    </div>
-                    {shippingIncluded && (
-                      <Input
-                        type="number"
-                        min={0}
-                        value={safeShippingCost}
-                        onChange={(e) => setShippingCost(Number(e.target.value))}
-                        placeholder="Costo de envío"
-                      />
+                    </button>
+
+                    {shippingSectionOpen && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Envío incluido en el precio</span>
+                          <Switch
+                            checked={shippingIncluded}
+                            onCheckedChange={(checked) => {
+                              setShippingIncluded(checked)
+                              if (checked) setShippingCost(0)
+                            }}
+                          />
+                        </div>
+                        {!shippingIncluded && (
+                          <Input
+                            type="number"
+                            min={0}
+                            value={safeShippingCost}
+                            onChange={(e) => setShippingCost(Number(e.target.value))}
+                            placeholder="Costo de envío (0 = gratis)"
+                          />
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span>Envío</span>
+                          <span>
+                            {shippingIncluded
+                              ? 'Incluido'
+                              : `+ ${formatCurrency(shippingAmount, currency)}`}
+                          </span>
+                        </div>
+                      </>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span>Envío</span>
-                      <span>{shippingIncluded ? `+ ${formatCurrency(shippingAmount, currency)}` : '—'}</span>
-                    </div>
                   </div>
 
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
