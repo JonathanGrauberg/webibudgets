@@ -157,7 +157,7 @@ export function getVisibleNavItems(role: string | undefined, tenantFeatures?: un
     return true
   })
 }
-
+ 
 export function getVisibleSettingsItems(role: string | undefined) {
   if (!role) return []
   return SETTINGS_ROUTES.filter((item) => canAccessRoute(role, item.route))

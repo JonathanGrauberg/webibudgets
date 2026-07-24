@@ -1,4 +1,3 @@
-//app\(dashboard)\layout.tsx  
 import React from 'react'
 import { SidebarWrapper } from '@/components/sidebar-wrapper'
 import { BrandingProvider } from '@/components/branding-provider'
@@ -8,6 +7,7 @@ import { getTenantBranding, TENANT_HEADER } from '@/lib/tenant'
 import { effectiveBranding } from '@/lib/branding'
 import { DashboardContentWrapper } from '@/components/dashboard-content-wrapper'
 import { ModalPagoPendiente } from '@/components/modal-pago-pendiente'
+import { DynamicIslandHeader } from '@/components/dynamic-island-header' // 👈 Componente de la Solapa flotante
 
 export default async function DashboardLayout({
   children,
@@ -35,28 +35,27 @@ export default async function DashboardLayout({
     tenantBranding ?? undefined
   )
 
- return (
+  return (
     <ThemeProvider>
       <BrandingProvider initialBranding={branding}>
-        {/* 📱 Celular: Fondo blanco puro para coincidir con la app móvil.
-          💻 Escritorio (lg:): Conserva el fondo gris claro de marco (bg-neutral-100).
-        */}
-        <div className="min-h-screen bg-white dark:bg-zinc-950 lg:bg-neutral-100 lg:p-4 transition-colors">
+        {/* 1. Fondo suave global sin cascarón negro alrededor */}
+        <div className="relative min-h-screen bg-neutral-100 dark:bg-zinc-950 lg:p-3 transition-colors overflow-hidden">
           
-          {/* 📱 Celular: h-auto (deja que el contenido dicte el alto y scrollee nativo) 
-              💻 Escritorio (lg:): h-[calc(100vh-2rem)] fijo y rígido para el look de tarjeta */}
-          <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-2rem)] overflow-visible lg:overflow-hidden rounded-none lg:rounded-[32px] border-0 lg:border lg:border-neutral-200 bg-white dark:bg-zinc-900 shadow-none lg:shadow-sm">
-            {/* Este wrapper se encargará de ser barra superior fija en celular o barra lateral en escritorio */}
+          {/* 🏝️ Solapa flotante estilo Dynamic Island */}
+          <DynamicIslandHeader />
+
+          <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-1.5rem)] gap-3">
+            
+            {/* 💊 Sidebar en formato Cápsula */}
             <SidebarWrapper />
 
-            {/* Contenedor del contenido:
-              📱 Celular: flex-1 e h-full para tomar el resto de la pantalla abajo del navbar.
-            */}
-            <DashboardContentWrapper>
-              {/* 🚀 El modal vigilando globalmente */}
-               <ModalPagoPendiente />
-              {children}
-            </DashboardContentWrapper>
+            {/* 📄 Panel Blanco Principal Libre y Limpio */}
+            <div className="flex-1 h-full rounded-none lg:rounded-[28px] border border-neutral-200/80 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col">
+              <DashboardContentWrapper>
+                <ModalPagoPendiente />
+                {children}
+              </DashboardContentWrapper>
+            </div>
 
           </div>
         </div>

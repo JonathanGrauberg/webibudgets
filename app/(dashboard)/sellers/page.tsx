@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { Pencil, Plus, Trash2, Mail, Phone, MapPin, Briefcase, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 
+
 type Seller = {
   id: string
   name: string
@@ -109,30 +110,29 @@ export default function SellersPage() {
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
-  const [tenantLimits, setTenantLimits] = useState({
-    activeUsers: 0,
-    maxUsers: 1,
-    plan: 'starter'
-  })
-  const [loadingLimits, setLoadingLimits] = useState(true)
+  const [tenantLimits, setTenantLimits] = useState<{ activeCount: number; maxCount: number | null; plan: string }>({
+  activeCount: 0,
+  maxCount: 1,
+  plan: 'starter'
+})
 
-  const fetchTenantLimits = async () => {
-    try {
-      const res = await fetch('/api/tenants/users')
-      if (res.ok) {
-        const data = await res.json()
-        setTenantLimits({
-          activeUsers: data.activeUsers ?? 0,
-          maxUsers: data.maxUsers ?? 1,
-          plan: data.plan ?? 'starter'
-        })
-      }
-    } catch (err) {
-      console.error("Error limits:", err)
-    } finally {
-      setLoadingLimits(false)
+const fetchTenantLimits = async () => {
+  try {
+    const res = await fetch('/api/tenants/roster-limits?type=seller')
+    if (res.ok) {
+      const data = await res.json()
+      setTenantLimits({
+        activeCount: data.activeCount ?? 0,
+        maxCount: data.maxCount, // puede ser null — no poner ?? acá, null tiene significado propio
+        plan: data.plan ?? 'starter'
+      })
     }
+  } catch (err) {
+    console.error("Error limits:", err)
+  } finally {
+    setLoadingLimits(false)
   }
+}
 
   const fetchSellers = async () => {
     setLoading(true)
@@ -150,8 +150,8 @@ export default function SellersPage() {
     fetchSellers()
   }, [includeInactive])
 
-  const isUnlimitedPlan = tenantLimits.plan === 'business' || tenantLimits.plan === 'vip'
-  const isLimitReached = !isUnlimitedPlan && tenantLimits.activeUsers >= tenantLimits.maxUsers
+  const isLimitReached = tenantLimits.maxCount !== null && tenantLimits.activeCount >= tenantLimits.maxCount
+  const [loadingLimits, setLoadingLimits] = useState(true)
 
   const openCreate = () => {
     if (isLimitReached) {
@@ -273,7 +273,7 @@ export default function SellersPage() {
                   >
                     <AlertCircle className="h-3.5 w-3.5" />
                     <span className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-900 text-white text-[11px] font-normal p-2 rounded shadow-xl whitespace-nowrap z-50">
-                      Plan {tenantLimits.plan.toUpperCase()}: Límite de usuarios alcanzado ({tenantLimits.activeUsers}/{tenantLimits.maxUsers})
+                      Plan {tenantLimits.plan.toUpperCase()}: Límite de usuarios alcanzado ({tenantLimits.activeCount}/{tenantLimits.maxCount})
                     </span>
                   </span>
                 )}
@@ -302,7 +302,7 @@ export default function SellersPage() {
                   <p className="font-medium text-sm text-zinc-900">Acá irían tus vendedores</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {isLimitReached 
-                      ? `Tu plan actual (${tenantLimits.plan.toUpperCase()}) incluye ${tenantLimits.maxUsers} usuario total. Para armar un equipo de venta, podés expandir tu plan.`
+                      ? `Tu plan actual (${tenantLimits.plan.toUpperCase()}) incluye ${tenantLimits.maxCount} usuario total. Para armar un equipo de venta, podés expandir tu plan.`
                       : 'Registrá tus colaboradores para que puedan gestionar sus propios presupuestos y clientes.'
                     }
                   </p>
@@ -422,7 +422,7 @@ export default function SellersPage() {
           <div className="space-y-1">
             <DialogTitle className="text-lg font-bold text-center">¿Querés sumar a tu equipo?</DialogTitle>
             <p className="text-xs text-muted-foreground px-2 leading-relaxed">
-              Tu plan actual <span className="uppercase font-semibold">{tenantLimits.plan}</span> incluye un máximo de {tenantLimits.maxUsers} usuario. Para agregar vendedores, instaladores y trabajar en conjunto, podés pasar al plan superior.
+              Tu plan actual <span className="uppercase font-semibold">{tenantLimits.plan}</span> incluye un máximo de {tenantLimits.maxCount} usuario. Para agregar vendedores, instaladores y trabajar en conjunto, podés pasar al plan superior.
             </p>
           </div>
           <DialogFooter className="flex-col gap-2 pt-2 sm:flex-col">

@@ -74,18 +74,41 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt(params) {
-      const token = params.token as any
-      const user = params.user as Partial<AuthUser> | undefined
-      if (user) {
-        token.tenantId = user.tenantId
-        token.role = user.role
-        token.id = token.sub ?? user.id
-        token.tenantActive = user.tenantActive
-        token.trialEndsAt = user.trialEndsAt
-        token.plan = user.plan // 👈 3. Lo metemos en el JWT
+  const token = params.token as any
+  const user = params.user as Partial<AuthUser> | undefined
+
+  if (user) {
+    // Login inicial — igual que antes
+    token.tenantId = user.tenantId
+    token.role = user.role
+    token.id = token.sub ?? user.id
+    token.tenantActive = user.tenantActive
+    token.trialEndsAt = user.trialEndsAt
+    token.plan = user.plan
+    token.planCheckedAt = Date.now() // 👈 nuevo
+  } else if (token.tenantId) {
+    // Requests posteriores — revalidar contra la DB cada 5 minutos,
+    // así los cambios del admin (plan, active, trial) se propagan
+    // sin que el usuario tenga que desloguearse.
+    const lastChecked = token.planCheckedAt ?? 0
+    const REVALIDATE_MS = 5 * 60 * 1000
+
+    if (Date.now() - lastChecked > REVALIDATE_MS) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: token.tenantId },
+        select: { active: true, plan: true, trialEndsAt: true },
+      })
+      if (tenant) {
+        token.tenantActive = tenant.active
+        token.trialEndsAt = tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null
+        token.plan = tenant.plan || 'starter'
       }
-      return token
-    },
+      token.planCheckedAt = Date.now()
+    }
+  }
+
+  return token
+},
     async session(params) {
       const session = params.session as Session
       const token = params.token as any

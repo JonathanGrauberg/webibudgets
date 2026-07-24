@@ -118,15 +118,27 @@ export default function InstallersPage() {
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
-  const tenantLimits = useMemo(() => {
-    const planKey = ((session?.user as any)?.plan || 'starter') as keyof typeof PLAN_LIMITS
-    const limits = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.starter
+  const [tenantLimits, setTenantLimits] = useState<{ activeCount: number; maxCount: number | null; plan: string }>({
+    activeCount: 0,
+    maxCount: 1,
+    plan: 'starter'
+  })
 
-    return {
-      plan: planKey,
-      maxInstallers: limits.maxInstallers,
+  const fetchTenantLimits = async () => {
+    try {
+      const res = await fetch('/api/tenants/roster-limits?type=installer')
+      if (res.ok) {
+        const data = await res.json()
+        setTenantLimits({
+          activeCount: data.activeCount ?? 0,
+          maxCount: data.maxCount,
+          plan: data.plan ?? 'starter'
+        })
+      }
+    } catch (err) {
+      console.error("Error limits:", err)
     }
-  }, [session])
+  }
 
   const fetchInstallers = async () => {
     setLoading(true)
@@ -140,9 +152,10 @@ export default function InstallersPage() {
   }
 
   useEffect(() => {
-    fetchInstallers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeInactive])
+  fetchInstallers()
+  fetchTenantLimits()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [includeInactive])
 
   const activeCount = useMemo(
     () => installers.filter((i) => i.active).length,
@@ -150,8 +163,8 @@ export default function InstallersPage() {
   )
 
   const isLimitReached = useMemo(() => {
-    if (tenantLimits.maxInstallers === null) return false
-    return activeCount >= tenantLimits.maxInstallers
+    if (tenantLimits.maxCount === null) return false
+    return activeCount >= tenantLimits.maxCount
   }, [activeCount, tenantLimits])
 
   const openCreate = () => {
@@ -277,12 +290,12 @@ export default function InstallersPage() {
             <div className="space-y-1">
               <CardTitle>Listado</CardTitle>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                Activos en lista: {activeCount} / {tenantLimits.maxInstallers === null ? '∞' : tenantLimits.maxInstallers}
+                Activos en lista: {activeCount} / {tenantLimits.maxCount === null ? '∞' : tenantLimits.maxCount}
                 {isLimitReached && (
                   <span className="inline-flex items-center text-amber-600 cursor-help group relative">
                     <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
                     <span className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-950 text-white text-[11px] font-normal p-2 rounded-lg shadow-xl whitespace-nowrap z-50 border border-zinc-800">
-                      Plan {String(tenantLimits.plan).toUpperCase()}: Límite alcanzado ({activeCount}/{tenantLimits.maxInstallers})
+                      Plan {String(tenantLimits.plan).toUpperCase()}: Límite alcanzado ({activeCount}/{tenantLimits.maxCount})
                     </span>
                   </span>
                 )}
@@ -312,7 +325,7 @@ export default function InstallersPage() {
                   <h3 className="font-bold text-foreground">No hay personal activo</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     {isLimitReached 
-                      ? `Alcanzaste el tope de tu plan actual (${tenantLimits.maxInstallers}). Expandí tu plan para cargar más personal técnico.`
+                      ? `Alcanzaste el tope de tu plan actual (${tenantLimits.maxCount}). Expandí tu plan para cargar más personal técnico.`
                       : 'Empezá registrando personal de trabajo'
                     }
                   </p>
@@ -602,7 +615,7 @@ export default function InstallersPage() {
           <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
             Tu plan <span className="font-bold text-foreground uppercase">{String(tenantLimits.plan)}</span> te permite gestionar un tope máximo de{' '}
             <span className="font-bold text-foreground">
-              {tenantLimits.maxInstallers === null ? 'instaladores ilimitados' : `${tenantLimits.maxInstallers} instaladores`}
+              {tenantLimits.maxCount === null ? 'instaladores ilimitados' : `${tenantLimits.maxCount} instaladores`}
             </span>{' '}
             activos en simultáneo.
           </p>

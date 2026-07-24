@@ -8,14 +8,37 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import {
-  LayoutDashboard, Users, Package, FileText,
-  Layers, UserRoundCog, Handshake, Menu, Settings, Receipt, PiggyBank,
-  PanelLeftClose, PanelLeftOpen, LogOut, User
+  LayoutDashboard,
+  Users,
+  Package,
+  FileText,
+  Layers,
+  UserRoundCog,
+  Handshake,
+  Menu,
+  Settings,
+  Receipt,
+  PiggyBank,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LogOut,
+  User,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,15 +98,16 @@ function SidebarContent({
 }) {
   const pathname = usePathname()
 
-  const parsedFeatures = typeof branding?.features === 'string'
-    ? (() => {
-        try {
-          return JSON.parse(branding.features)
-        } catch {
-          return null
-        }
-      })()
-    : branding?.features 
+  const parsedFeatures =
+    typeof branding?.features === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(branding.features)
+          } catch {
+            return null
+          }
+        })()
+      : branding?.features
 
   const visibleNavigation = getVisibleNavItems(userRole, parsedFeatures)
   const visibleSettings = getVisibleSettingsItems(userRole)
@@ -93,19 +117,23 @@ function SidebarContent({
       className="flex h-full w-full flex-col text-white transition-all duration-300 ease-in-out"
       style={buildSidebarStyle(branding?.primaryColor)}
     >
-      {/* 1. HEADER ESTILO GEMINI */}
-      <div className={cn(
-        "flex h-16 items-center border-b border-white/10 px-3 transition-all duration-300",
-        isCollapsed ? "flex-col justify-center gap-2 py-3 h-auto" : "justify-between"
-      )}>
+      {/* 1. HEADER */}
+      <div
+        className={cn(
+          'flex h-16 items-center border-b border-white/10 px-3 transition-all duration-300',
+          isCollapsed
+            ? 'flex-col justify-center gap-2 py-3 h-auto'
+            : 'justify-between'
+        )}
+      >
         <button
           type="button"
           onClick={isCollapsed ? toggleCollapse : undefined}
           className={cn(
-            "flex items-center gap-3 overflow-hidden text-left focus:outline-none rounded-xl p-1 transition-colors",
-            isCollapsed && "hover:bg-white/10 cursor-pointer"
+            'flex items-center gap-3 overflow-hidden text-left focus:outline-none rounded-xl p-1 transition-colors',
+            isCollapsed && 'hover:bg-white/10 cursor-pointer'
           )}
-          title={isCollapsed ? "Expandir menú" : undefined}
+          title={isCollapsed ? 'Expandir menú' : undefined}
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
             <Image
@@ -132,7 +160,7 @@ function SidebarContent({
             type="button"
             onClick={toggleCollapse}
             className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-            title={isCollapsed ? "Expandir menú" : "Contraer menú"}
+            title={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
           >
             {isCollapsed ? (
               <PanelLeftOpen className="h-5 w-5" />
@@ -167,20 +195,25 @@ function SidebarContent({
                   style={
                     isActive
                       ? {
-                          backgroundColor: branding?.accentColor ?? 'rgba(255,255,255,.12)',
+                          backgroundColor:
+                            branding?.accentColor ?? 'rgba(255,255,255,.12)',
                         }
                       : undefined
                   }
                   className={cn(
-                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all',
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all relative',
                     isCollapsed ? 'justify-center px-0' : 'px-3.5',
                     isActive
-                      ? 'text-white'
+                      ? 'sidebar-active-tab text-black font-semibold'
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   )}
                 >
-                  <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-white')} />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                  <Icon
+                    className={cn('h-4 w-4 shrink-0', isActive && 'text-white')}
+                  />
+                  {!isCollapsed && (
+                    <span className="truncate">{item.name}</span>
+                  )}
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" hidden={!isCollapsed}>
@@ -217,20 +250,23 @@ function SidebarContent({
                   style={
                     isActive
                       ? {
-                          backgroundColor: branding?.accentColor ?? 'rgba(255,255,255,.12)',
+                          backgroundColor:
+                            branding?.accentColor ?? 'rgba(255,255,255,.12)',
                         }
                       : undefined
                   }
                   className={cn(
-                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all',
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-all relative',
                     isCollapsed ? 'justify-center px-0' : 'px-3.5',
                     isActive
-                      ? 'text-white'
+                      ? 'sidebar-active-tab text-black font-semibold'
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                  {!isCollapsed && (
+                    <span className="truncate">{item.name}</span>
+                  )}
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" hidden={!isCollapsed}>
@@ -254,8 +290,14 @@ function SidebarContent({
                 <User className="h-5 w-5 text-white/80" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="end" className="w-48 bg-neutral-900 text-white border-neutral-800">
-              <DropdownMenuLabel className="text-xs text-neutral-400">Mi Cuenta</DropdownMenuLabel>
+            <DropdownMenuContent
+              side="right"
+              align="end"
+              className="w-48 bg-neutral-900 text-white border-neutral-800"
+            >
+              <DropdownMenuLabel className="text-xs text-neutral-400">
+                Mi Cuenta
+              </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-neutral-800" />
               <DropdownMenuItem
                 onClick={() => signOut({ callbackUrl: '/' })}
@@ -278,17 +320,25 @@ function SidebarContent({
         )}
 
         {!isCollapsed && (
-          <p className="text-center text-[10px] text-white/25">v1.2.0 · Webistudio.net</p>
+          <p className="text-center text-[10px] text-white/25">
+            v1.2.0 · Webistudio.net
+          </p>
         )}
       </div>
     </div>
   )
 }
 
-export function AppSidebar({ branding, userRole }: { branding?: Branding; userRole?: string }) {
+export function AppSidebar({
+  branding,
+  userRole,
+}: {
+  branding?: Branding
+  userRole?: string
+}) {
   const [open, setOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  
+
   // Referencia al contenedor Desktop del sidebar para detectar clics fuera
   const sidebarRef = useRef<HTMLDivElement>(null)
 
@@ -314,7 +364,7 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
     <TooltipProvider>
       <>
         {/* 📱 Mobile topbar */}
-        <div 
+        <div
           className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b px-6 text-white lg:hidden shadow-sm shrink-0"
           style={{
             backgroundColor: branding?.primaryColor || '#0a0a0a',
@@ -339,8 +389,8 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="text-white/90 hover:text-white hover:bg-white/10 rounded-xl h-10 w-10"
               >
@@ -351,27 +401,27 @@ export function AppSidebar({ branding, userRole }: { branding?: Branding; userRo
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú de navegación</SheetTitle>
               </SheetHeader>
-              <SidebarContent 
-                closeMenu={() => setOpen(false)} 
-                branding={branding} 
-                userRole={userRole} 
+              <SidebarContent
+                closeMenu={() => setOpen(false)}
+                branding={branding}
+                userRole={userRole}
                 isCollapsed={false}
               />
             </SheetContent>
           </Sheet>
         </div>
 
-        {/* 💻 Desktop sidebar */}
-        <aside 
+        {/* 💻 Desktop sidebar estilo Pill / Cápsula */}
+        <aside
           ref={sidebarRef}
           className={cn(
-            "hidden h-full shrink-0 lg:flex transition-all duration-300 ease-in-out z-30",
-            isCollapsed ? "w-16" : "w-64"
+            'hidden h-full shrink-0 lg:flex transition-all duration-300 ease-in-out z-30 rounded-[28px] overflow-hidden shadow-xl border border-white/10',
+            isCollapsed ? 'w-16' : 'w-64'
           )}
         >
-          <SidebarContent 
-            branding={branding} 
-            userRole={userRole} 
+          <SidebarContent
+            branding={branding}
+            userRole={userRole}
             isCollapsed={isCollapsed}
             toggleCollapse={() => setIsCollapsed(!isCollapsed)}
           />
