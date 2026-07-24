@@ -321,7 +321,7 @@ function SidebarContent({
 
         {!isCollapsed && (
           <p className="text-center text-[10px] text-white/25">
-            v1.2.0 · Webistudio.net
+            v2.1.0 · Webistudio.net
           </p>
         )}
       </div>

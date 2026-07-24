@@ -28,7 +28,7 @@ function pointFor(x: number, y: number) {
 
 export function PresenceMap() {
   return (
-    <section className="px-4 py-24 sm:px-6 lg:px-8">
+    <section className="px-4 py-24 sm:px-6 lg:px-8 mt-[-80px]">
       <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-neutral-950 px-8 py-16 text-neutral-50 lg:px-14 lg:py-20">
         <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
           {/* ── COPY ── */}

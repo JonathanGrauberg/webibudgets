@@ -95,7 +95,7 @@ export function FeaturesGrid() {
           </span>
           
           <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-            Diseñado para la realidad de tu taller u obra
+            Diseñado para la realidad de tu empresa
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm sm:text-base text-muted-foreground">
             Herramientas precisas de cálculo, control de rentabilidad y documentos automáticos para que te enfoques en ejecutar.
