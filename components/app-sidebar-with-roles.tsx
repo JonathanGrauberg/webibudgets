@@ -15,7 +15,6 @@ import {
   Layers,
   UserRoundCog,
   Handshake,
-  Menu,
   Settings,
   Receipt,
   PiggyBank,
@@ -23,6 +22,7 @@ import {
   PanelLeftOpen,
   LogOut,
   User,
+  MoreHorizontal,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import {
@@ -31,14 +31,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +58,10 @@ const SETTINGS_ICONS: Record<string, ElementType> = {
   '/settings/team': Users,
 }
 
+// Máximo de ítems que se muestran directo en la cápsula mobile.
+// El resto queda agrupado detrás del botón "Más".
+const MAX_PRIMARY_MOBILE_ITEMS = 3
+
 type Branding = {
   id?: string
   name?: string | null
@@ -83,21 +79,7 @@ function buildSidebarStyle(primaryColor?: string | null): React.CSSProperties {
   }
 }
 
-function SidebarContent({
-  closeMenu,
-  branding,
-  userRole,
-  isCollapsed = false,
-  toggleCollapse,
-}: {
-  closeMenu?: () => void
-  branding?: Branding
-  userRole?: string
-  isCollapsed?: boolean
-  toggleCollapse?: () => void
-}) {
-  const pathname = usePathname()
-
+function useVisibleItems(branding?: Branding, userRole?: string) {
   const parsedFeatures =
     typeof branding?.features === 'string'
       ? (() => {
@@ -111,6 +93,27 @@ function SidebarContent({
 
   const visibleNavigation = getVisibleNavItems(userRole, parsedFeatures)
   const visibleSettings = getVisibleSettingsItems(userRole)
+
+  return { visibleNavigation, visibleSettings }
+}
+
+/* ------------------------------------------------------------------ */
+/* 💻 DESKTOP SIDEBAR CONTENT (sin cambios)                            */
+/* ------------------------------------------------------------------ */
+
+function SidebarContent({
+  branding,
+  userRole,
+  isCollapsed = false,
+  toggleCollapse,
+}: {
+  branding?: Branding
+  userRole?: string
+  isCollapsed?: boolean
+  toggleCollapse?: () => void
+}) {
+  const pathname = usePathname()
+  const { visibleNavigation, visibleSettings } = useVisibleItems(branding, userRole)
 
   return (
     <div
@@ -191,7 +194,6 @@ function SidebarContent({
                 <Link
                   href={item.href}
                   data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
-                  onClick={() => closeMenu?.()}
                   style={
                     isActive
                       ? {
@@ -246,7 +248,6 @@ function SidebarContent({
                 <Link
                   href={item.href}
                   data-tour={`nav-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
-                  onClick={() => closeMenu?.()}
                   style={
                     isActive
                       ? {
@@ -329,14 +330,218 @@ function SidebarContent({
   )
 }
 
-export function AppSidebar({
+/* ------------------------------------------------------------------ */
+/* 📱 MOBILE TOP BAR — nombre de usuario + icono de persona            */
+/* ------------------------------------------------------------------ */
+
+function MobileTopBar({
+  branding,
+  userName,
+}: {
+  branding?: Branding
+  userName?: string | null
+}) {
+  const displayName = userName?.trim() || 'Usuario'
+
+  return (
+    <div
+      className="fixed inset-x-4 top-4 z-40 flex h-14 items-center justify-between rounded-full px-3 pl-4 text-white shadow-xl shadow-black/15 ring-1 ring-white/10 lg:hidden"
+      style={{ backgroundColor: branding?.primaryColor || '#0a0a0a' }}
+    >
+      <div className="flex items-center gap-3 overflow-hidden">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5">
+          <Image
+            src={branding?.faviconUrl ?? '/placeholder-logo.png'}
+            alt={branding?.name ?? 'WebiBudgets'}
+            width={20}
+            height={20}
+            className="object-contain"
+            priority
+          />
+        </div>
+        <span className="text-sm font-semibold tracking-wide text-white truncate max-w-[140px]">
+          {branding?.name ?? 'WebiBudgets'}
+        </span>
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            title={displayName}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/90 transition-colors hover:bg-white/20"
+          >
+            <User className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-48 bg-neutral-900 text-white border-neutral-800"
+        >
+          <DropdownMenuLabel className="truncate text-xs text-neutral-400">
+            {displayName}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-neutral-800" />
+          <DropdownMenuItem
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="text-red-400 focus:bg-red-500/10 focus:text-red-300 cursor-pointer"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Cerrar sesión
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 📱 MOBILE BOTTOM NAV — pill capsule, estilo imagen de referencia    */
+/* ------------------------------------------------------------------ */
+
+function MobileBottomNav({
   branding,
   userRole,
 }: {
   branding?: Branding
   userRole?: string
 }) {
-  const [open, setOpen] = useState(false)
+  const pathname = usePathname()
+  const { visibleNavigation, visibleSettings } = useVisibleItems(branding, userRole)
+  const allItems = [...visibleNavigation, ...visibleSettings]
+
+  const primaryItems = allItems.slice(0, MAX_PRIMARY_MOBILE_ITEMS)
+  const overflowItems = allItems.slice(MAX_PRIMARY_MOBILE_ITEMS)
+
+  const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  const isItemActive = (href: string) =>
+    pathname === href || (href !== '/' && pathname.startsWith(href))
+
+  const isOverflowActive = overflowItems.some((item) => isItemActive(item.href))
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setIsMoreOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    setIsMoreOpen(false)
+  }, [pathname])
+
+  const activeBg = branding?.primaryColor || '#0a0a0a'
+
+  return (
+    <nav className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 lg:hidden">
+      <div className="flex items-center gap-1 rounded-full bg-white px-2 py-2 shadow-xl shadow-black/15 ring-1 ring-black/5">
+        {primaryItems.map((item) => {
+          const Icon = NAV_ICONS[item.href] ?? SETTINGS_ICONS[item.href] ?? LayoutDashboard
+          const isActive = isItemActive(item.href)
+
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              data-tour={`nav-mobile-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
+              style={isActive ? { backgroundColor: activeBg } : undefined}
+              className={cn(
+                'flex shrink-0 items-center gap-2 rounded-full py-2.5 transition-all duration-200 ease-in-out',
+                isActive
+                  ? 'px-4 text-white'
+                  : 'px-3 text-neutral-400 hover:text-neutral-700'
+              )}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {isActive && !isMoreOpen && (
+                <span className="whitespace-nowrap text-sm font-semibold">
+                  {item.name}
+                </span>
+              )}
+            </Link>
+          )
+        })}
+
+        {overflowItems.length > 0 && (
+          <div ref={moreRef} className="relative shrink-0">
+            {/* Panel flotante que se expande hacia arriba */}
+            <div
+              className={cn(
+                'absolute bottom-full right-0 mb-3 w-52 origin-bottom-right rounded-2xl bg-white p-1.5 shadow-xl shadow-black/15 ring-1 ring-black/5 transition-all duration-200 ease-out',
+                isMoreOpen
+                  ? 'translate-y-0 scale-100 opacity-100'
+                  : 'pointer-events-none translate-y-2 scale-95 opacity-0'
+              )}
+            >
+              {overflowItems.map((item) => {
+                const Icon =
+                  NAV_ICONS[item.href] ?? SETTINGS_ICONS[item.href] ?? LayoutDashboard
+                const isActive = isItemActive(item.href)
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    data-tour={`nav-mobile-more-${item.href.replace(/\//g, '-').replace(/^-/, '')}`}
+                    onClick={() => setIsMoreOpen(false)}
+                    style={isActive ? { backgroundColor: activeBg } : undefined}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'text-white'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMoreOpen((prev) => !prev)}
+              style={isMoreOpen || isOverflowActive ? { backgroundColor: activeBg } : undefined}
+              className={cn(
+                'flex items-center gap-2 rounded-full px-3 py-2.5 transition-all duration-200 ease-in-out',
+                isMoreOpen || isOverflowActive
+                  ? 'text-white'
+                  : 'text-neutral-400 hover:text-neutral-700'
+              )}
+            >
+              <MoreHorizontal className="h-5 w-5 shrink-0" />
+              {(isMoreOpen || isOverflowActive) && (
+                <span className="whitespace-nowrap text-sm font-semibold">
+                  Más
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </nav>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* EXPORT PRINCIPAL                                                    */
+/* ------------------------------------------------------------------ */
+
+export function AppSidebar({
+  branding,
+  userRole,
+  userName,
+}: {
+  branding?: Branding
+  userRole?: string
+  userName?: string | null
+}) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   // Referencia al contenedor Desktop del sidebar para detectar clics fuera
@@ -363,53 +568,9 @@ export function AppSidebar({
   return (
     <TooltipProvider>
       <>
-        {/* 📱 Mobile topbar */}
-        <div
-          className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b px-6 text-white lg:hidden shadow-sm shrink-0"
-          style={{
-            backgroundColor: branding?.primaryColor || '#0a0a0a',
-            borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-              <Image
-                src={branding?.faviconUrl ?? '/placeholder-logo.png'}
-                alt={branding?.name ?? 'WebiBudgets'}
-                width={20}
-                height={20}
-                className="object-contain"
-                priority
-              />
-            </div>
-            <span className="text-sm font-semibold tracking-wide text-white truncate max-w-[180px]">
-              {branding?.name ?? 'WebiBudgets'}
-            </span>
-          </div>
-
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white/90 hover:text-white hover:bg-white/10 rounded-xl h-10 w-10"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0 border-none">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Menú de navegación</SheetTitle>
-              </SheetHeader>
-              <SidebarContent
-                closeMenu={() => setOpen(false)}
-                branding={branding}
-                userRole={userRole}
-                isCollapsed={false}
-              />
-            </SheetContent>
-          </Sheet>
-        </div>
+        {/* 📱 Mobile: topbar + bottom pill nav */}
+        <MobileTopBar branding={branding} userName={userName} />
+        <MobileBottomNav branding={branding} userRole={userRole} />
 
         {/* 💻 Desktop sidebar estilo Pill / Cápsula */}
         <aside
