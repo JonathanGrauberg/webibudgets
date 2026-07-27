@@ -14,7 +14,8 @@ export type RouteKey =
   | 'sellers'
   | 'installers'
   | 'documents'
-  | 'commissions' // 👈 nuevo
+  | 'commissions'
+  | 'tasks' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
 
@@ -46,7 +47,8 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   settings_company: ['owner', 'admin'],
   settings_team: ['owner', 'admin'],
   documents: ['owner', 'admin', 'seller'],
-  commissions: ['owner', 'admin'], //
+  commissions: ['owner', 'admin'],
+  tasks: ['owner', 'admin', 'seller', 'installer'], // 👈 nuevo — mismo alcance que budgets, sin viewer
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -121,7 +123,8 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/sellers' || pathname.startsWith('/sellers/')) return 'sellers'
   if (pathname === '/installers' || pathname.startsWith('/installers/')) return 'installers'
   if (pathname === '/documents' || pathname.startsWith('/documents/')) return 'documents'
-  if (pathname === '/rendiciones' || pathname.startsWith('/rendiciones/')) return 'commissions' // 👈 nuevo
+  if (pathname === '/rendiciones' || pathname.startsWith('/rendiciones/')) return 'commissions'
+  if (pathname === '/tasks' || pathname.startsWith('/tasks/')) return 'tasks' // 👈 nuevo
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -141,7 +144,8 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'stock', name: 'Stock', href: '/stock', tooltip: 'Consultar stock disponible' },
   { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
   { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
-  { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias', requiresFeature: 'commissions' }, // 👈 nuevo
+  { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias', requiresFeature: 'commissions' },
+  { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' }, // 👈 nuevo — sin requiresFeature, disponible para todos los planes
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [

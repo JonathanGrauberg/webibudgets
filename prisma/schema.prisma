@@ -11,6 +11,19 @@ datasource db {
    ENUMS
 ========================= */
 
+enum TaskColumn {
+  backlog
+  todo
+  doing
+  done
+}
+
+enum TaskLinkType {
+  budget
+  receipt
+  delivery_note
+}
+
 enum RendicionStatus {
   draft   // se está armando, todavía editable
   closed  // cerrada: valores fijos, ya se pagó/exportó
@@ -157,6 +170,9 @@ model Tenant {
 
   workOrderSequence Int @default(1) // 👈 nuevo
   workOrders WorkOrder[] // 👈 nuevo
+
+  tasks Task[] // 👈 nuevo
+
 }
 
 /* =========================
@@ -194,6 +210,9 @@ model User {
 
   workOrdersAssigned WorkOrder[] @relation("AssignedTechnician") // 👈 nuevo
   workOrdersRegistered WorkOrder[] @relation("RegisteredBy") // 👈 nuevo
+
+  tasksCreated Task[] // 👈 nuevo
+
 
   @@index([tenantId])
 }
@@ -876,4 +895,33 @@ model ProductVariant {
 
   @@unique([productServiceId, label])
   @@index([productServiceId])
+}
+
+/* =========================
+   TASK
+========================= */
+
+
+model Task {
+  id        String     @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  column      TaskColumn @default(backlog)
+  order       Int        @default(0)
+
+  linkType  TaskLinkType?
+  linkId    String?
+
+  createdByUserId String?
+  createdByUser   User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, column])
 }

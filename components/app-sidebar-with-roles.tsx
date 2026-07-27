@@ -23,6 +23,7 @@ import {
   LogOut,
   User,
   MoreHorizontal,
+  KanbanSquare,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import {
@@ -51,6 +52,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/installers': UserRoundCog,
   '/documents': Receipt,
   '/rendiciones': PiggyBank,
+  '/tasks': KanbanSquare, // 👈 nuevo
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {
