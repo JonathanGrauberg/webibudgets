@@ -1,5 +1,5 @@
 'use client'
-
+//hooks\use-permissions.ts
 import { useSession } from 'next-auth/react'
 import {
   canAccessRoute,

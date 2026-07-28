@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { isValidCurrency } from '@/lib/currencies' // 👈 nuevo
 
+
 /* ======================
    GET
 ====================== */

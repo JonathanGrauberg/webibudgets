@@ -1,3 +1,4 @@
+//app\api\budgets\[id]\work-orders\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -31,11 +32,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { features: true, workOrderSequence: true },
+      select: { plan: true, features: true, workOrderSequence: true }, // 👈 agregado plan: true
     })
 
-    if (!hasFeature({ features: tenant?.features }, 'vouchers')) {
-      return NextResponse.json({ error: 'Módulo de documentos no habilitado' }, { status: 403 })
+    if (!tenant || !hasFeature(tenant, 'workOrders')) { // 👈 workOrders, no vouchers — y pasamos el tenant completo (con plan)
+      return NextResponse.json({ error: 'Crear órdenes de trabajo requiere el plan PRO.' }, { status: 403 })
     }
 
     const budget = await prisma.budget.findFirst({
@@ -46,7 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Presupuesto no encontrado' }, { status: 404 })
     }
 
-    const workOrderNumber = tenant!.workOrderSequence
+    const workOrderNumber = tenant.workOrderSequence // 👈 ya no hace falta el "!" porque arriba chequeamos !tenant
+
+    // ...el resto del handler sigue exactamente igual...
 
     await prisma.tenant.update({
       where: { id: tenantId },

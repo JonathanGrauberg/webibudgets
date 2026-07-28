@@ -1,5 +1,7 @@
 'use client'
 // app\(dashboard)\products\page.tsx
+import { hasFeature } from '@/lib/features'
+import { LockedButton } from '@/components/feature-gate'
 import React, { Suspense, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -102,9 +104,14 @@ function getCatalogMetrics(products: ProductService[]) {
 export default function ProductsPage() {
   const { canEdit } = usePermissions()
   const canEditProducts = canEdit('products')
-  
+
   const { data: products = [], isLoading } = useSWR<ProductService[]>('/api/products', fetchProducts)
-  const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding)
+  const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding) // 👈 esto va primero
+
+  const canBulkUpdate = hasFeature(
+    { plan: tenantBranding?.plan, features: tenantBranding?.features },
+    'bulkPriceUpdate'
+  )
   
   // Estados para Filtros
   const [searchQuery, setSearchQuery] = useState('')
@@ -220,15 +227,26 @@ export default function ProductsPage() {
           >
             {canEditProducts && (
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button onClick={() => setIsBulkOpen(true)} variant="outline" className="w-full sm:w-auto">
-                      <Percent className="mr-2 h-4 w-4" />
-                      Actualizar Precios
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Modificar precios de forma masiva por porcentaje</TooltipContent>
-                </Tooltip>
+                {canBulkUpdate ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={() => setIsBulkOpen(true)} variant="outline" className="w-full sm:w-auto">
+                        <Percent className="mr-2 h-4 w-4" />
+                        Actualizar Precios
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Modificar precios de forma masiva por porcentaje</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <LockedButton feature="bulkPriceUpdate" className="w-full sm:w-auto">
+                        Actualizar Precios
+                      </LockedButton>
+                    </TooltipTrigger>
+                    <TooltipContent>Función disponible en el plan PRO</TooltipContent>
+                  </Tooltip>
+                )}
 
                 <Tooltip>
                   <TooltipTrigger asChild>

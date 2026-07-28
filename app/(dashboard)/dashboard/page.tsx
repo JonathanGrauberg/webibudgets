@@ -1,5 +1,7 @@
 'use client'
 // app\(dashboard)\dashboard\page.tsx
+import { Crown } from 'lucide-react'
+import { UpgradeModal } from '@/components/feature-gate'
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { StatCard } from '@/components/stat-card'
@@ -105,7 +107,10 @@ export default function DashboardPage() {
   const [showMetricsSection, setShowMetricsSection] = useState(true)
 
   const { data: branding } = useSWR('/api/tenants', fetcher)
-  const showMetrics = hasFeature({ features: branding?.features }, 'dashboardMetrics')
+  const showMetrics = hasFeature({ plan: branding?.plan, features: branding?.features }, 'dashboardMetrics') // 👈 fix
+
+  const [activeTab, setActiveTab] = useState('overview')       // 👈 nuevo
+  const [upgradeOpen, setUpgradeOpen] = useState(false)         // 👈 nuevo
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -233,20 +238,31 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
         </div>
 
         {/* ORGANIZACIÓN CON PESTAÑAS (TABS) O VISTA COMPLETA */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <div className="flex items-center justify-between border-b pb-2">
-            <TabsList className="bg-muted/60">
-              <TabsTrigger value="overview" className="gap-2">
-                <LayoutDashboard className="h-4 w-4" />
-                Vista General
-              </TabsTrigger>
-              {showMetrics && (
-                <TabsTrigger value="bi" className="gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Business Intelligence
-                </TabsTrigger>
-              )}
-            </TabsList>
+        <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          if (v === 'bi' && !showMetrics) {
+            setUpgradeOpen(true)   // 👈 no cambia de tab, abre el modal
+            return
+          }
+          setActiveTab(v)
+        }}
+        className="space-y-6"
+      >
+        <div className="flex items-center justify-between border-b pb-2">
+          <TabsList className="bg-muted/60">
+            <TabsTrigger value="overview" className="gap-2">
+              <LayoutDashboard className="h-4 w-4" />
+              Vista General
+            </TabsTrigger>
+
+            {/* 👇 ya NO está envuelto en {showMetrics && ...} — siempre se ve */}
+            <TabsTrigger value="bi" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Business Intelligence
+              {!showMetrics && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+            </TabsTrigger>
+          </TabsList>
             
             <span className="text-xs text-muted-foreground hidden sm:inline">
               Última actualización: En tiempo real
@@ -466,7 +482,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
             </TabsContent>
           )}
         </Tabs>
-
+          <UpgradeModal feature="dashboardMetrics" open={upgradeOpen} onOpenChange={setUpgradeOpen} /> {/* 👈 nuevo */}
       </div>
     </div>
   )

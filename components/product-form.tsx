@@ -1,5 +1,8 @@
 'use client'
 // components/product-form.tsx
+import { Crown } from 'lucide-react'
+import { hasFeature } from '@/lib/features'
+import { UpgradeModal } from '@/components/feature-gate'
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,6 +54,14 @@ interface ProductFormProps {
 
 export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: ProductFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
+
+  // 👇 nuevo — reusa el cache de SWR, no pega una request extra si ya se pidió en la page
+  const { data: tenantBranding } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
+  const hasVariantsFeature = hasFeature(
+    { plan: tenantBranding?.plan, features: tenantBranding?.features },
+    'productVariants'
+  )
 
   // Determinar si la unidad guardada está en la lista predefinida
   const savedUnit     = product?.unit ?? 'un.'
@@ -389,7 +400,7 @@ const handleDeleteVariant = async (variantId: string) => {
             </div>
           </div>
 
-          {/* Activo (Switch independiente y limpio) */}
+{/* Activo (Switch independiente y limpio) */}
           <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-card">
             <div className="space-y-0.5">
               <Label htmlFor="active" className="cursor-pointer font-medium">Producto activo</Label>
@@ -406,128 +417,145 @@ const handleDeleteVariant = async (variantId: string) => {
 
           {/* Seccion Variantes Independiente */}
           {product?.id ? (
-            <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/10">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-semibold">Variantes y Stock</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      Permite gestionar variantes (color, talle, terminación) con stock independiente para cada una.
-                    </TooltipContent>
-                  </Tooltip>
+            hasVariantsFeature ? (
+              <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/10">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">Variantes y Stock</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Permite gestionar variantes (color, talle, terminación) con stock independiente para cada una.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  {variants.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {variants.length} {variants.length === 1 ? 'variante' : 'variantes'}
+                    </Badge>
+                  )}
                 </div>
-                {variants.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {variants.length} {variants.length === 1 ? 'variante' : 'variantes'}
-                  </Badge>
-                )}
-              </div>
 
-              {variantsLoading ? (
-                <p className="text-xs text-muted-foreground py-2">Cargando variantes...</p>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {variants.map((v) => {
-                    const draft = variantDrafts[v.id] ?? { label: v.label, stock: String(v.stock) }
-                    const hasChanges = draft.label !== v.label || Number(draft.stock) !== v.stock
+                {variantsLoading ? (
+                  <p className="text-xs text-muted-foreground py-2">Cargando variantes...</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {variants.map((v) => {
+                      const draft = variantDrafts[v.id] ?? { label: v.label, stock: String(v.stock) }
+                      const hasChanges = draft.label !== v.label || Number(draft.stock) !== v.stock
 
-                    return (
-                      <div key={v.id} className="flex items-center gap-2 bg-background p-1.5 rounded-md border border-border/60">
-                        <Input
-                          value={draft.label}
-                          onChange={(e) =>
-                            setVariantDrafts((prev) => ({
-                              ...prev,
-                              [v.id]: { ...draft, label: e.target.value }
-                            }))
-                          }
-                          className="flex-1 h-8 text-sm"
-                          placeholder="Ej: Rojo / XL"
-                        />
-                        <div className="w-28 relative">
+                      return (
+                        <div key={v.id} className="flex items-center gap-2 bg-background p-1.5 rounded-md border border-border/60">
                           <Input
-                            type="number"
-                            min={0}
-                            value={draft.stock}
+                            value={draft.label}
                             onChange={(e) =>
                               setVariantDrafts((prev) => ({
                                 ...prev,
-                                [v.id]: { ...draft, stock: e.target.value }
+                                [v.id]: { ...draft, label: e.target.value }
                               }))
                             }
-                            className="h-8 text-sm pr-11"
-                            placeholder="Stock"
+                            className="flex-1 h-8 text-sm"
+                            placeholder="Ej: Rojo / XL"
                           />
-                          <span className="absolute right-2 top-1.5 text-[10px] text-muted-foreground font-medium pointer-events-none">
-                            un.
-                          </span>
-                        </div>
+                          <div className="w-28 relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={draft.stock}
+                              onChange={(e) =>
+                                setVariantDrafts((prev) => ({
+                                  ...prev,
+                                  [v.id]: { ...draft, stock: e.target.value }
+                                }))
+                              }
+                              className="h-8 text-sm pr-11"
+                              placeholder="Stock"
+                            />
+                            <span className="absolute right-2 top-1.5 text-[10px] text-muted-foreground font-medium pointer-events-none">
+                              un.
+                            </span>
+                          </div>
 
-                        {hasChanges && (
+                          {hasChanges && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs"
+                              onClick={() => handleSaveVariant(v)}
+                              disabled={savingVariantId === v.id}
+                            >
+                              {savingVariantId === v.id ? '...' : 'Guardar'}
+                            </Button>
+                          )}
+
                           <Button
                             type="button"
-                            size="sm"
-                            className="h-8 px-2.5 text-xs"
-                            onClick={() => handleSaveVariant(v)}
-                            disabled={savingVariantId === v.id}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteVariant(v.id)}
                           >
-                            {savingVariantId === v.id ? '...' : 'Guardar'}
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        )}
-                        
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteVariant(v.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )
-                  })}
+                        </div>
+                      )
+                    })}
 
-                  {variants.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic py-1">
-                      No hay variantes creadas para este producto.
-                    </p>
-                  )}
+                    {variants.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic py-1">
+                        No hay variantes creadas para este producto.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Formulario de Alta rápida de variante */}
+                <div className="flex items-center gap-2 border-t border-border pt-3">
+                  <Input
+                    value={newVariantLabel}
+                    onChange={(e) => setNewVariantLabel(e.target.value)}
+                    placeholder="Agregar variante (ej: Azul, Talle M)..."
+                    className="flex-1 h-8 text-sm"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    value={newVariantStock}
+                    onChange={(e) => setNewVariantStock(e.target.value)}
+                    placeholder="Stock"
+                    className="w-24 h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 gap-1"
+                    onClick={handleAddVariant}
+                    disabled={isAddingVariant || !newVariantLabel.trim()}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Agregar</span>
+                  </Button>
                 </div>
-              )}
-
-              {/* Formulario de Alta rápida de variante */}
-              <div className="flex items-center gap-2 border-t border-border pt-3">
-                <Input
-                  value={newVariantLabel}
-                  onChange={(e) => setNewVariantLabel(e.target.value)}
-                  placeholder="Agregar variante (ej: Azul, Talle M)..."
-                  className="flex-1 h-8 text-sm"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  value={newVariantStock}
-                  onChange={(e) => setNewVariantStock(e.target.value)}
-                  placeholder="Stock"
-                  className="w-24 h-8 text-sm"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-3 gap-1"
-                  onClick={handleAddVariant}
-                  disabled={isAddingVariant || !newVariantLabel.trim()}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Agregar</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4 bg-muted/20">
+                <div className="space-y-0.5">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold">
+                    Variantes y Stock
+                    <Crown className="h-3.5 w-3.5 text-amber-500" />
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Gestioná colores, talles o terminaciones con stock independiente para cada uno.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setUpgradeOpen(true)}>
+                  Ver plan PRO
                 </Button>
               </div>
-            </div>
+            )
           ) : (
             <div className="rounded-lg border border-dashed border-border p-3 text-center bg-muted/20">
               <p className="text-xs text-muted-foreground">
@@ -546,6 +574,7 @@ const handleDeleteVariant = async (variantId: string) => {
           </Button>
         </div>
       </form>
+      <UpgradeModal feature="productVariants" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </TooltipProvider>
   )
 }

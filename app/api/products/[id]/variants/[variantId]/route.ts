@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
+import { hasFeature } from '@/lib/features' // 👈 nuevo
 
 async function findOwnedVariant(tenantId: string, productServiceId: string, variantId: string) {
   return prisma.productVariant.findFirst({
     where: { id: variantId, productServiceId, productService: { tenantId } },
   })
+}
+
+// 👇 nuevo — helper compartido entre PATCH y DELETE
+async function ensureVariantsFeature(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { plan: true, features: true },
+  })
+  return tenant && hasFeature(tenant, 'productVariants')
 }
 
 export async function PATCH(
@@ -15,8 +25,16 @@ export async function PATCH(
   try {
     const tenantId = await getTenantIdFromRequest(req)
     const { id: productServiceId, variantId } = await params
-    const body = await req.json()
 
+    // 🔒
+    if (!(await ensureVariantsFeature(tenantId))) {
+      return NextResponse.json(
+        { error: 'Gestionar variantes requiere el plan PRO.' },
+        { status: 403 }
+      )
+    }
+
+    const body = await req.json()
     const existing = await findOwnedVariant(tenantId, productServiceId, variantId)
     if (!existing) {
       return NextResponse.json({ error: 'Variant not found or tenant mismatch' }, { status: 404 })

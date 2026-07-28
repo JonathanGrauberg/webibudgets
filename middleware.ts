@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { isOwnerRole } from '@/lib/admin'
+import { isTrialExpired } from './lib/plan'
 
 const PUBLIC_PREFIXES = [
   '/auth',
@@ -65,18 +66,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (token && isProtected(pathname)) {
+    if (token && isProtected(pathname)) {
     const role = token.role as string | undefined
     const tenantActive = token.tenantActive as boolean | undefined
+    const plan = token.plan as string | null | undefined // 👈 nuevo
     const trialEndsAt = token.trialEndsAt as string | null | undefined
     const isSystemOwner = isOwnerRole(role) && isAdminRoute(pathname)
 
-    // Chequeo fresco de trial: si el token dice que hay trialEndsAt
-    // y ya pasó, bloqueamos aunque tenantActive sea true en el token
-    // (puede estar desactualizado si el cron todavía no corrió)
-    const trialExpiredNow = trialEndsAt
-      ? new Date(trialEndsAt) <= new Date()
-      : false
+    // 👇 reemplaza el cálculo manual — usa la misma fuente de verdad que el resto del sistema
+    const trialExpiredNow = isTrialExpired(plan ?? null, trialEndsAt)
 
     const blocked = !isSystemOwner && (tenantActive === false || trialExpiredNow)
 

@@ -57,6 +57,7 @@ export const authOptions: NextAuthOptions = {
           tenantId: user.tenantId,
           plan: user.tenant?.plan ?? 'free',
           trialEndsAt: user.tenant?.trialEndsAt ?? null,
+          tenantActive: user.tenant?.active ?? false, // 👈 nuevo
         }
       },
     }),
@@ -171,6 +172,7 @@ export const authOptions: NextAuthOptions = {
         token.tenantId = (user as any).tenantId
         token.plan = (user as any).plan ?? 'free'
         token.trialEndsAt = (user as any).trialEndsAt ?? null
+        token.tenantActive = (user as any).tenantActive ?? true // 👈 nuevo
       }
       return token
     },
@@ -182,6 +184,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).tenantId = token.tenantId
         ;(session.user as any).plan = token.plan
         ;(session.user as any).trialEndsAt = token.trialEndsAt ?? null
+        ;(session.user as any).tenantActive = token.tenantActive // 👈 nuevo
       }
       return session
     },

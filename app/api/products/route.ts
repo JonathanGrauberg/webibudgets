@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 import { normalizeCurrency, DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
+import { hasFeature } from '@/lib/features'
 
 export async function GET(request: Request) {
   try {
@@ -67,8 +68,21 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const tenantId = await getTenantIdFromRequest(request)
-    const data = await request.json()
 
+    // 🔒 Chequeo de feature flag antes de tocar nada
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true, features: true },
+    })
+
+    if (!tenant || !hasFeature(tenant, 'bulkPriceUpdate')) {
+      return NextResponse.json(
+        { error: 'Esta función requiere el plan PRO.' },
+        { status: 403 }
+      )
+    }
+
+    const data = await request.json()
     const { percentage, category } = data
 
     if (percentage === undefined || isNaN(Number(percentage))) {

@@ -435,7 +435,7 @@ export default function NewBudgetPage() {
   const { data: branding }        = useSWR('/api/tenants', fetcher)
 
   const companyName       = branding?.name || 'la empresa'
-  const calculatorEnabled = hasFeature({ features: branding?.features }, 'calculator')
+  const calculatorEnabled = hasFeature({ plan: branding?.plan, features: branding?.features }, 'calculator')
 
   const [isSubmitting, setIsSubmitting]     = useState(false)
   const [clientId, setClientId]             = useState('')

@@ -41,6 +41,10 @@ function maxUsersDisplay(n: number | null, plan: string | null) {
   return String(n)
 }
 
+function planHasTrial(plan: PlanKey): boolean {
+  return (PLAN_LIMITS[plan]?.trialDays ?? 0) > 0
+}
+
 export default function AdminTenantsTable({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -86,19 +90,19 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
   }
 
   function startEdit(t: TenantRow) {
-    const plan = normalizePlan(t.plan)
-    setEditingId(t.id)
-    setConfirmDeleteId(null)
-    setConfirmHardDeleteId(null)
-    setEdit({
-      plan,
-      originalPlan: plan,
-      maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan]?.maxUsers ?? 9999),
-      trialEndsAt: plan === 'vip' ? '' : toDateInputValue(t.trialEndsAt),
-      active: t.active,
-    })
-    setError(null)
-  }
+  const plan = normalizePlan(t.plan)
+  setEditingId(t.id)
+  setConfirmDeleteId(null)
+  setConfirmHardDeleteId(null)
+  setEdit({
+    plan,
+    originalPlan: plan,
+    maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan]?.maxUsers ?? 9999),
+    trialEndsAt: planHasTrial(plan) ? toDateInputValue(t.trialEndsAt) : '', // 👈
+    active: t.active,
+  })
+  setError(null)
+}
 
   function cancelEdit() {
     setEditingId(null)
@@ -205,15 +209,15 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
           <select
             value={edit.plan}
             onChange={(e) => {
-              const newPlan = e.target.value as PlanKey
-              const limits = PLAN_LIMITS[newPlan]
-              setEdit((prev) => prev ? {
-                ...prev,
-                plan: newPlan,
-                maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
-                trialEndsAt: newPlan === 'vip' ? '' : prev.trialEndsAt,
-              } : prev)
-            }}
+            const newPlan = e.target.value as PlanKey
+            const limits = PLAN_LIMITS[newPlan]
+            setEdit((prev) => prev ? {
+              ...prev,
+              plan: newPlan,
+              maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
+              trialEndsAt: planHasTrial(newPlan) ? prev.trialEndsAt : '', // 👈
+            } : prev)
+          }}
             className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
           >
             {PLAN_OPTIONS.map((opt) => (
@@ -238,6 +242,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
           {compact && <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Trial hasta</p>}
           {edit.plan === 'vip' ? (
             <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
+          ) : !planHasTrial(edit.plan) ? (
+            <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Sin trial (plan {planLabel(edit.plan)})</span>
           ) : (
             <input
               type="date"

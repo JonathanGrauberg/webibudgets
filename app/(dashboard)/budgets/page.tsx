@@ -1,5 +1,7 @@
 'use client'
 //app\(dashboard)\budgets\page.tsx
+import { hasFeature } from '@/lib/features'
+import { LockedButton } from '@/components/feature-gate'
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
@@ -24,14 +26,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { 
-  Loader2, Eye, ArrowUpRight, Plus, FileText, AlertTriangle, Sparkles, BarChart3,
-  Pencil, Search, CheckCircle2, Wallet,
+  Loader2, Eye, Plus, FileText, Pencil, Search, CheckCircle2, Wallet,
   Percent, TrendingUp, PackageMinus, Handshake, // 👈 nuevo
 } from 'lucide-react'
 import type { Budget } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
-import { useSession } from 'next-auth/react'
 
 
 async function fetcher(url: string) {
@@ -86,7 +86,7 @@ function summaryTotalForMargin(budgets: Budget[]): number {
 }
 
 export default function BudgetsPage() {
-  const { data: session } = useSession()
+  
   const { canEdit, filterBudgets } = usePermissions()
   const canCreateBudget = canEdit('budgets')
   const { data: budgetsRaw = [], isLoading, error } = useSWR<Budget[]>('/api/budgets', fetcher)
@@ -98,6 +98,12 @@ export default function BudgetsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')  // 👈 subido acá
+
+  const { data: branding } = useSWR('/api/tenants', fetcher)
+  const canEditBudgetsFeature = hasFeature(
+    { plan: branding?.plan, features: branding?.features },
+    'editBudgets'
+  )
 
   const filteredBudgets = useMemo(() => {
   return budgets.filter((b) => {
@@ -118,34 +124,6 @@ export default function BudgetsPage() {
     return matchesSearch && matchesStatus && matchesActive
   })
 }, [budgets, searchQuery, statusFilter, activeFilter])
-
-  // 🚨 CALCULADOR DE LÍMITE MENSUAL ESTRICTO
-  const limitInfo = useMemo(() => {
-    const planKey = (session?.user as any)?.plan || 'starter'
-    const isStarter = planKey.toLowerCase() === 'starter'
-    const maxBudgets = isStarter ? 30 : 99999
-
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
-
-    const currentMonthBudgets = budgetsRaw.filter((b) => {
-      if (!b.createdAt) return false
-      const budgetDate = new Date(b.createdAt)
-      return budgetDate >= startOfMonth
-    })
-
-    const count = currentMonthBudgets.length
-    const percentage = Math.min(100, (count / maxBudgets) * 100)
-
-    return {
-      isStarter,
-      isLimitReached: isStarter && count >= maxBudgets,
-      isNearLimit: isStarter && count >= 22, // Avisar a partir de 22 presupuestos
-      monthlyCount: count,
-      maxBudgets,
-      percentage
-    }
-  }, [budgetsRaw, session])
 
   const canViewFinancials = canEdit('budgets') // 👈 nuevo — mismo criterio que edición: owner/admin/seller
 
@@ -193,10 +171,7 @@ export default function BudgetsPage() {
     )
   }
 
-  const handleUpgradeRedirect = () => {
-    alert("Alcanzaste el límite de 30 presupuestos mensuales de tu plan Starter. Por favor, actualizá tu plan para continuar cotizando.")
-    window.location.href = "/settings/team" // O tu ruta de billing/pricing
-  }
+  
 
   const handleToggleActive = async (budgetId: string, reactivate: boolean) => {
     if (!confirm(reactivate ? '¿Reactivar este presupuesto?' : '¿Desactivar este presupuesto? Podés reactivarlo cuando quieras.')) return
@@ -218,28 +193,15 @@ export default function BudgetsPage() {
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/20">
       <PageHeader
         title="Presupuestos"
-        description={
-          limitInfo.isStarter
-            ? `Listado de presupuestos generados (${limitInfo.monthlyCount}/${limitInfo.maxBudgets} de tu cupo mensual)`
-            : "Listado de todos tus presupuestos generados"
-        }
+        description="Listado de todos tus presupuestos generados"
       >
         {canCreateBudget && (
-          limitInfo.isLimitReached ? (
-            <Button 
-              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-md gap-1.5 animate-pulse"
-              onClick={handleUpgradeRedirect}
-            >
-              Expandir plan <ArrowUpRight className="h-4 w-4" />
+          <Link href="/budgets/new" className="w-full sm:w-auto">
+            <Button id="tour-create-budget" className="w-full sm:w-auto shadow-sm gap-2">
+              <Plus className="h-4 w-4" />
+              Nuevo presupuesto
             </Button>
-          ) : (
-            <Link href="/budgets/new" className="w-full sm:w-auto">
-              <Button id="tour-create-budget" className="w-full sm:w-auto shadow-sm gap-2">
-                <Plus className="h-4 w-4" />
-                Nuevo presupuesto
-              </Button>
-            </Link>
-          )
+          </Link>
         )}
       </PageHeader>
 
@@ -294,117 +256,68 @@ export default function BudgetsPage() {
         </div>
       )}
         
-        {/* 📊 INDICADOR TOP SUPERIOR: Muestra el uso del plan actual de manera elegante */}
-        {limitInfo.isStarter && (
-          <Card className={`overflow-hidden border shadow-sm ${limitInfo.isLimitReached ? 'border-red-200 bg-red-50/30 dark:border-red-900/30 dark:bg-red-950/10' : 'border-slate-200 dark:border-slate-800'}`}>
-            <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className={`p-2.5 rounded-xl shrink-0 ${limitInfo.isLimitReached ? 'bg-red-500 text-white' : 'bg-blue-500/10 text-blue-600'}`}>
-                  {limitInfo.isLimitReached ? <AlertTriangle className="h-5 w-5" /> : <BarChart3 className="h-5 w-5" />}
-                </div>
-                <div className="space-y-0.5 min-w-0 flex-1">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    {limitInfo.isLimitReached ? 'Límite Mensual Alcanzado' : 'Consumo de tu Plan Starter'}
-                    <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0">Mensual</Badge>
-                  </h4>
-                  <p className="text-xs text-muted-foreground truncate">
-                    Has utilizado {limitInfo.monthlyCount} de tus {limitInfo.maxBudgets} cotizaciones disponibles para este período.
-                  </p>
-                </div>
-              </div>
+        {/* 🌟 buscador + filtro de estado (solo si hay presupuestos) */}
+{budgets.length > 0 && (
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="relative w-full sm:max-w-md">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        placeholder="Buscar por cliente o número..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="pl-9"
+      />
+    </div>
 
-              {/* Barra de progreso */}
-              <div className="w-full md:w-72 space-y-1.5 shrink-0">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-muted-foreground">Progreso de uso</span>
-                  <span className={limitInfo.isLimitReached ? 'text-red-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                    {Math.round(limitInfo.percentage)}%
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-500 ${limitInfo.isLimitReached ? 'bg-red-500' : limitInfo.isNearLimit ? 'bg-amber-500' : 'bg-blue-500'}`}
-                    style={{ width: `${limitInfo.percentage}%` }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
+      <SelectTrigger className="w-full sm:w-[200px]">
+        <SelectValue placeholder="Estado" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todos los estados</SelectItem>
+        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+          <SelectItem key={value} value={value}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
 
-        {/* 🌟 nuevo: buscador + filtro de estado (solo si hay presupuestos) */}
-        {budgets.length > 0 && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente o número..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+    <Select value={activeFilter} onValueChange={(v: 'active' | 'inactive' | 'all') => setActiveFilter(v)}>
+      <SelectTrigger className="w-full sm:w-[160px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="active">Activos</SelectItem>
+        <SelectItem value="inactive">Inactivos</SelectItem>
+        <SelectItem value="all">Todos</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+)}
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={activeFilter} onValueChange={(v: 'active' | 'inactive' | 'all') => setActiveFilter(v)}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Activos</SelectItem>
-                <SelectItem value="inactive">Inactivos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* CONTENEDOR PRINCIPAL */}
-        {budgets.length === 0 ? (
-          
-          /* ✨ EMPTY STATE INTEGRADO: Reemplaza las listas vacías aburridas por una invitación de UX */
-          <Card className="border-dashed border-2 bg-transparent">
-            <CardContent className="flex flex-col items-center justify-center py-14 text-center max-w-md mx-auto space-y-4">
-              <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-full text-slate-400 dark:text-slate-600">
-                <FileText className="h-10 w-10" />
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-md font-bold text-slate-900 dark:text-slate-50">No hay presupuestos todavía</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {limitInfo.isStarter 
-                    ? `Comenzá creando una cotización profesional. Recordá que disponés de hasta ${limitInfo.maxBudgets} presupuestos mensuales en tu plan.`
-                    : "Creá cotizaciones completas, personalizadas con tu marca y descargables en PDF en segundos."
-                  }
-                </p>
-              </div>
-              {canCreateBudget && (
-                limitInfo.isLimitReached ? (
-                  <Button size="sm" variant="outline" className="text-amber-600 border-amber-200 bg-amber-50/50 hover:bg-amber-100 gap-1" onClick={handleUpgradeRedirect}>
-                    <Sparkles className="h-4 w-4" /> Desbloquear más cupos
-                  </Button>
-                ) : (
-                  <Link href="/budgets/new">
-                    <Button size="sm" className="gap-1.5">
-                      <Plus className="h-4 w-4" /> Crear mi primer presupuesto
-                    </Button>
-                  </Link>
-                )
-              )}
-            </CardContent>
-          </Card>
+{/* CONTENEDOR PRINCIPAL */}
+{budgets.length === 0 ? (
+  <Card className="border-dashed border-2 bg-transparent">
+    <CardContent className="flex flex-col items-center justify-center py-14 text-center max-w-md mx-auto space-y-4">
+      <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-full text-slate-400 dark:text-slate-600">
+        <FileText className="h-10 w-10" />
+      </div>
+      <div className="space-y-1.5">
+        <h3 className="text-md font-bold text-slate-900 dark:text-slate-50">No hay presupuestos todavía</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Creá cotizaciones completas, personalizadas con tu marca y descargables en PDF en segundos.
+        </p>
+      </div>
+      {canCreateBudget && (
+        <Link href="/budgets/new">
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" /> Crear mi primer presupuesto
+          </Button>
+        </Link>
+      )}
+    </CardContent>
+  </Card>
 
         ) : filteredBudgets.length === 0 ? (
           /* 🌟 nuevo: sin resultados por búsqueda/filtro (distinto del empty state real) */
@@ -475,12 +388,19 @@ export default function BudgetsPage() {
                         </Button>
                       </Link>
                       {canCreateBudget && (
-                        <Link href={`/budgets/${b.id}/edit`} className="flex-1">
-                          <Button variant="outline" className="w-full">
+                        canEditBudgetsFeature ? (
+                          <Link href={`/budgets/${b.id}/edit`} className="flex-1">
+                            <Button variant="outline" className="w-full">
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </Button>
+                          </Link>
+                        ) : (
+                          <LockedButton feature="editBudgets" className="flex-1">
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
-                          </Button>
-                        </Link>
+                          </LockedButton>
+                        )
                       )}
                     </div>
                   </CardContent>
@@ -569,12 +489,19 @@ export default function BudgetsPage() {
                                   </Button>
                                 </Link>
                                 {canCreateBudget && (
-                                  <Link href={`/budgets/${b.id}/edit`}>
-                                    <Button variant="outline" size="sm">
+                                  canEditBudgetsFeature ? (
+                                    <Link href={`/budgets/${b.id}/edit`}>
+                                      <Button variant="outline" size="sm">
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                      </Button>
+                                    </Link>
+                                  ) : (
+                                    <LockedButton feature="editBudgets" size="sm">
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
-                                    </Button>
-                                  </Link>
+                                    </LockedButton>
+                                  )
                                 )}
                                 {canCreateBudget && (
                                   <Button

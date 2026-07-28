@@ -1,6 +1,8 @@
+//app\api\products\[id]\variants\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
+import { hasFeature } from '@/lib/features' // 👈 nuevo
 
 export async function GET(
   req: Request,
@@ -32,8 +34,20 @@ export async function POST(
   try {
     const tenantId = await getTenantIdFromRequest(req)
     const { id: productServiceId } = await params
-    const body = await req.json()
 
+    // 🔒 Variantes requiere plan PRO
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true, features: true },
+    })
+    if (!tenant || !hasFeature(tenant, 'productVariants')) {
+      return NextResponse.json(
+        { error: 'Gestionar variantes requiere el plan PRO.' },
+        { status: 403 }
+      )
+    }
+
+    const body = await req.json()
     const label: string = (body.label ?? '').trim()
     const stock: number = Number(body.stock ?? 0)
 

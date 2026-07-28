@@ -14,6 +14,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { MapPin, Trash2, Plus } from 'lucide-react'
+import useSWR from 'swr'
+import { hasFeature } from '@/lib/features'
+import { UpgradeModal } from '@/components/feature-gate'
+import { Crown } from 'lucide-react'
 
 interface TenantUser { id: string; name: string }
 interface MaterialRow { productServiceId: string | null; customName: string; quantity: number; unit: string }
@@ -37,6 +41,9 @@ export function CreateWorkOrderModal({
   open, onOpenChange, budgetId, budgetNumber, onCreated,
 }: CreateWorkOrderModalProps) {
   const { data: session } = useSession()
+  const { data: branding } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json())) // 👈 nuevo
+  const hasWorkOrdersFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'workOrders') // 👈 nuevo
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -112,6 +119,13 @@ export function CreateWorkOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // 🔒 Dejamos completar TODO el formulario. Recién acá, al querer crear, frenamos.
+    if (!hasWorkOrdersFeature) {
+      setUpgradeOpen(true)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const toLines = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -336,12 +350,14 @@ export function CreateWorkOrderModal({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="gap-1.5">
               {isSubmitting ? 'Creando...' : 'Crear Orden'}
+              {!hasWorkOrdersFeature && <Crown className="h-3.5 w-3.5 text-amber-300" />}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
+      <UpgradeModal feature="workOrders" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </Dialog>
   )
 }

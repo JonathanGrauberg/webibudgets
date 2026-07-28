@@ -1,4 +1,5 @@
 //app\api\budgets\[id]\route.ts 
+import { hasFeature } from '@/lib/features'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -77,10 +78,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
 
   if (!id) {
-    return NextResponse.json(
-      { error: 'Missing budget id param' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Missing budget id param' }, { status: 400 })
   }
 
   try {
@@ -97,10 +95,20 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     if (Array.isArray(data.items)) {
-      const normalizedItems = normalizeBudgetItems(data.items)
-      if (normalizedItems.length === 0) {
-        return NextResponse.json({ error: 'items are required' }, { status: 400 })
+      // 🔒 Reeditar el contenido de un presupuesto requiere plan PRO
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { plan: true, features: true },
+      })
+
+      if (!tenant || !hasFeature(tenant, 'editBudgets')) {
+        return NextResponse.json(
+          { error: 'Editar presupuestos requiere el plan PRO.' },
+          { status: 403 }
+        )
       }
+
+      const normalizedItems = normalizeBudgetItems(data.items)
 
       const productIds = getBudgetItemProductIds(normalizedItems)
       const groupedQty = groupBudgetItemQuantities(normalizedItems)
