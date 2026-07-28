@@ -6,7 +6,6 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
 import { Inter } from 'next/font/google'
-import { DifyChatbot } from '@/components/dify-chatbot'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -121,8 +120,7 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         <Providers>
           {children}
-          <Toaster />
-          <DifyChatbot />
+          <Toaster />          
         </Providers>
         <Analytics />
       </body>
