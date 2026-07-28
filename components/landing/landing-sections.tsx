@@ -19,6 +19,7 @@ import { LandingFreeItemBento } from './LandingFreeItemBento'
 import { LandingProfitSplitBento } from './LandingProfitSplitBento'
 import { LandingWorkflowBento } from './LandingWorkflowBento'
 import { FeaturesGrid } from './FeaturesGrid'
+import { LandingLiveTasksBento } from './LandingLiveTasksBento'
 
 const fonts = [
   'font-sans', 
@@ -176,6 +177,11 @@ export function LandingSections({
       {/* ── FREE ITEM BENTO ── */}
       <section id="demo-freeitem">
         <LandingFreeItemBento /> 
+      </section>
+
+      {/* ── LIVE TASKS BENTO ── */}
+      <section id="demo-tasks">
+        <LandingLiveTasksBento />
       </section>
 
       {/* ── PRESENCE MAP ── */}

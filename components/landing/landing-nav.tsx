@@ -33,6 +33,13 @@ const DEMO_ITEMS = [
     href: '#demo-freeitem',
     icon: Gift,
   },
+  {
+    title: 'Tareas en vivo',
+    desc: 'Organizá tus tareas en un tablero Kanban interactivo',
+    href: '#demo-tasks',
+    icon: Sparkles,
+  }
+
 ]
 
 export function LandingNav() {
