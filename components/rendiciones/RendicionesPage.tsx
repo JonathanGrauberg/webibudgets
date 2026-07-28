@@ -49,6 +49,7 @@ export interface AsignacionConfirmada {
   role: "admin" | "seller";
   porcentaje: number;
   gananciaAsignada: number;
+  pagado?: boolean; // se togglea junto para todas las filas del mismo budgetId (pago a nivel presupuesto, no por persona)
 }
 
 export interface TenantUser {
@@ -101,6 +102,34 @@ function formatDate(iso: string) {
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+// Estado de pago del presupuesto, derivado de sus asignaciones guardadas.
+// El pago es a nivel de presupuesto entero: todas las filas de un mismo
+// budgetId comparten el mismo valor de `pagado`.
+type BudgetPaymentStatus = "pendiente" | "calculado" | "pagado";
+
+function getBudgetStatus(
+  budgetId: string,
+  asignaciones: AsignacionConfirmada[]
+): BudgetPaymentStatus {
+  const repartos = asignaciones.filter((a) => a.budgetId === budgetId);
+  if (repartos.length === 0) return "pendiente";
+  return repartos.every((r) => r.pagado === true) ? "pagado" : "calculado";
+}
+
+function BudgetStatusBadge({ status }: { status: BudgetPaymentStatus }) {
+  if (status === "pagado") {
+    return <Badge className="bg-emerald-100 text-emerald-800 border-none">Pagado</Badge>;
+  }
+  if (status === "calculado") {
+    return (
+      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+        Calculado
+      </Badge>
+    );
+  }
+  return <Badge variant="outline" className="text-slate-400">Pendiente</Badge>;
 }
 
 function KpiCard({ label, value, sublabel, valueClassName }: { label: string; value: string; sublabel: string; valueClassName?: string }) {
@@ -447,7 +476,7 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
             </TableHeader>
             <TableBody>
               {data.budgets.map((b) => {
-                const yaAsignado = asignacionesGuardadas.some(a => a.budgetId === b.id);
+                const status = getBudgetStatus(b.id, asignacionesGuardadas);
                 return (
                   <TableRow key={b.id} className={`cursor-pointer transition-colors ${selectedBudget?.id === b.id ? 'bg-blue-50/70 hover:bg-blue-50' : 'hover:bg-slate-50/80'}`} onClick={() => handleSelectBudget(b)}>
                     <TableCell className="font-medium text-slate-800">{b.clienteName}</TableCell>
@@ -457,11 +486,7 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
                     <TableCell className="text-right text-slate-700">{formatCurrency(b.total, currency)}</TableCell>
                     <TableCell className="text-right font-medium text-emerald-600">{formatCurrency(b.ganancia, currency)}</TableCell>
                     <TableCell className="text-center">
-                      {yaAsignado ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-none">Distribuido</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-slate-400">Pendiente</Badge>
-                      )}
+                      <BudgetStatusBadge status={status} />
                     </TableCell>
                   </TableRow>
                 );

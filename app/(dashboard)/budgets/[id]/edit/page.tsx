@@ -168,7 +168,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
         <TableCell>
           <Input
             type="number"
-            min={1}
+            min={0.01}
             step="any"
             value={item.quantity === 0 ? '' : item.quantity}
             className={

@@ -180,7 +180,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
         <TableCell>
           <Input
             type="number"
-            min={1}
+            min={0.01}
             step="any"
             value={item.quantity === 0 ? '' : item.quantity}
             className={
@@ -336,7 +336,7 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
           <p className="text-[11px] text-muted-foreground">Cantidad</p>
           <Input
             type="number"
-            min={1}
+            min={0.01}
             step="any"
             value={item.quantity === 0 ? '' : item.quantity}
             className={
