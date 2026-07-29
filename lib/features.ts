@@ -8,15 +8,12 @@ export type FeatureKey =
   | "bulkPriceUpdate"
   | "editBudgets"
   | "productVariants"
-  | "workOrders" // 👈 nueva
+  | "workOrders"
+  | "whiteLabel" // 👈 nueva
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {
-  free: {
-    vouchers: true, // 👈 recibos/remitos/PDF básico, gratis para todos
-  },
-  vip: {
-    vouchers: true,
-  },
+  free: { vouchers: true },
+  vip: { vouchers: true },
   custom: {
     calculator: true,
     commissions: true,
@@ -26,7 +23,8 @@ const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>
     bulkPriceUpdate: true,
     editBudgets: true,
     productVariants: true,
-    workOrders: true, // 👈
+    workOrders: true,
+    whiteLabel: true, // 👈
   },
 }
 

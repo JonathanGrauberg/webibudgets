@@ -266,9 +266,11 @@ export function PDFPreview({
         <div className="flex items-center justify-between">
           <div>
             {showFooterBranding && (
-              <div className="flex items-center space-x-2">
-                {logo && <img src={logo} alt="logo" className="h-6 w-6 object-contain" />}
-                <div className="text-xs font-semibold">Mi Empresa</div>
+              <div className="flex items-center space-x-1.5">
+                <FileText className="h-3.5 w-3.5 text-slate-400" />
+                <div className="text-xs text-slate-400">
+                  Generado con <span className="font-semibold text-slate-500">budgets.webistudio.net</span>
+                </div>
               </div>
             )}
 

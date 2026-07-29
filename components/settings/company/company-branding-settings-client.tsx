@@ -1,5 +1,8 @@
 'use client'
 //components\settings\company\company-branding-settings-client.tsx
+import useSWR from 'swr'
+import { hasFeature } from '@/lib/features'
+import { UpgradeModal } from '@/components/feature-gate'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -190,8 +193,16 @@ export default function CompanyBrandingSettingsClient({
   initialBranding,
   currentBudgets = 0,
   maxBudgets = 30,
-}: CompanyBrandingSettingsClientProps) {
+  }: CompanyBrandingSettingsClientProps) {
   const { data: session } = useSession()
+
+  // 👇 nuevo — trae plan/features frescos, no depende de lo que traiga initialBranding
+  const { data: tenantPlanData } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
+  const hasWhiteLabel = hasFeature(
+    { plan: tenantPlanData?.plan, features: tenantPlanData?.features },
+    'whiteLabel'
+  )
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
@@ -554,6 +565,13 @@ export default function CompanyBrandingSettingsClient({
     }
   }, [activeTab])
 
+  // 👇 nuevo — en cuanto sabemos que no tiene whiteLabel, forzamos el switch a true
+  useEffect(() => {
+    if (tenantPlanData && !hasWhiteLabel && !showFooterBranding) {
+      setShowFooterBranding(true)
+    }
+  }, [tenantPlanData, hasWhiteLabel]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateCompanyInfo = useCallback((field: keyof CompanyInfo, value: string) => {
     setCompanyInfo((prev) => ({ ...prev, [field]: value }))
   }, [])
@@ -639,8 +657,6 @@ export default function CompanyBrandingSettingsClient({
 
         <AnimatePresence mode="wait">
 
-
-          //components\settings\company\company-branding-settings-client.tsx
           {/* ── CONFIGURACIÓN ── */}
           {activeTab === 'company' && (
             <motion.div
@@ -932,11 +948,6 @@ export default function CompanyBrandingSettingsClient({
                       {[
                         { label: 'Mostrar numeración de páginas', value: showPageNumbers, setter: setShowPageNumbers },
                         { label: 'Mostrar sitio web en el pie', value: showWebsiteInPdf, setter: setShowWebsiteInPdf },
-                        {
-                          label: 'Mostrar "Generado en budgets.webistudio.net"',
-                          value: showFooterBranding,
-                          setter: setShowFooterBranding,
-                        },
                       ].map(({ label, value, setter }) => (
                         <label key={label} className="flex items-center gap-3 cursor-pointer group">
                           <div
@@ -957,6 +968,40 @@ export default function CompanyBrandingSettingsClient({
                           </span>
                         </label>
                       ))}
+
+                      {/* 👇 nuevo — footer branding, con lógica propia de PRO */}
+                      <label className={`flex items-center gap-3 group ${hasWhiteLabel ? 'cursor-pointer' : 'cursor-pointer'}`}>
+                        <div
+                          className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
+                            showFooterBranding ? '' : 'bg-slate-200 dark:bg-slate-700'
+                          } ${!hasWhiteLabel ? 'opacity-60' : ''}`}
+                          style={showFooterBranding ? { backgroundColor: colorSystem.primary } : {}}
+                          onClick={() => {
+                            if (!hasWhiteLabel) {
+                              setUpgradeOpen(true) // 👈 no permite tocarlo, abre el modal
+                              return
+                            }
+                            setShowFooterBranding(!showFooterBranding)
+                          }}
+                        >
+                          <div
+                            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                              showFooterBranding ? 'left-4' : 'left-0.5'
+                            }`}
+                          />
+                        </div>
+                        <span
+                          className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors select-none flex items-center gap-1.5"
+                          onClick={() => !hasWhiteLabel && setUpgradeOpen(true)}
+                        >
+                          Mostrar &quot;Generado en budgets.webistudio.net&quot;
+                          {!hasWhiteLabel && (
+                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 underline underline-offset-2">
+                              Pasate a PRO para quitar esto
+                            </span>
+                          )}
+                        </span>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -984,7 +1029,7 @@ export default function CompanyBrandingSettingsClient({
             </motion.div>
           )}
 
-{/* ── PLAN ── */}
+    {/* ── PLAN ── */}
     {activeTab === 'plan' && (
       <motion.div
         key="plan"
@@ -1067,6 +1112,7 @@ export default function CompanyBrandingSettingsClient({
 
         </AnimatePresence>
       </div>
+      <UpgradeModal feature="whiteLabel" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   )
 }

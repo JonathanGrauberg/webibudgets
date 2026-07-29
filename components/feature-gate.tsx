@@ -30,6 +30,10 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: str
     title: 'Órdenes de Trabajo con QR',
     description: 'Generá órdenes de trabajo completas para tu equipo, con checklist, materiales y QR de seguimiento. Disponible en el plan PRO.',
   },
+    whiteLabel: {
+    title: 'Quitar marca de .budgets',
+    description: 'Eliminá el pie "Generado en budgets.webistudio.net" de tus presupuestos y documentos, para que lleven 100% tu marca. Disponible en el plan PRO.',
+  },
 }
 
 export function UpgradeModal({ feature, open, onOpenChange }: {
