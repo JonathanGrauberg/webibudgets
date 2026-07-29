@@ -29,6 +29,16 @@ export default async function DashboardLayout({
     } catch {
       tenantBranding = null
     }
+  } else if (process.env.NODE_ENV !== 'production') {
+    // 👈 fallback SOLO en dev, y solo si de verdad no hay header — nunca en producción
+    const fallbackId = process.env.DEFAULT_TENANT_ID
+    if (fallbackId) {
+      try {
+        tenantBranding = await getTenantBranding(fallbackId)
+      } catch {
+        tenantBranding = null
+      }
+    }
   }
 
   const branding = effectiveBranding(

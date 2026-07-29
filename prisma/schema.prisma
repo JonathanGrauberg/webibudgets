@@ -154,6 +154,7 @@ model Tenant {
   sellers        Seller[]
   installers     Installer[]
   products       ProductService[]
+  productCategories TenantProductCategory[]
   stockMovements StockMovement[]
 
   features Json? // { "calculator": bool, "commissions": bool, "vouchers": bool, "dashboardMetrics": bool, "stockAnalytics": bool }
@@ -323,6 +324,9 @@ model ProductService {
   name        String
   description String
   category    ProductCategory
+  customCategoryId String?
+  customCategory   TenantProductCategory? @relation(fields: [customCategoryId], references: [id])
+
 
   price       Float
   cost        Float?
@@ -342,6 +346,23 @@ model ProductService {
   currency String @default("ARS") // 👈 moneda en la que está cargado el precio
   workOrderMaterials WorkOrderMaterial[] // 👈 nuevo
 
+  @@index([tenantId])
+}
+
+model TenantProductCategory {
+  id        String   @id @default(uuid())
+
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String   // "Lonas"
+  slug      String   // "lonas"
+
+  createdAt DateTime @default(now())
+
+  products  ProductService[]
+
+  @@unique([tenantId, slug])
   @@index([tenantId])
 }
 

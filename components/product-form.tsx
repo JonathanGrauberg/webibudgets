@@ -62,6 +62,11 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
     { plan: tenantBranding?.plan, features: tenantBranding?.features },
     'productVariants'
   )
+  const hasCustomCategoriesFeature = hasFeature(
+    { plan: tenantBranding?.plan, features: tenantBranding?.features },
+    'customCategories'
+  )
+ const [categoryUpgradeOpen, setCategoryUpgradeOpen] = useState(false)
 
   // Determinar si la unidad guardada está en la lista predefinida
   const savedUnit     = product?.unit ?? 'un.'
@@ -71,7 +76,6 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
   const [formData, setFormData] = useState({
     name:        product?.name        ?? '',
     description: product?.description ?? '',
-    category:    (product?.category   ?? 'other') as ProductCategory,
     price:       product?.price?.toString() ?? '',
     cost:        product?.cost?.toString()  ?? '',
     currency:    product?.currency    ?? defaultCurrency ?? DEFAULT_CURRENCY,
@@ -84,10 +88,63 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
   const [customUnit, setCustomUnit]   = useState(isKnownUnit ? '' : savedUnit)
 
   const variantsUrl = product?.id ? `/api/products/${product.id}/variants` : null
-const { data: variants = [], isLoading: variantsLoading } = useSWR<ProductVariant[]>(
-  variantsUrl,
+  const { data: variants = [], isLoading: variantsLoading } = useSWR<ProductVariant[]>(
+    variantsUrl,
+    (url: string) => fetch(url).then((r) => r.json())
+  )
+
+  // value combinado para el Select: "legacy:other" | "custom:<uuid>"
+const [categoryValue, setCategoryValue] = useState(
+  product?.customCategoryId
+    ? `custom:${product.customCategoryId}`
+    : `legacy:${product?.category ?? 'other'}`
+)
+
+const { data: categories = [] } = useSWR<{ id: string; name: string }[]>(
+  '/api/categories',
   (url: string) => fetch(url).then((r) => r.json())
 )
+
+const [creatingCategory, setCreatingCategory] = useState(false)
+const [newCategoryName, setNewCategoryName] = useState('')
+const [isSavingCategory, setIsSavingCategory] = useState(false)
+
+const CREATE_CATEGORY_VALUE = '__create__'
+
+const handleCategorySelectChange = (val: string) => {
+    if (val === CREATE_CATEGORY_VALUE) {
+     if (!hasCustomCategoriesFeature) {
+       setCategoryUpgradeOpen(true)
+       return
+     }
+      setCreatingCategory(true)
+      return
+    }
+    setCategoryValue(val)
+  }
+
+const handleCreateCategory = async () => {
+  if (!newCategoryName.trim()) return
+  setIsSavingCategory(true)
+  try {
+    const res = await fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newCategoryName.trim() }),
+    })
+    if (!res.ok) throw new Error('No se pudo crear la categoría')
+    const cat = await res.json()
+    mutate('/api/categories')
+    setCategoryValue(`custom:${cat.id}`)
+    setNewCategoryName('')
+    setCreatingCategory(false)
+  } catch (err) {
+    console.error(err)
+    alert('Error al crear la categoría')
+  } finally {
+    setIsSavingCategory(false)
+  }
+}
 
 const [variantDrafts, setVariantDrafts] = useState<Record<string, { label: string; stock: string }>>({})
 const [savingVariantId, setSavingVariantId] = useState<string | null>(null)
@@ -184,26 +241,34 @@ const handleDeleteVariant = async (variantId: string) => {
     unit:   '🔢 Unidad contable — sin calculadora de medidas',
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    try {
-      const url    = product ? `/api/products/${product.id}` : '/api/products'
-      const method = product ? 'PATCH' : 'POST'
-      const res    = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-      if (!res.ok) throw new Error('Failed to save product')
-      onSuccess()
-    } catch (err) {
-      console.error('Error saving product:', err)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+      const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsSubmitting(true)
+  try {
+    const url    = product ? `/api/products/${product.id}` : '/api/products'
+    const method = product ? 'PATCH' : 'POST'
 
+    const isCustom = categoryValue.startsWith('custom:')
+    const payload = {
+      ...formData,
+      category: isCustom ? 'other' : categoryValue.slice('legacy:'.length),
+      customCategoryId: isCustom ? categoryValue.slice('custom:'.length) : null,
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error('Failed to save product')
+    onSuccess()
+  } catch (err) {
+    console.error('Error saving product:', err)
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+      
   return (
     <TooltipProvider>
       {/*
@@ -253,17 +318,58 @@ const handleDeleteVariant = async (variantId: string) => {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="category">Categoría *</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(v: ProductCategory) => setFormData({ ...formData, category: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={categoryValue} onValueChange={handleCategorySelectChange}>
+                <SelectTrigger id="category"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      Categorías del sistema
+                    </SelectLabel>
+                    {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={`legacy:${value}`}>{label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+
+                  {categories.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                        Tus categorías
+                      </SelectLabel>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={`custom:${c.id}`}>{c.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+
+                  <SelectGroup>
+                    <SelectLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">Otra</SelectLabel>
+                    <SelectItem value={CREATE_CATEGORY_VALUE} className="flex items-center gap-1.5">
+                      + Crear categoría...
+                      {!hasCustomCategoriesFeature && <Crown className="h-3 w-3 text-amber-500" />}
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
+
+              {creatingCategory && (
+                <div className="space-y-2 mt-1.5">
+                  <Input
+                    autoFocus
+                    placeholder="Ej: Lonas, Servicios eléctricos..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateCategory())}
+                  />
+                 <div className="flex justify-end gap-2">
+                 <Button type="button" size="sm" variant="ghost" onClick={() => setCreatingCategory(false)}>
+                   Cancelar
+                 </Button>
+                 <Button type="button" size="sm" onClick={handleCreateCategory} disabled={isSavingCategory || !newCategoryName.trim()}>
+                   {isSavingCategory ? '...' : 'Crear'}
+                 </Button>
+               </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -575,6 +681,7 @@ const handleDeleteVariant = async (variantId: string) => {
         </div>
       </form>
       <UpgradeModal feature="productVariants" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+      <UpgradeModal feature="customCategories" open={categoryUpgradeOpen} onOpenChange={setCategoryUpgradeOpen} />
     </TooltipProvider>
   )
 }

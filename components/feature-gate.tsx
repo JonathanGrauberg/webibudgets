@@ -46,6 +46,10 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: str
     title: 'Historial detallado por presupuesto',
     description: 'Mirá el desglose exacto de cuánto se llevó cada integrante en cada presupuesto individual. Disponible en el plan PRO.',
   },
+  customCategories: {
+    title: 'Crear nuevas categorías',
+    description: 'Creá las categorías que más se acomoden a tu empresa. Disponible en el plan PRO.',
+  },
 }
 
 export function UpgradeModal({ feature, open, onOpenChange }: {

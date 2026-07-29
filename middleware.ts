@@ -25,6 +25,8 @@ const PROTECTED_PREFIXES = [
   '/stock',
   '/installers',
   '/documents',
+  '/rendiciones', // 👈 nuevo
+  '/tasks',        // 👈 nuevo — mismo agujero
 ]
 
 function isPublic(pathname: string): boolean {
@@ -119,6 +121,8 @@ export const config = {
     '/stock/:path*',
     '/installers/:path*',
     '/documents/:path*', // 👈 nuevo
+    '/rendiciones/:path*', // 👈 nuevo
+    '/tasks/:path*',        // 👈 nuevo
     '/admin/:path*',
     '/register/:path*',
     '/pricing/:path*',

@@ -34,6 +34,7 @@ export interface ProductService {
   name: string
   description: string
   category: ProductCategory
+  customCategoryId: string | null
   price: number
   cost?: number | null
   currency: string

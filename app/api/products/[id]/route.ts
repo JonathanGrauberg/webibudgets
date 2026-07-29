@@ -1,8 +1,9 @@
-//app\api\products\[id]\route.ts
+//app\api\products\[id]\route.ts 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { isValidCurrency } from '@/lib/currencies' // 👈 nuevo
+import { resolveCustomCategoryId } from '@/lib/categories'
 
 
 /* ======================
@@ -43,6 +44,11 @@ export async function PATCH(
     const { id } = await params
     const data = await req.json()
 
+    const customCategoryId =
+      data.customCategoryId !== undefined
+        ? await resolveCustomCategoryId(data.customCategoryId, tenantId)
+        : undefined
+
     const result = await prisma.productService.updateMany({
       where: tenantWhereId(id, tenantId),
       data: {
@@ -50,6 +56,7 @@ export async function PATCH(
         description:
           typeof data.description === 'string' ? data.description : undefined,
         category: typeof data.category === 'string' ? data.category : undefined,
+        customCategoryId,
         price:
           data.price !== undefined && data.price !== ''
             ? Number(data.price)

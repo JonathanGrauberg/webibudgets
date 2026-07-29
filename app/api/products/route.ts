@@ -1,9 +1,11 @@
-// app\api\products\route.ts
+// app\api\products\route.ts 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 import { normalizeCurrency, DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
 import { hasFeature } from '@/lib/features'
+import { resolveCustomCategoryId } from '@/lib/categories'
+
 
 export async function GET(request: Request) {
   try {
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
           name: data.name,
           description: data.description ?? '',
           category: data.category,
+          customCategoryId: await resolveCustomCategoryId(data.customCategoryId, tenantId),
           price: Number(data.price),
           currency: productCurrency, // 👈 nuevo
           cost: data.cost !== undefined && data.cost !== '' ? Number(data.cost) : null, // 👈 nuevo

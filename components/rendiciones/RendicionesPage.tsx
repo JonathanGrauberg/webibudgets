@@ -306,6 +306,13 @@ export default function RendicionesPage({
     setExpandedBudgets(prev => ({ ...prev, [budgetId]: !prev[budgetId] }));
   };
 
+  console.group('--- [DEBUG RENDICIONES PERMISOS] ---')
+  console.log('1. hasCommissions:', hasCommissions)
+  console.log('2. hasExportData:', hasExportData)
+  console.log('3. hasAuditHistory:', hasAuditHistory)
+  console.log('4. Data de la API:', data)
+  console.groupEnd()
+
   return (
     <div className="space-y-6">
       {/* Header */}
