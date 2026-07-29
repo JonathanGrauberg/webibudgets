@@ -9,6 +9,8 @@ import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 import { Spinner } from '@/components/ui/spinner'
 import { useBranding } from '@/components/branding-provider'
 import { getPlanConfig, trialDaysRemaining, isInTrial, type PlanKey } from '@/lib/plan'
+import { isProPlan } from '@/lib/features' // ajustar import según corresponda — o traer isProPlan de donde quede definitivamente
+
 
 type User = {
   id: string
@@ -62,54 +64,12 @@ function Avatar({ name }: { name: string }) {
 
 function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
   const { activeUsers, maxUsers, plan } = planInfo
-  const config = getPlanConfig(plan)
   const atLimit = activeUsers >= maxUsers
   const nearLimit = activeUsers >= maxUsers - 1 && !atLimit
+  const isPro = isProPlan(plan)
 
-  // 🇦🇷 Estado local para manejar si el usuario cerró el cartel
   const [isVisible, setIsVisible] = useState(true)
-
-  // Si el usuario le dio a la X, ocultamos el banner por completo
   if (!isVisible) return null
-
-  // 🚀 CASO PLAN STARTER (1 Usuario): Mensaje sutil con opción de cerrar
-  if (maxUsers === 1) {
-    return (
-      <div className="relative mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 pr-10 text-xs text-zinc-600 shadow-sm transition-all animate-in fade-in duration-200">
-        <div className="flex items-start gap-2.5">
-          <span className="text-sm mt-0.5">🚀</span>
-          <div className="max-w-[85%] sm:max-w-none">
-            <span className="font-semibold text-black">Estás usando tu espacio personal.</span>{' '}
-            Tu plan <span className="font-medium text-zinc-900">{config.label}</span> incluye 1 usuario. 
-            Si necesitas sumar socios, vendedores o instaladores, podés expandir tu equipo cuando quieras.
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3 shrink-0 mt-2 sm:mt-0">
-          <a 
-            href="/pricing" 
-            className="text-center bg-black text-white hover:bg-zinc-800 px-3 py-1.5 rounded-lg font-semibold transition"
-          >
-            Sumar miembros →
-          </a>
-        </div>
-
-        {/* ❌ Botón para cerrar el cartel arriba a la derecha */}
-        <button
-          type="button"
-          onClick={() => setIsVisible(false)}
-          className="absolute top-3 right-3 text-zinc-400 hover:text-zinc-600 p-1 rounded-lg transition-colors"
-          aria-label="Cerrar aviso"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    )
-  }
-
-  // 🔒 Caso contrata planes más altos y llegó al límite estricto
   if (!atLimit && !nearLimit) return null
 
   return (
@@ -121,25 +81,23 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
         {atLimit ? (
           <>
             <span className="font-semibold">Límite alcanzado.</span>{' '}
-            Tu plan <span className="font-medium">{config.label}</span> permite hasta{' '}
-            <span className="font-medium">{maxUsers} usuarios activos</span>.{' '}
-            No podés crear ni reactivar usuarios hasta que liberes un slot o actualices tu plan.
+            Tu plan permite hasta <span className="font-medium">{maxUsers} usuarios activos</span>.{' '}
+            No podés crear ni reactivar usuarios hasta que liberes un slot{!isPro && ' o pases a PRO'}.
           </>
         ) : (
           <>
             <span className="font-semibold">Casi en el límite.</span>{' '}
-            Tenés {activeUsers} de {maxUsers} usuarios activos en tu plan{' '}
-            <span className="font-medium">{config.label}</span>.
+            Tenés {activeUsers} de {maxUsers} usuarios activos.
           </>
         )}
       </div>
-      <a href="/pricing" className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-        atLimit ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-amber-800 text-white hover:bg-amber-700'
-      }`}>
-        Ver planes →
-      </a>
-
-      {/* ❌ También le dejamos la X a este por las dudas */}
+      {!isPro && (
+        <a href="mailto:hola@webistudio.net?subject=Quiero%20pasarme%20a%20PRO" className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          atLimit ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-amber-800 text-white hover:bg-amber-700'
+        }`}>
+          Pasate a PRO →
+        </a>
+      )}
       <button
         type="button"
         onClick={() => setIsVisible(false)}
@@ -156,124 +114,37 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
 
 // ── Plan card (sección superior) ─────────────────────────────────
 
-function PlanCard({ planInfo, onTrialFinalized }: { planInfo: PlanInfo; onTrialFinalized: () => void }) {
-  const config = getPlanConfig(planInfo.plan)
-  const inTrial = isInTrial(planInfo.plan, planInfo.trialEndsAt)
-  const daysLeft = trialDaysRemaining(planInfo.trialEndsAt)
-  const [isActivating, setIsActivating] = useState(false)
-
+function PlanCard({ planInfo }: { planInfo: PlanInfo }) {
+  const isPro = isProPlan(planInfo.plan)
   const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
 
-async function handleActivateNow(e: React.MouseEvent<HTMLButtonElement>) {
-  // Evitamos recargas accidentales del navegador o submits si está dentro de un form
-  e.preventDefault();
-  e.stopPropagation();
-
-  const plan = planInfo.plan as PlanKey
-
-  setIsActivating(true)
-  try {
-    const res = await fetch('/api/subscriptions/checkout', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    })
-    
-    const data = await res.json().catch(() => ({}))
-    
-    if (!res.ok) {
-      // Dejamos un log silencioso en consola por si falla algo en el backend en producción
-      console.error('Error devuelto por el Backend:', data.error || data)
-      return
-    }
-    
-    // Mapeamos la URL que devuelva tu API de Mercado Pago
-    const targetUrl = data.checkoutUrl || data.init_point
-    
-    if (targetUrl) {
-      // Redirección inmediata y limpia a la pasarela de pago
-      window.location.href = targetUrl
-    } else {
-      console.error('El backend respondió OK pero no envió ninguna URL. Respuesta:', data)
-    }
-
-  } catch (err) {
-    console.error('Error crítico en el cliente al intentar redirigir:', err)
-  } finally {
-    setIsActivating(false)
-  }
-}
-
   return (
-    <div className={`mb-10 rounded-2xl border p-6 ${
-      inTrial ? 'border-amber-200 bg-amber-50' : 'border-zinc-200 bg-white'
-    }`}>
+    <div className={`mb-10 rounded-2xl border p-6 ${isPro ? 'border-amber-200 bg-amber-50/40' : 'border-zinc-200 bg-white'}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-1">
             Tu plan actual
           </p>
           <div className="flex items-center gap-3">
-            <h3 className="text-2xl font-black tracking-tight text-black">{config.label}</h3>
-            {inTrial && (
-              <span className="rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-                Prueba gratuita
-              </span>
-            )}
+            <h3 className="text-2xl font-black tracking-tight text-black">
+              {isPro ? 'PRO' : 'Free'}
+            </h3>
           </div>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-zinc-600">
             <span>👥 {maxUsersLabel} usuario{planInfo.maxUsers !== 1 ? 's' : ''}</span>
-            {config.maxBudgetsPerMonth && (
-              <span>📄 Hasta {config.maxBudgetsPerMonth} presupuestos/mes</span>
-            )}
-            {!config.maxBudgetsPerMonth && (
-              <span>📄 Presupuestos ilimitados</span>
-            )}
           </div>
         </div>
 
-        {/* Acciones del plan */}
-        <div className="flex flex-col gap-2 sm:items-end shrink-0">
-          {inTrial ? (
-            <>
-              {/* Contador de días */}
-              <div className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-center">
-                <p className="text-2xl font-black text-amber-700">{daysLeft}</p>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-600">
-                  día{daysLeft !== 1 ? 's' : ''} restante{daysLeft !== 1 ? 's' : ''}
-                </p>
-              </div>
-              {/* Botón activar ahora */}
-              <button
-                type="button" 
-                onClick={(e) => handleActivateNow(e)} 
-                disabled={isActivating}
-                className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
-              >
-                {isActivating ? 'Redirigiendo a MercadoPago...' : '⚡ Activar plan ahora'}
-              </button>
-              <a
-                href="/pricing"
-                className="text-center rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-              >
-                Cambiar plan
-              </a>
-              <p className="text-[11px] text-zinc-400 text-right max-w-[180px]">
-                Podés cambiar a un plan superior o inferior antes de que termine la prueba.
-              </p>
-            </>
-          ) : (
-            <a
-              href="/pricing"
-              className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-            >
-              Cambiar plan
-            </a>
-          )}
-        </div>
+        {!isPro && (
+          <a
+            href="mailto:hola@webistudio.net?subject=Quiero%20pasarme%20a%20PRO"
+            className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 shrink-0"
+          >
+            ⚡ Pasate a PRO
+          </a>
+        )}
       </div>
 
-      {/* Barra de progreso de usuarios */}
       {planInfo.maxUsers < 9999 && (
         <div className="mt-5">
           <div className="flex items-center justify-between mb-1.5">
@@ -296,12 +167,6 @@ async function handleActivateNow(e: React.MouseEvent<HTMLButtonElement>) {
           </div>
         </div>
       )}
-
-      {inTrial && (
-        <p className="mt-4 text-xs text-amber-700 border-t border-amber-200 pt-3">
-          Si querés cambiar a un plan superior, el efecto es inmediato al pagar. Si querés bajar de plan durante un período ya pagado, el cambio aplica al vencimiento del período actual.
-        </p>
-      )}
     </div>
   )
 }
@@ -315,7 +180,7 @@ export default function TeamPage() {
 
   const [users, setUsers] = useState<User[]>([])
   const [planInfo, setPlanInfo] = useState<PlanInfo>({
-    plan: 'starter',
+    plan: 'free',
     maxUsers: 1,
     activeUsers: 0,
     trialEndsAt: null,
@@ -482,7 +347,7 @@ export default function TeamPage() {
 
             {/* 📱 EN CELULAR: El PlanCard gigante se muda acá abajo de todo para no asustar */}
             <div className="mt-8 lg:hidden">
-              <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+              <PlanCard planInfo={planInfo} />
             </div>
           </div>
 
@@ -550,7 +415,7 @@ export default function TeamPage() {
 
         {/* 💻 EN ESCRITORIO: Mantiene su lugar jerárquico original arriba de todo */}
         <div className="hidden lg:block mt-10">
-          <PlanCard planInfo={planInfo} onTrialFinalized={fetchUsers} />
+          <PlanCard planInfo={planInfo} />
         </div>
 
       </div>

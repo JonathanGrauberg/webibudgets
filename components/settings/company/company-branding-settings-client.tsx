@@ -33,6 +33,8 @@ import { useSession } from 'next-auth/react'
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
 import { SmartAssetRow } from '@/components/branding/smart-asset-row'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
+import { useSearchParams } from 'next/navigation'
+
 
 export type CompanyBrandingSettingsClientProps = {
   initialBranding?: Branding
@@ -194,7 +196,10 @@ export default function CompanyBrandingSettingsClient({
   currentBudgets = 0,
   maxBudgets = 30,
   }: CompanyBrandingSettingsClientProps) {
+    
   const { data: session } = useSession()
+
+  
 
   // 👇 nuevo — trae plan/features frescos, no depende de lo que traiga initialBranding
   const { data: tenantPlanData } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
@@ -207,7 +212,9 @@ export default function CompanyBrandingSettingsClient({
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
 
-  const [activeTab, setActiveTab] = useState('company')
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'plan' ? 'plan' : 'company'
+  const [activeTab, setActiveTab] = useState(initialTab)
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
   const dbName = effective.name ?? ''

@@ -2,10 +2,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
+import { hasFeature } from '@/lib/features'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const tenantId = await getTenantIdFromRequest(request)
   const { id } = await params
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { plan: true, features: true },
+  })
+  const canSeeDistribution = !!tenant && hasFeature(tenant, 'commissions') // 👈 nuevo
 
   // 1. Buscamos la rendición con sus relaciones esenciales
   const rendicion = await prisma.rendicion.findFirst({
@@ -130,12 +137,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     totalCosto: rendicion.totalCosto,
     totalGanancia: rendicion.totalGanancia,
     margenPromedio: rendicion.margenPromedio,
-    sellers: sellersRows, 
-    budgets: budgetRows,
-    tenantUsers, 
-    asignacionesGuardadas, // 🌟 Pasado directamente al estado inicial de la vista
+    sellers: canSeeDistribution ? sellersRows : [],                 // 👈 vacío sin el feature
+    budgets: budgetRows,                                            // 👈 esto queda libre — es lo que Free ve en la spec
+    tenantUsers: canSeeDistribution ? tenantUsers : [],              // 👈
+    asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [], // 👈
     currency: 'ARS',
   })
+
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

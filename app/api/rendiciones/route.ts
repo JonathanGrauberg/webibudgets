@@ -23,15 +23,26 @@ export async function POST(request: Request) {
     const tenantId = await getTenantIdFromRequest(request)
     const data = await request.json()
 
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { features: true } })
-    if (!hasFeature({ features: tenant?.features }, 'commissions')) {
-      return NextResponse.json({ error: 'Módulo de comisiones no habilitado' }, { status: 403 })
-    }
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true, features: true }, // 👈 agregado plan
+    })
 
     const periodStart = new Date(data.periodStart)
     const periodEnd = new Date(data.periodEnd)
     if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime()) || periodStart > periodEnd) {
       return NextResponse.json({ error: 'Rango de fechas inválido' }, { status: 400 })
+    }
+
+    // 🔒 Sin 'commissions', solo rangos "estándar": máximo 31 días, y no más viejos que 31 días atrás
+    if (!tenant || !hasFeature(tenant, 'commissions')) {
+      const maxRangeMs = 31 * 24 * 60 * 60 * 1000
+      const rangeMs = periodEnd.getTime() - periodStart.getTime()
+      const daysSinceStart = Date.now() - periodStart.getTime()
+
+      if (rangeMs > maxRangeMs || daysSinceStart > maxRangeMs) {
+        return NextResponse.json({ error: 'Rango de fechas personalizado requiere el plan PRO.' }, { status: 403 })
+      }
     }
 
     const computed = await generateRendicionData(tenantId, periodStart, periodEnd)

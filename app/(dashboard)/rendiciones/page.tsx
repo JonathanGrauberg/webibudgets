@@ -1,10 +1,12 @@
 'use client'
-// app\(dashboard)\rendiciones\page.tsx
+
 import { useState, useCallback } from 'react'
 import useSWR from 'swr'
+import { useSession } from 'next-auth/react'
 import RendicionesPage, { type RendicionData } from '@/components/rendiciones/RendicionesPage'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Crown } from 'lucide-react'
+import { hasFeature, isProPlan } from '@/lib/features'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -16,6 +18,7 @@ function firstDayOfMonth() {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
 }
+
 function today() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -38,14 +41,29 @@ function exportToCsv(data: RendicionData) {
   URL.revokeObjectURL(url)
 }
 
-// 🌟 Evitamos recrear la referencia si tenantUsers viene indefinido
-const EMPTY_USERS_ARRAY: any[] = [];
+const EMPTY_USERS_ARRAY: any[] = []
 
 export default function RendicionesRoute() {
+  const { data: session } = useSession()
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [periodStart, setPeriodStart] = useState(firstDayOfMonth())
   const [periodEnd, setPeriodEnd] = useState(today())
   const [isGenerating, setIsGenerating] = useState(false)
+
+  const { data: branding } = useSWR('/api/tenants', fetcher, {
+    revalidateOnFocus: false,
+  })
+
+  // 🌟 Extraemos el plan exacto del tipo de tu sesión (`session.user.plan`) o del fallback
+  const currentPlan = session?.user?.plan || branding?.plan
+  const currentFeatures = branding?.features
+
+  const tenantObj = { plan: currentPlan, features: currentFeatures }
+
+  // 👑 Evaluación de features sin errores de TS
+  const hasCommissions = isProPlan(currentPlan) || hasFeature(tenantObj, 'commissions')
+  const hasExportData = isProPlan(currentPlan) || hasFeature(tenantObj, 'exportData')
+  const hasAuditHistory = isProPlan(currentPlan) || hasFeature(tenantObj, 'auditHistory')
 
   const { data, isLoading, mutate } = useSWR<RendicionData>(
     currentId ? `/api/rendiciones/${currentId}` : null,
@@ -71,7 +89,6 @@ export default function RendicionesRoute() {
     }
   }, [])
 
-  // 🌟 Agregamos una función limpia para refrescar la UI al guardar desgloses
   const handleRefresh = useCallback(() => {
     if (currentId) mutate()
   }, [currentId, mutate])
@@ -84,21 +101,34 @@ export default function RendicionesRoute() {
         <p className="max-w-sm text-sm text-muted-foreground">
           Elegí un período para calcular presupuestos completados, costos, ganancias y el reparto entre vendedores.
         </p>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={periodStart}
-            onChange={(e) => setPeriodStart(e.target.value)}
-            className="rounded-md border border-input px-3 py-2 text-sm"
-          />
-          <span className="text-muted-foreground">a</span>
-          <input
-            type="date"
-            value={periodEnd}
-            onChange={(e) => setPeriodEnd(e.target.value)}
-            className="rounded-md border border-input px-3 py-2 text-sm"
-          />
+
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative flex items-center gap-2 rounded-lg border border-input p-2 bg-background shadow-sm">
+            <input
+              type="date"
+              value={periodStart}
+              disabled={!hasCommissions}
+              onChange={(e) => setPeriodStart(e.target.value)}
+              className="rounded-md border border-input px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <span className="text-muted-foreground text-sm">a</span>
+            <input
+              type="date"
+              value={periodEnd}
+              disabled={!hasCommissions}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              className="rounded-md border border-input px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          {!hasCommissions && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+              <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              Rango de fechas personalizado (por defecto últimos 30 días) disponible en PRO.
+            </p>
+          )}
         </div>
+
         <Button onClick={() => generate(periodStart, periodEnd)} disabled={isGenerating}>
           {isGenerating ? 'Generando...' : 'Generar rendición'}
         </Button>
@@ -118,11 +148,14 @@ export default function RendicionesRoute() {
     <div className="p-4 md:p-6 lg:p-8">
       <RendicionesPage
         data={data}
-        tenantUsers={data.tenantUsers || EMPTY_USERS_ARRAY} // 🌟 Referencia estática controlada
+        tenantUsers={data.tenantUsers || EMPTY_USERS_ARRAY}
         onDateRangeChange={() => setCurrentId(null)}
-        onUpdatePercentage={handleRefresh} // 🌟 Reutilizamos para refrescar SWR cuando el hijo guarde
+        onUpdatePercentage={handleRefresh}
         onResetPercentage={handleRefresh}
         onExport={() => exportToCsv(data)}
+        hasCommissions={hasCommissions}
+        hasExportData={hasExportData}
+        hasAuditHistory={hasAuditHistory}
       />
     </div>
   )

@@ -48,12 +48,12 @@ export async function GET(req: NextRequest) {
     ])
 
     // 👈 antes: tenant?.maxUsers ?? 1 (valor guardado, no sabía si estabas en trial)
-    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
+    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'free', tenant?.trialEndsAt) // 👈 'free' en vez de 'starter'
     const activeUsers = users.filter((u) => u.active).length
- 
+
     return NextResponse.json({
       users,
-      plan: tenant?.plan ?? 'starter',
+      plan: tenant?.plan ?? 'free', // 👈 acá también
       maxUsers,
       activeUsers,
       trialEndsAt: tenant?.trialEndsAt ? tenant.trialEndsAt.toISOString() : null,
@@ -108,9 +108,9 @@ export async function POST(req: NextRequest) {
     // ✅ Verificar límite de plan antes de crear — en vivo, con soporte de trial
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plan: true, trialEndsAt: true }, // 👈 antes: solo maxUsers guardado
+      select: { plan: true, trialEndsAt: true },
     })
-    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt) // 👈
+    const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'free', tenant?.trialEndsAt) // 👈
     const activeCount = await prisma.user.count({
       where: { tenantId, active: true },
     })
@@ -223,12 +223,11 @@ export async function PUT(req: NextRequest) {
     }
 
     if (active === true && targetUser.active === false) {
-      // 👈 mismo fix: en vivo, con soporte de trial (antes leía tenant.maxUsers guardado)
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
         select: { plan: true, trialEndsAt: true },
       })
-      const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'starter', tenant?.trialEndsAt)
+      const maxUsers = resolveMaxUsersForTenant(tenant?.plan ?? 'free', tenant?.trialEndsAt) // 👈
       const activeCount = await prisma.user.count({
         where: { tenantId, active: true },
       })

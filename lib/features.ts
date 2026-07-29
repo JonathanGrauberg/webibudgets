@@ -9,7 +9,9 @@ export type FeatureKey =
   | "editBudgets"
   | "productVariants"
   | "workOrders"
-  | "whiteLabel" // 👈 nueva
+  | "whiteLabel"
+  | "exportData"    // 👈 nueva
+  | "auditHistory"  // 👈 nueva
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {
   free: { vouchers: true },
@@ -24,7 +26,9 @@ const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>
     editBudgets: true,
     productVariants: true,
     workOrders: true,
-    whiteLabel: true, // 👈
+    whiteLabel: true,
+    exportData: true,   // 👈
+    auditHistory: true, // 👈
   },
 }
 
@@ -40,4 +44,8 @@ export function hasFeature(
   // 2. Si no, cae al preset del plan
   const planDefaults = PLAN_FEATURE_DEFAULTS[tenant.plan ?? "free"] ?? {}
   return planDefaults[key] === true
+}
+
+export function isProPlan(plan: string | null | undefined): boolean {
+  return plan === 'custom'
 }

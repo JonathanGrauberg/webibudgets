@@ -1,5 +1,7 @@
 'use client'
 
+import { Star } from 'lucide-react'
+import { isProPlan } from '@/lib/features'
 import { useState, useRef, useEffect } from 'react'
 import type { ElementType } from 'react'
 import Link from 'next/link'
@@ -42,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { TenantFeatures } from '@/lib/types'
 
+
 const NAV_ICONS: Record<string, ElementType> = {
   '/dashboard': LayoutDashboard,
   '/clients': Users,
@@ -73,6 +76,7 @@ type Branding = {
   accentColor?: string | null
   faviconUrl?: string | null
   features?: TenantFeatures | null
+  plan?: string | null // 👈 nuevo
 }
 
 function buildSidebarStyle(primaryColor?: string | null): React.CSSProperties {
@@ -311,23 +315,46 @@ function SidebarContent({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/12 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            <span>Cerrar sesión</span>
-          </button>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/12 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span>Cerrar sesión</span>
+            </button>
+          )}
 
-        {!isCollapsed && (
-          <p className="text-center text-[10px] text-white/25">
-            v2.1.0 · Webistudio.net
-          </p>
-        )}
-      </div>
+          {/* 👇 nuevo — badge sutil de upgrade, con contraste fijo sin importar el color del tenant */}
+          {!isProPlan(branding?.plan) && (
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <Link
+                  href="/settings/company?tab=plan"
+                  className={cn(
+                    'flex items-center rounded-full border border-white/10 bg-black/50 backdrop-blur-sm text-white/90 transition hover:bg-black/70 hover:border-amber-400/30',
+                    isCollapsed
+                      ? 'h-9 w-full justify-center'
+                      : 'w-full justify-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold'
+                  )}
+                >
+                  <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />
+                  {!isCollapsed && <span>Pasate a PRO</span>}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" hidden={!isCollapsed}>
+                Pasate a PRO
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {!isCollapsed && (
+            <p className="text-center text-[10px] text-white/25">
+              v2.1.0 · Webistudio.net
+            </p>
+          )}
+        </div>
     </div>
   )
 }

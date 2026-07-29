@@ -34,6 +34,18 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: str
     title: 'Quitar marca de .budgets',
     description: 'Eliminá el pie "Generado en budgets.webistudio.net" de tus presupuestos y documentos, para que lleven 100% tu marca. Disponible en el plan PRO.',
   },
+    commissions: {
+    title: 'Distribución de ganancias',
+    description: 'Calculá automáticamente cuánto le corresponde a cada vendedor o socio sobre las ventas del período. Disponible en el plan PRO.',
+  },
+  exportData: {
+    title: 'Exportar reportes',
+    description: 'Descargá tus reportes contables en CSV/Excel para liquidar comisiones o llevar tu contabilidad. Disponible en el plan PRO.',
+  },
+  auditHistory: {
+    title: 'Historial detallado por presupuesto',
+    description: 'Mirá el desglose exacto de cuánto se llevó cada integrante en cada presupuesto individual. Disponible en el plan PRO.',
+  },
 }
 
 export function UpgradeModal({ feature, open, onOpenChange }: {

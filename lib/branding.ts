@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 export type Branding = {
   id?: string
   name?: string | null
+  plan?: string | null // 👈 nuevo
   logoUrl?: string | null
   faviconUrl?: string | null
   watermarkUrl?: string | null
@@ -12,11 +13,12 @@ export type Branding = {
   secondaryColor?: string | null
   accentColor?: string | null
   currency?: string | null
-  features?: unknown // 👈 nuevo — lo tipamos unknown acá porque este archivo no conoce FeatureKey de lib/features; el sidebar y hasFeature() ya validan la forma real
+  features?: unknown
 }
 
 export const SYSTEM_BRANDING: Branding = {
   name: 'WebiBudgets',
+  plan: 'free', // 👈 nuevo — el branding "de sistema" (sin tenant real) se comporta como Free
   logoUrl: '/placeholder-logo.png',
   faviconUrl: null,
   watermarkUrl: null,
@@ -24,7 +26,7 @@ export const SYSTEM_BRANDING: Branding = {
   primaryColor: '#0ea5e9',
   secondaryColor: '#64748b',
   accentColor: '#10b981',
-  currency: 'ARS', // 👈 nuevo
+  currency: 'ARS',
 }
 
 export function effectiveBranding(tenant?: Branding): Branding {
@@ -33,6 +35,7 @@ export function effectiveBranding(tenant?: Branding): Branding {
   return {
     id: tenant.id,
     name: tenant.name ?? SYSTEM_BRANDING.name,
+    plan: tenant.plan ?? SYSTEM_BRANDING.plan, // 👈 nuevo
     logoUrl: tenant.logoUrl ?? SYSTEM_BRANDING.logoUrl,
     faviconUrl: tenant.faviconUrl ?? SYSTEM_BRANDING.faviconUrl,
     watermarkUrl: tenant.watermarkUrl ?? SYSTEM_BRANDING.watermarkUrl,
@@ -41,7 +44,7 @@ export function effectiveBranding(tenant?: Branding): Branding {
     secondaryColor: tenant.secondaryColor ?? SYSTEM_BRANDING.secondaryColor,
     accentColor: tenant.accentColor ?? SYSTEM_BRANDING.accentColor,
     currency: tenant.currency ?? SYSTEM_BRANDING.currency,
-    features: tenant.features ?? undefined, // 👈 nuevo — sin default de SYSTEM_BRANDING porque no tiene sentido un feature "de sistema"
+    features: tenant.features ?? undefined,
   }
 }
 

@@ -145,14 +145,15 @@ export async function getTenantBranding(tenantId: string) {
     select: {
       id: true,
       name: true,
+      plan: true, // 👈 agregar
       email: true,
       phone: true,
       address: true,
       website: true,
       description: true,
-      currency: true,      // 👈 nuevo — esto también faltaba, mismo problema potencial con la moneda
-      cuit: true,           // 👈 nuevo
-      condicionIva: true,   // 👈 nuevo
+      currency: true,
+      cuit: true,
+      condicionIva: true,
       logoUrl: true,
       faviconUrl: true,
       watermarkUrl: true,

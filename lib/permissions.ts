@@ -144,8 +144,8 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'stock', name: 'Stock', href: '/stock', tooltip: 'Consultar stock disponible' },
   { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
   { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
-  { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias', requiresFeature: 'commissions' },
-  { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' }, // 👈 nuevo — sin requiresFeature, disponible para todos los planes
+  { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias' }, // 👈 Removido requiresFeature
+  { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' },
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [

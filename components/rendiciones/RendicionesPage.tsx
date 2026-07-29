@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock } from "lucide-react";
+import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock, Crown } from "lucide-react";
+import { UpgradeModal } from '@/components/feature-gate'
 
 export interface RendicionSellerRow {
   id: string; 
@@ -76,12 +77,15 @@ export interface RendicionData {
 
 interface RendicionesPageProps {
   data: RendicionData;
-  tenantUsers: TenantUser[]; 
+  tenantUsers: TenantUser[];
   onDateRangeChange?: (from: string, to: string) => void;
-  onUpdatePercentage: () => void; 
+  onUpdatePercentage: () => void;
   onResetPercentage: () => void;
   onExport?: () => void;
   isLoading?: boolean;
+  hasCommissions: boolean;  // 👈 nuevo
+  hasExportData: boolean;   // 👈 nuevo
+  hasAuditHistory: boolean; // 👈 nuevo
 }
 
 function formatCurrency(value: number, currency = "ARS") {
@@ -144,17 +148,20 @@ function KpiCard({ label, value, sublabel, valueClassName }: { label: string; va
   );
 }
 
-export default function RendicionesPage({ data, tenantUsers = [], onDateRangeChange, onUpdatePercentage, onExport, isLoading }: RendicionesPageProps) {
+export default function RendicionesPage({
+  data, tenantUsers = [], onDateRangeChange, onUpdatePercentage, onExport, isLoading,
+  hasCommissions, hasExportData, hasAuditHistory,
+}: RendicionesPageProps) {
   const currency = data.currency ?? "ARS";
 
   const [selectedBudget, setSelectedBudget] = useState<RendicionBudgetRow | null>(null);
   const [distribucionDraft, setDistribucionDraft] = useState<Record<string, number>>({});
   const [asignacionesGuardadas, setAsignacionesGuardadas] = useState<AsignacionConfirmada[]>(data.asignacionesGuardadas || []);
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
-  
-  // Estados para el Historial Agrupado
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedBudgets, setExpandedBudgets] = useState<Record<string, boolean>>({});
+  const [upgradeFeature, setUpgradeFeature] = useState<'commissions' | 'exportData' | 'auditHistory' | null>(null); // 👈 nuevo
+
 
   useEffect(() => {
     if (data.asignacionesGuardadas) {
@@ -163,7 +170,11 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
   }, [data.asignacionesGuardadas]);
 
   const handleSelectBudget = (budget: RendicionBudgetRow) => {
-  setSelectedBudget(budget);
+    if (!hasCommissions) {          // 👈 nuevo — corta acá, antes de tocar el draft
+      setUpgradeFeature('commissions');
+      return;
+    }
+    setSelectedBudget(budget);
   const yaAsignadas = asignacionesGuardadas.filter(a => a.budgetId === budget.id);
   
   const baseDraft: Record<string, number> = {};
@@ -308,8 +319,17 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
             <Calendar className="h-4 w-4 text-slate-400" />
             {formatDate(data.periodStart)} - {formatDate(data.periodEnd)}
           </button>
-          <Button variant="outline" className="gap-2" onClick={onExport} disabled={isLoading}>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (!hasExportData) { setUpgradeFeature('exportData'); return; }
+              onExport?.();
+            }}
+            disabled={isLoading}
+          >
             <Download className="h-4 w-4" /> Exportar
+            {!hasExportData && <Crown className="h-3.5 w-3.5 text-amber-500" />}
           </Button>
         </div>
       </div>
@@ -326,11 +346,14 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
       {/* Distribución */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Resumen Izquierdo Acumulado por Ganancias Reales */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200 shadow-sm relative overflow-hidden">
           <CardHeader className="pb-2">
-            <h2 className="text-sm font-semibold text-slate-900">Resumen Acumulado por Distribución Real</h2>
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+              Resumen Acumulado por Distribución Real
+              {!hasCommissions && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+            </h2>
           </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
+          <CardContent className={`overflow-x-auto p-0 ${!hasCommissions ? 'blur-sm pointer-events-none select-none' : ''}`}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -352,6 +375,17 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
               </TableBody>
             </Table>
           </CardContent>
+          {!hasCommissions && (
+            <button
+              type="button"
+              onClick={() => setUpgradeFeature('commissions')}
+              className="absolute inset-0 flex items-center justify-center bg-white/40"
+            >
+              <span className="rounded-full bg-black/80 text-white text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5 text-amber-400" /> Desbloquear con PRO
+              </span>
+            </button>
+          )}
         </Card>
 
         {/* DISTRIBUCIÓN DINÁMICA CON INTEGRIDAD Y BLOQUEO (Punto 1) */}
@@ -377,7 +411,20 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
             )}
           </CardHeader>
           <CardContent className="space-y-3 p-4 sm:p-5">
-            {!selectedBudget ? (
+            {!hasCommissions ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-amber-200 bg-amber-50/40 p-8 text-center text-sm text-amber-700">
+                <Crown className="mb-2 h-8 w-8 text-amber-400" />
+                Desbloqueá la distribución automática de ganancias entre socios e integrantes en el plan PRO.
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 border-amber-300 text-amber-800 hover:bg-amber-100"
+                  onClick={() => setUpgradeFeature('commissions')}
+                >
+                  Ver plan PRO
+                </Button>
+              </div>
+            ) : !selectedBudget ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
                 <UserCheck className="mb-2 h-8 w-8 text-slate-300" />
                 Hacé click en cualquier presupuesto de la tabla inferior para desglosar sus ganancias.
@@ -577,10 +624,27 @@ export default function RendicionesPage({ data, tenantUsers = [], onDateRangeCha
     </CardContent>
   </Card>
 )}
-
+    {asignacionesGuardadas.length > 0 && !hasAuditHistory && (
+      <Card className="border-slate-200 shadow-sm border-t-4 border-t-amber-400">
+        <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+            El historial detallado de quién cobró cuánto en cada presupuesto está disponible en el plan PRO.
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setUpgradeFeature('auditHistory')}>
+            Ver plan PRO
+          </Button>
+        </CardContent>
+      </Card>
+    )}
       <p className="flex items-center gap-1.5 text-xs text-slate-400">
         <Info className="h-3.5 w-3.5" /> Solo se incluyen presupuestos con estado &quot;Completado&quot;.
       </p>
+      <UpgradeModal
+        feature={upgradeFeature ?? 'commissions'}
+        open={!!upgradeFeature}
+        onOpenChange={(open) => !open && setUpgradeFeature(null)}
+      />
     </div>
   );
 }
