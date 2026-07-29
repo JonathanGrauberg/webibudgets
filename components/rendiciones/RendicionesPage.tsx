@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock, Crown } from "lucide-react";
+import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock, Crown, AlertTriangle } from "lucide-react";
 import { UpgradeModal } from '@/components/feature-gate'
 
 export interface RendicionSellerRow {
@@ -70,6 +70,7 @@ export interface RendicionData {
   margenPromedio: number;
   sellers: RendicionSellerRow[];
   budgets: RendicionBudgetRow[];
+  budgetsNoLongerCompleted?: RendicionBudgetRow[]; // 👈 nuevo
   tenantUsers?: TenantUser[];
   asignacionesGuardadas?: AsignacionConfirmada[];
   currency?: string; 
@@ -106,6 +107,19 @@ function formatDate(iso: string) {
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+// Etiquetas legibles para el estado real del presupuesto (no confundir con el
+// estado de PAGO del reparto, que es otra cosa — ver BudgetStatusBadge más abajo).
+const ESTADO_PRESUPUESTO_LABELS: Record<string, string> = {
+  draft: "Borrador",
+  sent: "Enviado",
+  approved: "Aprobado",
+  completed: "Completado",
+};
+
+function formatEstadoPresupuesto(estado: string) {
+  return ESTADO_PRESUPUESTO_LABELS[estado] ?? estado;
 }
 
 // Estado de pago del presupuesto, derivado de sus asignaciones guardadas.
@@ -549,6 +563,54 @@ export default function RendicionesPage({
           </Table>
         </CardContent>
       </Card>
+
+      {/* 🌟 NUEVO: Presupuestos que dejaron de estar completados */}
+      {(data.budgetsNoLongerCompleted?.length ?? 0) > 0 && (
+        <Card className="border-slate-200 shadow-sm border-t-4 border-t-amber-400">
+          <CardHeader className="pb-2">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Presupuestos que dejaron de estar completados
+            </h2>
+            <p className="text-xs text-slate-400">
+              Estaban en estado &quot;Completado&quot; cuando se generó esta rendición, pero su estado cambió después.
+              No se incluyen en los totales de arriba ni en la tabla principal.
+            </p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Vendedor Inicial</TableHead>
+                  <TableHead>N°</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Ganancia</TableHead>
+                  <TableHead className="text-center">Estado actual</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.budgetsNoLongerCompleted!.map((b) => (
+                  <TableRow key={b.id} className="bg-amber-50/30">
+                    <TableCell className="font-medium text-slate-800">{b.clienteName}</TableCell>
+                    <TableCell className="text-slate-600">{b.vendedorName}</TableCell>
+                    <TableCell className="text-slate-600">#{String(b.budgetNumber).padStart(6, "0")}</TableCell>
+                    <TableCell className="text-slate-600">{formatDate(b.fecha)}</TableCell>
+                    <TableCell className="text-right text-slate-700">{formatCurrency(b.total, currency)}</TableCell>
+                    <TableCell className="text-right font-medium text-emerald-600">{formatCurrency(b.ganancia, currency)}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        {formatEstadoPresupuesto(b.estado)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 🌟 HISTORIAL AGRUPADO, COLAPSABLE Y FILTRABLE (Punto 2) */}
 {asignacionesGuardadas.length > 0 && (

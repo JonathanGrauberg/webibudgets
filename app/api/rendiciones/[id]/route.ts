@@ -48,8 +48,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     role: (u.role === 'admin' || u.role === 'owner') ? 'admin' : 'seller'
   }))
 
-  // 3. Procesamos los presupuestos individuales calculando su costo real y ganancia neta
-  const budgetRows = rendicion.budgets.map(({ budget: b }) => {
+  // 3. Procesamos TODOS los presupuestos vinculados a la rendición, calculando su
+  // costo real y ganancia neta. `estado` acá es el estado ACTUAL y en vivo del
+  // presupuesto (viene de la relación `budget`, no de un valor guardado en el momento
+  // de generar la rendición).
+  const budgetRowsAll = rendicion.budgets.map(({ budget: b }) => {
     let cost = 0
     for (const item of b.items) {
       const itemCost = item.cost ?? item.productService?.cost ?? 0
@@ -72,31 +75,42 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   })
 
-  // 4. 🌟 NUEVO: Recuperamos todas las distribuciones guardadas para esta rendición en la BD
-  // Mapeando las relaciones dinámicamente a través de la tabla intermedia de RendicionSellerShare
+  // 🌟 Un presupuesto pudo haber estado "Completado" cuando se generó la rendición y
+  // luego volver a un estado anterior (ej: faltó terminar algo, no se cobró todavía).
+  // Separamos ambos casos: solo los que siguen "completed" HOY entran en la tabla
+  // principal y en los totales de la rendición; el resto se expone aparte, sin afectar
+  // lo ya calculado o repartido.
+  const budgetRows = budgetRowsAll.filter((b) => b.estado === 'completed')
+  const budgetRowsNoLongerCompleted = budgetRowsAll.filter((b) => b.estado !== 'completed')
+
+  const totalFacturado = budgetRows.reduce((acc, b) => acc + b.total, 0)
+  const totalCosto = budgetRows.reduce((acc, b) => acc + b.costo, 0)
+  const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0)
+  const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
+
+  // 4. 🌟 Recuperamos todas las distribuciones guardadas para esta rendición en la BD.
+  // Nota: para el panel de distribución y el historial de ganancias ya repartidas
+  // usamos `budgetRowsAll` (todos los presupuestos de la rendición), no solo los que
+  // siguen completados hoy — si ya se repartió y/o pagó esa plata, no debe
+  // desaparecer solo porque el estado del presupuesto cambió después.
   const sharesFromDb = await prisma.rendicionSellerShare.findMany({
     where: { rendicionId: id },
     include: { seller: { select: { userId: true, name: true, lastName: true } } }
   })
 
-  // 5. 🌟 LÓGICA DEL PUNTO 3: Re-calcular el Panel Izquierdo basado puramente en lo Asignado/Distribuido
-  // Armamos un diccionario indexado por User ID para consolidar el acumulado real exacto
+  // 5. 🌟 Re-calcular el Panel Izquierdo basado puramente en lo Asignado/Distribuido
   const acumuladoUsuarios: Record<string, { name: string; presupuestos: Set<string>; facturado: number; ganancia: number }> = {}
 
-  // Inicializamos a todos los usuarios para que aparezcan listados con $0 si no tienen actividad
   tenantUsers.forEach(u => {
     acumuladoUsuarios[u.id] = { name: u.name, presupuestos: new Set(), facturado: 0, ganancia: 0 }
   })
 
-  // Analizamos cada share guardado y le imputamos su porcentaje proporcional de la facturación y ganancia
   sharesFromDb.forEach(share => {
     const userId = share.seller.userId
     if (userId && acumuladoUsuarios[userId]) {
       acumuladoUsuarios[userId].ganancia += share.gananciaAPagar
-      
-      // Encontramos los presupuestos vinculados a este período para ponderar la facturación asignada
-      budgetRows.forEach(b => {
-        // Asignamos la proporción de facturación basada estrictamente en el porcentaje que cobró
+
+      budgetRowsAll.forEach(b => {
         const recordProporcional = (b.total * (share.percentage / 100))
         acumuladoUsuarios[userId].facturado += recordProporcional
         acumuladoUsuarios[userId].presupuestos.add(b.id)
@@ -112,11 +126,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     totalFacturado: data.facturado,
     ganancia: data.ganancia,
     margenPromedio: data.facturado > 0 ? (data.ganancia / data.facturado) * 100 : 0
-  })).sort((a, b) => b.ganancia - a.ganancia) // Ordenados por mayor ganancia neta obtenida
+  })).sort((a, b) => b.ganancia - a.ganancia)
 
   // 6. Mapeamos las asignaciones confirmadas estructuradas para el Frontend
   const asignacionesGuardadas = sharesFromDb.flatMap(share => {
-    return budgetRows.map(b => ({
+    return budgetRowsAll.map(b => ({
       budgetId: b.id,
       budgetNumber: String(b.budgetNumber).padStart(6, "0"),
       vendedorId: share.seller.userId || '',
@@ -132,15 +146,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     periodStart: rendicion.periodStart.toISOString(),
     periodEnd: rendicion.periodEnd.toISOString(),
     status: rendicion.status,
-    presupuestosCompletados: rendicion.presupuestosCompletados,
-    totalFacturado: rendicion.totalFacturado,
-    totalCosto: rendicion.totalCosto,
-    totalGanancia: rendicion.totalGanancia,
-    margenPromedio: rendicion.margenPromedio,
-    sellers: canSeeDistribution ? sellersRows : [],                 // 👈 vacío sin el feature
-    budgets: budgetRows,                                            // 👈 esto queda libre — es lo que Free ve en la spec
-    tenantUsers: canSeeDistribution ? tenantUsers : [],              // 👈
-    asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [], // 👈
+    presupuestosCompletados: budgetRows.length,
+    totalFacturado,
+    totalCosto,
+    totalGanancia,
+    margenPromedio,
+    sellers: canSeeDistribution ? sellersRows : [],
+    budgets: budgetRows,                                              // 👈 solo los que siguen "completed" hoy
+    budgetsNoLongerCompleted: budgetRowsNoLongerCompleted,             // 👈 nuevo — los que se cayeron de "completado"
+    tenantUsers: canSeeDistribution ? tenantUsers : [],
+    asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [],
     currency: 'ARS',
   })
 

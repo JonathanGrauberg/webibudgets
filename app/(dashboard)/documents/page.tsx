@@ -70,6 +70,34 @@ function formatDate(dateString?: Date | string) {
   })
 }
 
+// 🌟 Estados de recibo que NO deben sumar al monto cobrado. Se mantiene como
+// lista blanca de "inactivos" (en vez de una lista de "activos") para que un
+// recibo sin `status` (registros viejos) se siga contando como activo por
+// defecto. Incluye sinónimos conocidos para no repetir este bug si en algún
+// endpoint se usa una palabra distinta para anular ('voided', 'cancelled',
+// 'anulado', etc. son todos el mismo caso de negocio).
+const INACTIVE_RECEIPT_STATUSES = new Set([
+  'cancelled',
+  'anulado',
+  'voided',
+  'void',
+  'annulled',
+])
+
+function isReceiptActive(status?: string | null) {
+  if (!status) return true
+  return !INACTIVE_RECEIPT_STATUSES.has(status)
+}
+
+// 🌟 El "Estado de Cobro" (Saldado / Falta $X / Pendiente $X) solo tiene sentido
+// para presupuestos que efectivamente se van a facturar. Un Rechazado, Vencido
+// o todavía en Borrador no genera una expectativa real de cobro.
+const NO_PAYMENT_STATUS_BUDGET_STATUSES = new Set(['draft', 'rejected', 'expired'])
+
+function showsPaymentStatus(status: string) {
+  return !NO_PAYMENT_STATUS_BUDGET_STATUSES.has(status)
+}
+
 // Botón de acción directo con dropdown secundario para historial
 function DirectDocButton({
   label,
@@ -323,7 +351,7 @@ export default function DocumentsPage() {
     // Detectamos el ID vengar como venga (budgetId, budget_id o sub-objeto budget.id)
     const bId = r.budgetId ?? r.budget_id ?? r.budget?.id
 
-    if (bId !== undefined && bId !== null && r.status !== 'cancelled' && r.status !== 'anulado') {
+    if (bId !== undefined && bId !== null && isReceiptActive(r.status)) {
       const key = String(bId)
       const amount = Number(r.amount || 0)
       collectedMap[key] = (collectedMap[key] || 0) + amount
@@ -356,7 +384,7 @@ export default function DocumentsPage() {
 
   // Suma total cobrada en recibos (solo activos)
   const totalCollected = receipts.reduce((acc: number, r: any) => {
-    if (r.status !== 'cancelled' && r.status !== 'anulado') {
+    if (isReceiptActive(r.status)) {
       return acc + Number(r.amount || 0)
     }
     return acc
@@ -502,7 +530,11 @@ export default function DocumentsPage() {
                       <span className="text-sm font-semibold text-slate-900">
                         {formatCurrency(b.total || 0)}
                       </span>
-                      <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                      {showsPaymentStatus(b.status) ? (
+                        <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </div>
                     <div className="flex items-center justify-end pt-2 border-t border-slate-100">
                       <DocumentRow
@@ -555,7 +587,11 @@ export default function DocumentsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                          {showsPaymentStatus(b.status) ? (
+                            <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right pr-6 py-3">
                           <DocumentRow

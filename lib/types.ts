@@ -181,7 +181,9 @@ export interface Receipt {
   paymentMethod?: string | null
   payment_method?: string | null
   notes?: string | null
-  status?: 'active' | 'cancelled' | 'anulado' | string
+  // 👈 'voided' es el valor real que usa app/api/receipts/[id]/route.ts al anular.
+  // Se deja el `| string` de todos modos por si algún dato viejo quedó con otro valor.
+  status?: 'active' | 'cancelled' | 'anulado' | 'voided' | string
   createdAt?: Date | string
   updatedAt?: Date | string
   budget?: {
