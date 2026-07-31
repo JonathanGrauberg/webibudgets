@@ -15,7 +15,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: '.budgets | Software de Gestión, Presupuestos y Órdenes de Trabajo',
   description:
-    'Ecosistema integral para PYMEs: presupuestos medibles por m², órdenes de trabajo con QR, tablero Kanban, control de stock y repartija de ganancias.',
+    'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, control de stock, clientes y repartija de ganancias.',
   generator: 'Webi',
 
   alternates: {
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: '.budgets | Presupuestos, Órdenes de Trabajo y Gestión Integral',
     description:
-      'Presupuestos dinámicos, stock por variante, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias — todo conectado.',
+      'Comenzá gratis. Cotizaciones por m², control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
     url: 'https://budgets.webistudio.net',
     siteName: '.budgets',
     images: [
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '.budgets | Sistema de Gestión Operativa y Financiera',
     description:
-      'Cotizaciones por m², seguimiento de obras con QR, Kanban y comisiones en tiempo real.',
+      'Plataforma Freemium: cotizaciones por m², seguimiento de obras con QR, Kanban, stock y comisiones en tiempo real.',
     images: ['https://budgets.webistudio.net/og-image.png'],
   },
 }
@@ -80,26 +80,44 @@ const jsonLd = {
   'operatingSystem': 'Web, Android, iOS (PWA)',
   'applicationCategory': 'BusinessApplication',
   'url': 'https://budgets.webistudio.net',
-  'description': 'Sistema integral de gestión operativa y financiera para PYMEs, talleres, imprentas y freelancers. Incluye presupuestos dinámicos por m², órdenes de trabajo con QR, tablero Kanban, control de stock y cálculo de rendimientos.',
+  'description': 'Sistema integral de gestión operativa y financiera para PYMEs, talleres, imprentas, constructoras y freelancers. Cotizador por m², órdenes de trabajo con QR, tablero Kanban, control de stock, CRM de clientes y cálculo de rendimientos.',
   'publisher': {
     '@type': 'Organization',
     'name': 'Webi Studio',
     'url': 'https://webistudio.net'
   },
+  // Modelo PLG (Freemium: Plan Free y Plan Pro)
   'offers': {
-    '@type': 'Offer',
-    'price': '0',
+    '@type': 'AggregateOffer',
     'priceCurrency': 'ARS',
-    'availability': 'https://schema.org/InStock'
+    'lowPrice': '0',
+    'offerCount': '2',
+    'offers': [
+      {
+        '@type': 'Offer',
+        'name': 'Plan Free',
+        'price': '0',
+        'priceCurrency': 'ARS',
+        'availability': 'https://schema.org/InStock'
+      },
+      {
+        '@type': 'Offer',
+        'name': 'Plan Pro',
+        'priceCurrency': 'ARS',
+        'availability': 'https://schema.org/InStock'
+      }
+    ]
   },
   'featureList': [
-    'Cotizador automático por m² y volumen (superficies, cartelería, obras)',
-    'Generación de Órdenes de Trabajo con código QR y link a Google Maps',
-    'Tablero Kanban de tareas vinculado a documentos financieros',
-    'Módulo de Rendimientos y repartija automática de ganancias entre vendedores/socios',
-    'Control de stock en tiempo real con alertas y variantes (color, talle, medida)',
-    'Gestión de comprobantes: presupuestos, remitos, recibos y órdenes',
-    'Dashboard de Business Intelligence con métricas de ventas e ingresos'
+    'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
+    'Generación de Órdenes de Trabajo con código QR y geolocalización',
+    'Tablero Kanban de tareas operativo e integrado a presupuestos',
+    'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
+    'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
+    'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
+    'CRM de Clientes y Proveedores con historial financiero unificado',
+    'Exportación rápida de presupuestos y comprobantes en PDF profesional',
+    'Dashboard con métricas clave de facturación y rentabilidad'
   ]
 }
 

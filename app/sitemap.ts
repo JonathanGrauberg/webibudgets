@@ -1,3 +1,4 @@
+// app/sitemap.ts
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -10,15 +11,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 1.0,
     },
-    // Subpáginas de características (Features) para posicionar en Google
+    // Modelo de precios / PLG
     {
-      url: `${baseUrl}/ordenes-de-trabajo`,
+      url: `${baseUrl}/precios`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.9,
     },
+    // Subpáginas de características (Features principales)
     {
-      url: `${baseUrl}/rendimientos`,
+      url: `${baseUrl}/ordenes-de-trabajo`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.9,
@@ -30,23 +32,41 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${baseUrl}/rendimientos`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/tablero-kanban`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,
     },
-    // Auth & Registro
+    {
+      url: `${baseUrl}/control-de-stock`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/gestion-de-clientes`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    // Auth & Conversión PLG (Acceso directo a probar la plataforma)
     {
       url: `${baseUrl}/auth/login`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
-      priority: 0.5,
+      priority: 0.6,
     },
     {
       url: `${baseUrl}/register`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
-      priority: 0.7,
+      priority: 0.8,
     },
   ]
 }
