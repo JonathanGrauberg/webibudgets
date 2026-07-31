@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, Loader2 } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, Loader2, ChevronDown } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
@@ -38,11 +38,13 @@ import { Label } from '@/components/ui/label'
 
 /* ================================
    TYPES & INTERFACES
-   (idénticos a new/page.tsx)
+   (alineados con new/page.tsx — se agregan productVariantId / variantLabel)
 ================================ */
 type BudgetItemInput = {
   id: string
   productServiceId: string | null
+  productVariantId: string | null
+  variantLabel: string | null
   name: string
   category?: ProductCategory
   quantity: number
@@ -92,8 +94,20 @@ function buildInstallerReference(installer: Installer): string {
   return parts.join(' - ')
 }
 
+/* Props compartidas entre la fila de tabla (desktop) y la card (mobile) */
+type BudgetItemCellProps = {
+  item: BudgetItemInput
+  currency: string
+  calculatorEnabled: boolean
+  expandedCalcIds: Set<string>
+  onToggleCalc: (id: string) => void
+  onUpdateField: (id: string, field: keyof BudgetItemInput, value: any) => void
+  onRemove: (id: string) => void
+  getStock: (item: BudgetItemInput) => number
+}
+
 /* ================================
-   BUDGET ITEM ROW — idéntico a new/page.tsx
+   BUDGET ITEM ROW (DESKTOP/TABLET) — igual a new/page.tsx
 ================================ */
 const BudgetItemRow = React.memo(function BudgetItemRow({
   item,
@@ -104,16 +118,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
   onUpdateField,
   onRemove,
   getStock,
-}: {
-  item: BudgetItemInput
-  currency: string
-  calculatorEnabled: boolean
-  expandedCalcIds: Set<string>
-  onToggleCalc: (id: string) => void
-  onUpdateField: (id: string, field: keyof BudgetItemInput, value: any) => void
-  onRemove: (id: string) => void
-  getStock: (id: string | null) => number
-}) {
+}: BudgetItemCellProps) {
   const handleQuantityChange = useCallback(
     (qty: number) => onUpdateField(item.id, 'quantity', qty),
     [item.id, onUpdateField]
@@ -124,7 +129,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
     [item.id, onUpdateField]
   )
 
-  const stock      = getStock(item.productServiceId)
+  const stock      = getStock(item)
   const isExpanded = expandedCalcIds.has(item.id)
   const showCalc   = calculatorEnabled && detectUnitType(item.unit) !== 'unit'
 
@@ -149,6 +154,11 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               <p className="font-medium">{item.name}</p>
               <p className="text-xs text-muted-foreground">
                 {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                {item.variantLabel && (
+                  <span className="ml-1 font-medium text-foreground">
+                    · {item.variantLabel}
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -244,6 +254,164 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
 })
 
 /* ================================
+   BUDGET ITEM CARD (MOBILE) — agregado, faltaba en edit
+================================ */
+const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
+  item,
+  currency,
+  calculatorEnabled,
+  expandedCalcIds,
+  onToggleCalc,
+  onUpdateField,
+  onRemove,
+  getStock,
+}: BudgetItemCellProps) {
+  const handleQuantityChange = useCallback(
+    (qty: number) => onUpdateField(item.id, 'quantity', qty),
+    [item.id, onUpdateField]
+  )
+
+  const handleFieldChange = useCallback(
+    (field: keyof BudgetItemInput, value: any) => onUpdateField(item.id, field, value),
+    [item.id, onUpdateField]
+  )
+
+  const stock      = getStock(item)
+  const isExpanded = expandedCalcIds.has(item.id)
+  const showCalc   = calculatorEnabled && detectUnitType(item.unit) !== 'unit'
+  const overStock  = !item.isCustom && item.quantity > stock
+
+  return (
+    <div className="rounded-lg border p-3 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {item.isCustom ? (
+            <div className="flex flex-col gap-1.5">
+              <Input
+                placeholder="Nombre del servicio o producto a medida..."
+                value={item.name}
+                className={!item.name.trim() ? 'border-amber-400 focus-visible:ring-amber-400' : ''}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+              />
+              <span className="inline-flex w-max items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Personalizado
+              </span>
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <p className="font-medium truncate">{item.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {item.category ? CATEGORY_LABELS[item.category] : '—'}
+                {item.variantLabel && (
+                  <span className="ml-1 font-medium text-foreground">
+                    · {item.variantLabel}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => onRemove(item.id)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Cantidad</p>
+          <Input
+            type="number"
+            min={0.01}
+            step="any"
+            value={item.quantity === 0 ? '' : item.quantity}
+            className={
+              item.quantity <= 0 || overStock
+                ? 'border-destructive focus-visible:ring-destructive'
+                : ''
+            }
+            onChange={(e) => handleFieldChange('quantity', Number(e.target.value))}
+          />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Stock</p>
+          <div className="flex h-10 items-center text-sm">
+            {item.isCustom ? (
+              <span className="text-muted-foreground">—</span>
+            ) : (
+              <span className={overStock ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
+                {stock}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Precio Unit.</p>
+          {item.isCustom ? (
+            <div className="relative">
+              <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+              <Input
+                type="number"
+                min={0}
+                className="pl-6"
+                value={item.unitPrice}
+                onChange={(e) => handleFieldChange('unitPrice', Number(e.target.value))}
+              />
+            </div>
+          ) : (
+            <div className="flex h-10 items-center text-sm">
+              {formatCurrency(item.unitPrice, currency)}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Subtotal</p>
+          <div className="flex h-10 items-center text-sm font-medium">
+            {formatCurrency(item.unitPrice * item.quantity, currency)}
+          </div>
+        </div>
+      </div>
+
+      {showCalc && (
+        <button
+          type="button"
+          onClick={() => onToggleCalc(item.id)}
+          className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Ruler className="h-3 w-3" />
+          {isExpanded ? 'Ocultar medidas' : 'Calcular medidas'}
+        </button>
+      )}
+
+      {showCalc && isExpanded && (
+        <div className="rounded-md bg-muted/20 p-2">
+          <BudgetItemCalculator
+            unit={item.unit}
+            unitPrice={item.unitPrice}
+            currency={currency}
+            widthCm={item.widthCm}
+            heightCm={item.heightCm}
+            depthCm={item.depthCm ?? null}
+            direct={item.direct ?? null}
+            hours={item.hours}
+            onChange={(field, value) => handleFieldChange(field, value)}
+            onQuantityChange={handleQuantityChange}
+          />
+        </div>
+      )}
+    </div>
+  )
+})
+
+/* ================================
    PAGE
 ================================ */
 export default function EditBudgetPage() {
@@ -257,21 +425,21 @@ export default function EditBudgetPage() {
   const { data: installers = [] } = useSWR<Installer[]>('/api/installers', fetcher)
   const { data: branding }        = useSWR('/api/tenants', fetcher)
 
-  // 🌟 nuevo — cargamos el presupuesto existente
   const { data: existingBudget, isLoading: isLoadingBudget } = useSWR(
     budgetId ? `/api/budgets/${budgetId}` : null,
     fetcher
   )
 
   const companyName       = branding?.name || 'la empresa'
-  const calculatorEnabled = hasFeature({ features: branding?.features }, 'calculator')
+  const calculatorEnabled = hasFeature({ plan: branding?.plan, features: branding?.features }, 'calculator')
 
   const [isSubmitting, setIsSubmitting]     = useState(false)
-  const [hydrated, setHydrated]             = useState(false) // 🌟 nuevo
+  const [hydrated, setHydrated]             = useState(false)
   const [clientId, setClientId]             = useState('')
   const [notes, setNotes]                   = useState('')
   const [items, setItems]                   = useState<BudgetItemInput[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
+  const [selectedVariantId, setSelectedVariantId]  = useState('')
   const [expandedCalcIds, setExpandedCalcIds]     = useState<Set<string>>(new Set())
   const [currency, setCurrency]             = useState(DEFAULT_CURRENCY)
   const [installationResponsible, setInstallationResponsible] = useState('')
@@ -281,13 +449,26 @@ export default function EditBudgetPage() {
   const [discountType, setDiscountType]     = useState<'percentage' | 'fixed' | null>(null)
   const [discountValue, setDiscountValue]   = useState(0)
   const [taxPercentage, setTaxPercentage]   = useState(0)
-  const [shippingIncluded, setShippingIncluded] = useState(false)
+  // Misma semántica que new/page.tsx:
+  // shippingIncluded = true  -> el envío ya está incluido en el precio (sin cargo aparte)
+  // shippingIncluded = false -> el envío se cobra aparte (puede ser 0 = envío gratis declarado)
+  const [shippingIncluded, setShippingIncluded] = useState(true)
   const [shippingCost, setShippingCost]     = useState(0)
+  const [shippingSectionOpen, setShippingSectionOpen] = useState(false)
   const [paymentTerms, setPaymentTerms]     = useState('')
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
 
-  // 🌟 nuevo — hidratación única de todos los states a partir del budget existente
+  const selectedProductForAdd = useMemo(
+    () => products.find((p) => p.id === selectedProductId),
+    [products, selectedProductId]
+  )
+  const selectedProductVariants = useMemo(
+    () => selectedProductForAdd?.variants?.filter((v) => v.active) ?? [],
+    [selectedProductForAdd]
+  )
+
+  // 🌟 hidratación única de todos los states a partir del budget existente
   useEffect(() => {
     if (!existingBudget || hydrated) return
 
@@ -314,8 +495,17 @@ export default function EditBudgetPage() {
     const reconstructedTaxPct = taxedBase > 0 ? (existingBudget.tax / taxedBase) * 100 : 0
     setTaxPercentage(Math.round(reconstructedTaxPct * 100) / 100)
 
-    setShippingIncluded(existingBudget.shippingCost !== null && existingBudget.shippingCost !== undefined)
-    setShippingCost(existingBudget.shippingCost ?? 0)
+    // shippingCost persiste como número solo cuando se cobró aparte (ver new/page.tsx submit).
+    // Si es null, asumimos "incluido / no discriminado" (mismo default que new).
+    if (existingBudget.shippingCost !== null && existingBudget.shippingCost !== undefined) {
+      setShippingIncluded(false)
+      setShippingCost(existingBudget.shippingCost)
+      setShippingSectionOpen(true)
+    } else {
+      setShippingIncluded(true)
+      setShippingCost(0)
+      setShippingSectionOpen(false)
+    }
 
     setDetails(
       Array.isArray(existingBudget.details) && existingBudget.details.length > 0
@@ -331,6 +521,8 @@ export default function EditBudgetPage() {
       (existingBudget.items ?? []).map((it: any) => ({
         id: it.id,
         productServiceId: it.productServiceId,
+        productVariantId: it.productVariantId ?? null,
+        variantLabel: it.productVariant?.label ?? null,
         name: it.customName || it.productService?.name || '',
         category: it.productService?.category,
         quantity: it.quantity,
@@ -349,7 +541,7 @@ export default function EditBudgetPage() {
   }, [existingBudget, hydrated])
 
   /* ================================
-     MEMOS (idénticos a new/page.tsx)
+     MEMOS
   ================================ */
   const activeProducts  = useMemo(
     () => products.filter((p) => p.active && p.currency === currency),
@@ -358,11 +550,16 @@ export default function EditBudgetPage() {
   const activeSellers   = useMemo(() => sellers.filter((s) => s.active), [sellers])
   const activeInstallers = useMemo(() => installers.filter((i) => i.active), [installers])
 
-  const getStockByProductId = useCallback(
-    (productServiceId: string | null): number => {
-      if (!productServiceId) return 999999
-      const p = products.find((x) => x.id === productServiceId)
-      return typeof p?.stock === 'number' ? p.stock : 0
+  const getStockForItem = useCallback(
+    (item: Pick<BudgetItemInput, 'productServiceId' | 'productVariantId'>): number => {
+      if (!item.productServiceId) return 999999
+      const p = products.find((x) => x.id === item.productServiceId)
+      if (!p) return 0
+      if (item.productVariantId) {
+        const v = p.variants?.find((v) => v.id === item.productVariantId)
+        return typeof v?.stock === 'number' ? v.stock : 0
+      }
+      return typeof p.stock === 'number' ? p.stock : 0
     },
     [products]
   )
@@ -379,55 +576,84 @@ export default function EditBudgetPage() {
   const [paymentTermsOption, setPaymentTermsOption] = useState('')
 
   const stockIssues = useMemo(() => {
-    return items
-      .filter((i) => !i.isCustom && i.productServiceId)
-      .map((i) => {
-        const stock   = getStockByProductId(i.productServiceId)
-        const missing = Math.max(0, i.quantity - stock)
-        return { id: i.productServiceId!, stock, missing }
+    const totals = new Map<string, { productServiceId: string; productVariantId: string | null; label: string; quantity: number }>()
+    for (const i of items) {
+      if (i.isCustom || !i.productServiceId) continue
+      const key = `${i.productServiceId}::${i.productVariantId ?? ''}`
+      const existing = totals.get(key)
+      if (existing) existing.quantity += i.quantity
+      else totals.set(key, {
+        productServiceId: i.productServiceId,
+        productVariantId: i.productVariantId,
+        label: i.variantLabel ? `${i.name} (${i.variantLabel})` : i.name,
+        quantity: i.quantity,
+      })
+    }
+    return Array.from(totals.entries())
+      .map(([key, t]) => {
+        const stock = getStockForItem(t)
+        const missing = Math.max(0, t.quantity - stock)
+        return { id: key, label: t.label, stock, missing }
       })
       .filter((x) => x.missing > 0)
-  }, [items, getStockByProductId])
+  }, [items, getStockForItem])
 
   const hasStockIssues = stockIssues.length > 0
 
   /* ================================
-     ITEMS OPERATORS (idénticos a new/page.tsx)
+     ITEMS OPERATORS
   ================================ */
   const addItem = useCallback(() => {
     if (!selectedProductId) return
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) return
 
+    const activeVariants = product.variants?.filter((v) => v.active) ?? []
+    const hasVariants = activeVariants.length > 0
+    if (hasVariants && !selectedVariantId) return
+
+    const isMeasured = detectUnitType(product.unit) !== 'unit'
+    const chosenVariant = activeVariants.find((v) => v.id === selectedVariantId) ?? null
+
     setItems((prev) => {
-      if (prev.some((i) => i.productServiceId === selectedProductId)) {
-        return prev.map((i) =>
-          i.productServiceId === selectedProductId
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
+      if (!isMeasured && !hasVariants) {
+        const existing = prev.find((i) => i.productServiceId === selectedProductId)
+        if (existing) {
+          return prev.map((i) => (i === existing ? { ...i, quantity: i.quantity + 1 } : i))
+        }
+      }
+      if (!isMeasured && hasVariants) {
+        const existing = prev.find(
+          (i) => i.productServiceId === selectedProductId && i.productVariantId === selectedVariantId
         )
+        if (existing) {
+          return prev.map((i) => (i === existing ? { ...i, quantity: i.quantity + 1 } : i))
+        }
       }
       return [
         ...prev,
         {
-          id:               crypto.randomUUID(),
+          id: crypto.randomUUID(),
           productServiceId: product.id,
-          name:             product.name,
-          category:         product.category as ProductCategory,
-          quantity:         1,
-          unitPrice:        product.price,
-          unit:             product.unit,
-          isCustom:         false,
-          widthCm:          null,
-          heightCm:         null,
-          depthCm:          null,
-          direct:           null,
-          hours:            null,
+          productVariantId: hasVariants ? selectedVariantId : null,
+          variantLabel: chosenVariant?.label ?? null,
+          name: product.name,
+          category: product.category as ProductCategory,
+          quantity: 1,
+          unitPrice: product.price,
+          unit: product.unit,
+          isCustom: false,
+          widthCm: null,
+          heightCm: null,
+          depthCm: null,
+          direct: null,
+          hours: null,
         },
       ]
     })
     setSelectedProductId('')
-  }, [selectedProductId, products])
+    setSelectedVariantId('')
+  }, [selectedProductId, selectedVariantId, products])
 
   const addCustomItem = useCallback(() => {
     setItems((prev) => [
@@ -435,6 +661,8 @@ export default function EditBudgetPage() {
       {
         id:               crypto.randomUUID(),
         productServiceId: null,
+        productVariantId: null,
+        variantLabel:     null,
         name:             '',
         quantity:         1,
         unitPrice:        0,
@@ -476,7 +704,7 @@ export default function EditBudgetPage() {
   }, [])
 
   /* ================================
-     DETAILS OPERATORS (idénticos a new/page.tsx)
+     DETAILS OPERATORS
   ================================ */
   const addDetail = () => {
     setDetails((prev) => [...prev, { id: crypto.randomUUID(), title: '', value: '' }])
@@ -493,7 +721,7 @@ export default function EditBudgetPage() {
   }
 
   /* ================================
-     CÁLCULOS (idénticos a new/page.tsx)
+     CÁLCULOS
   ================================ */
   const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
 
@@ -511,14 +739,15 @@ export default function EditBudgetPage() {
   const discountAmount  = Math.min(rawDiscountAmount, subtotal)
   const taxedBase       = Math.max(0, subtotal - discountAmount)
   const taxAmount       = taxedBase * (safeTaxPercentage / 100)
-  const shippingAmount  = shippingIncluded ? safeShippingCost : 0
+  // Igual que new/page.tsx: incluido = sin cargo extra; no incluido = se suma lo declarado
+  const shippingAmount  = shippingIncluded ? 0 : safeShippingCost
   const total           = taxedBase + taxAmount + shippingAmount
 
   const hasInvalidQuantities = items.some((i) => i.quantity <= 0)
   const hasEmptyCustomNames  = items.some((i) => i.isCustom && !i.name.trim())
 
   /* ================================
-     SUBMIT — 🌟 PATCH en vez de POST
+     SUBMIT — PATCH
   ================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -541,9 +770,12 @@ export default function EditBudgetPage() {
           sellerId:      sellerId || null,
           paymentTerms,
           validUntil,
-          shippingCost:  shippingIncluded ? safeShippingCost : null,
+          // null = envío incluido en el precio o no discriminado
+          // número = costo de envío cobrado aparte (0 = gratis declarado)
+          shippingCost: shippingSectionOpen && !shippingIncluded ? safeShippingCost : null,
           items: items.map((i) => ({
             productServiceId: i.productServiceId,
+            productVariantId: i.productVariantId,
             customName:       i.isCustom ? i.name : null,
             quantity:         i.quantity,
             unitPrice:        i.unitPrice,
@@ -567,7 +799,7 @@ export default function EditBudgetPage() {
   }
 
   /* ================================
-     LOADING STATE — 🌟 nuevo
+     LOADING STATE
   ================================ */
   if (isLoadingBudget || !hydrated) {
     return (
@@ -582,7 +814,7 @@ export default function EditBudgetPage() {
   ================================ */
   return (
     <TooltipProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen overflow-x-hidden">
         <PageHeader
           title={`Editar Presupuesto #${String(existingBudget?.budgetNumber ?? 0).padStart(6, '0')}`}
           description="Modificá los datos y guardá los cambios"
@@ -594,11 +826,11 @@ export default function EditBudgetPage() {
           </Link>
         </PageHeader>
 
-        <form onSubmit={handleSubmit} className="p-8">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8">
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
+            <div className="space-y-6 lg:col-span-2 min-w-0">
 
-              {/* MONEDA — 🌟 deshabilitada, ver nota arriba */}
+              {/* MONEDA — deshabilitada, no se puede modificar tras crear */}
               <Card>
                 <CardHeader><CardTitle>Moneda del presupuesto</CardTitle></CardHeader>
                 <CardContent>
@@ -618,7 +850,7 @@ export default function EditBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* CLIENTE + VENDEDOR — 🌟 cliente deshabilitado, ver nota arriba */}
+              {/* CLIENTE + VENDEDOR — cliente deshabilitado */}
               <Card>
                 <CardHeader><CardTitle>Cliente</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -659,7 +891,7 @@ export default function EditBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* PRODUCTOS — idéntico a new/page.tsx */}
+              {/* PRODUCTOS / SERVICIOS — con soporte de variantes */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <CardTitle>Productos / Servicios</CardTitle>
@@ -673,66 +905,127 @@ export default function EditBudgetPage() {
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Item Libre (On-the-fly)
                   </Button>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <CardContent className="min-w-0 space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Select
+                      value={selectedProductId}
+                      onValueChange={(value) => {
+                        setSelectedProductId(value)
+                        setSelectedVariantId('')
+                      }}
+                    >
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar de la lista base..." />
+                        <SelectValue placeholder="Seleccionar producto o servicio..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeProducts.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} – {formatCurrency(p.price, p.currency)}
-                          </SelectItem>
-                        ))}
+                        {activeProducts.map((p) => {
+                          const variantCount = p.variants?.filter((v) => v.active)?.length ?? 0
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} – {formatCurrency(p.price, p.currency)}
+                              {variantCount > 0 ? ` (${variantCount} opciones)` : ''}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
-                    <Button type="button" onClick={addItem}>
-                      <Plus className="h-4 w-4" />
+
+                    {selectedProductVariants.length > 0 && (
+                      <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                        <SelectTrigger className="w-full sm:w-[220px] border-amber-500/50 bg-amber-50/30">
+                          <SelectValue placeholder="Elegí variante (color, talle)..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedProductVariants.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.label} — {v.stock} disp.
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    <Button
+                      type="button"
+                      onClick={addItem}
+                      disabled={
+                        !selectedProductId ||
+                        (selectedProductVariants.length > 0 && !selectedVariantId)
+                      }
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4 mr-1 sm:mr-0" />
+                      <span className="sm:hidden">Agregar al presupuesto</span>
                     </Button>
                   </div>
 
+                  {selectedProductId && selectedProductVariants.length > 0 && !selectedVariantId && (
+                    <p className="text-xs text-amber-600 font-medium animate-in fade-in-50">
+                      ⚠️ Seleccioná una variante (ej: Borravino, Negro) para poder agregar este producto.
+                    </p>
+                  )}
+
                   {activeProducts.length === 0 && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      No hay productos cargados en {currency}. Podés usar "Item Libre".
+                      No hay productos cargados en {currency}. Podés usar &quot;Item Libre&quot;.
                     </p>
                   )}
 
                   {items.length > 0 && (
-                    <div className="mt-4 rounded-lg border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item</TableHead>
-                            <TableHead className="w-[100px]">Cant.</TableHead>
-                            <TableHead className="text-right w-[90px]">Stock</TableHead>
-                            <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
-                            <TableHead className="text-right">Subtotal</TableHead>
-                            <TableHead />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((item) => (
-                            <BudgetItemRow
-                              key={item.id}
-                              item={item}
-                              currency={currency}
-                              calculatorEnabled={calculatorEnabled}
-                              expandedCalcIds={expandedCalcIds}
-                              onToggleCalc={toggleCalcExpanded}
-                              onUpdateField={updateItemField}
-                              onRemove={removeItem}
-                              getStock={getStockByProductId}
-                            />
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <>
+                      {/* Mobile */}
+                      <div className="mt-4 space-y-3 sm:hidden">
+                        {items.map((item) => (
+                          <BudgetItemCardMobile
+                            key={item.id}
+                            item={item}
+                            currency={currency}
+                            calculatorEnabled={calculatorEnabled}
+                            expandedCalcIds={expandedCalcIds}
+                            onToggleCalc={toggleCalcExpanded}
+                            onUpdateField={updateItemField}
+                            onRemove={removeItem}
+                            getStock={getStockForItem}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Desktop */}
+                      <div className="mt-4 hidden overflow-x-auto rounded-lg border sm:block">
+                        <Table className="min-w-[640px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Item</TableHead>
+                              <TableHead className="w-[100px]">Cant.</TableHead>
+                              <TableHead className="text-right w-[90px]">Stock</TableHead>
+                              <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
+                              <TableHead className="text-right">Subtotal</TableHead>
+                              <TableHead />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {items.map((item) => (
+                              <BudgetItemRow
+                                key={item.id}
+                                item={item}
+                                currency={currency}
+                                calculatorEnabled={calculatorEnabled}
+                                expandedCalcIds={expandedCalcIds}
+                                onToggleCalc={toggleCalcExpanded}
+                                onUpdateField={updateItemField}
+                                onRemove={removeItem}
+                                getStock={getStockForItem}
+                              />
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
 
-              {/* DATOS DEL TRABAJO — idéntico a new/page.tsx */}
+              {/* DATOS DEL TRABAJO */}
               <Card>
                 <CardHeader><CardTitle>Datos del Trabajo / Instalación</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -817,7 +1110,7 @@ export default function EditBudgetPage() {
                 </CardContent>
               </Card>
 
-              {/* NOTAS — idéntico a new/page.tsx */}
+              {/* NOTAS */}
               <Card>
                 <CardHeader><CardTitle>Notas</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -871,9 +1164,9 @@ export default function EditBudgetPage() {
               </Card>
             </div>
 
-            {/* RESUMEN — idéntico a new/page.tsx salvo el botón final */}
-            <div>
-              <Card className="sticky top-8">
+            {/* RESUMEN */}
+            <div className="min-w-0">
+              <Card className="lg:sticky lg:top-8">
                 <CardHeader><CardTitle>Resumen</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
@@ -881,6 +1174,7 @@ export default function EditBudgetPage() {
                     <span>{formatCurrency(subtotal, currency)}</span>
                   </div>
 
+                  {/* DESCUENTO */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">Descuento</span>
                     <div className="grid grid-cols-2 gap-2">
@@ -913,6 +1207,7 @@ export default function EditBudgetPage() {
                     </div>
                   </div>
 
+                  {/* IVA */}
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">IVA (%)</span>
                     <Input
@@ -928,30 +1223,50 @@ export default function EditBudgetPage() {
                     </div>
                   </div>
 
+                  {/* ENVÍO — semántica corregida + acordeón como en new */}
                   <div className="space-y-2 border-t pt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Envío incluido</span>
-                      <Switch
-                        checked={shippingIncluded}
-                        onCheckedChange={(checked) => {
-                          setShippingIncluded(checked)
-                          if (!checked) setShippingCost(0)
-                        }}
+                    <button
+                      type="button"
+                      onClick={() => setShippingSectionOpen((v) => !v)}
+                      className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      <span>Discriminar envío</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${shippingSectionOpen ? 'rotate-180' : ''}`}
                       />
-                    </div>
-                    {shippingIncluded && (
-                      <Input
-                        type="number"
-                        min={0}
-                        value={safeShippingCost}
-                        onChange={(e) => setShippingCost(Number(e.target.value))}
-                        placeholder="Costo de envío"
-                      />
+                    </button>
+
+                    {shippingSectionOpen && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Envío incluido en el precio</span>
+                          <Switch
+                            checked={shippingIncluded}
+                            onCheckedChange={(checked) => {
+                              setShippingIncluded(checked)
+                              if (checked) setShippingCost(0)
+                            }}
+                          />
+                        </div>
+                        {!shippingIncluded && (
+                          <Input
+                            type="number"
+                            min={0}
+                            value={safeShippingCost}
+                            onChange={(e) => setShippingCost(Number(e.target.value))}
+                            placeholder="Costo de envío (0 = gratis)"
+                          />
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span>Envío</span>
+                          <span>
+                            {shippingIncluded
+                              ? 'Incluido'
+                              : `+ ${formatCurrency(shippingAmount, currency)}`}
+                          </span>
+                        </div>
+                      </>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span>Envío</span>
-                      <span>{shippingIncluded ? `+ ${formatCurrency(shippingAmount, currency)}` : '—'}</span>
-                    </div>
                   </div>
 
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
@@ -963,15 +1278,12 @@ export default function EditBudgetPage() {
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                       <p className="font-semibold text-destructive">Stock insuficiente</p>
                       <ul className="mt-2 list-disc pl-5 space-y-1">
-                        {stockIssues.map((s) => {
-                          const it = items.find((i) => i.productServiceId === s.id)
-                          return (
-                            <li key={s.id}>
-                              <span className="font-medium">{it?.name ?? 'Item'}</span> — faltan{' '}
-                              <span className="font-semibold">{s.missing}</span>
-                            </li>
-                          )
-                        })}
+                        {stockIssues.map((s) => (
+                          <li key={s.id}>
+                            <span className="font-medium">{s.label}</span> — faltan{' '}
+                            <span className="font-semibold">{s.missing}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   )}
