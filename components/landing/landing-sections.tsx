@@ -2,13 +2,13 @@
 // components/landing/landing-sections.tsx
 
 import {
-  ArrowRight, Check, FileText, Download,
+  ArrowRight, Check, Crown, FileText, Download,
   Users, Package, Palette, Share2, HelpCircle,
   ChevronDown, LayoutGrid, UserCheck,
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
 } from 'lucide-react'
 import Link from 'next/link'
-import { faqs, plans } from './landing-data'
+import { faqs } from './landing-data' // 👈 ya no usamos "plans"
 
 import { ProductosBanner } from '../productos-banner'
 import Image from "next/image"
@@ -191,94 +191,111 @@ export function LandingSections({
       <FeaturesGrid />
 
       {/* ── PRICING ── */}
-      <section id="pricing" className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
-            <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-              Precios simples y transparentes
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-              Elegí el plan ideal para tu negocio. El precio que ves es el precio final, sin sorpresas ni cargos ocultos.
-            </p>
-          </div>
+<section id="pricing" className="px-4 py-24 sm:px-6 lg:px-8">
+  <div className="mx-auto max-w-6xl">
+    <div className="mb-14 text-center">
+      <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#fcc107]">Planes</p>
+      <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        Empezá gratis. Subí a PRO cuando lo necesites.
+      </h2>
+      <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
+        Free ya te alcanza para gestionar tu negocio de punta a punta. PRO te suma las herramientas que te ahorran horas cada semana.
+      </p>
+    </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((plan, i) => {
-              const isBusiness = plan.name === 'Empresa'
-              const planHref = 
-                plan.name === 'Básico'  ? '/register?plan=starter' :
-                plan.name === 'Negocio' ? '/register?plan=team' :
-                '/register?plan=free'
+    <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
+      {/* FREE */}
+      <div className="relative rounded-3xl border border-border bg-card p-8 text-card-foreground">
+        <h3 className="text-xl font-bold">Free</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Todo lo que necesitás para arrancar a gestionar tu negocio, sin límites de tiempo.
+        </p>
 
-              return (
-                <div
-                  key={i}
-                  className={
-                    plan.featured
-                      ? 'relative rounded-3xl bg-neutral-950 p-8 text-neutral-50 shadow-xl md:scale-105'
-                      : 'relative rounded-3xl border border-border bg-card p-8 text-card-foreground'
-                  }
-                >
-                  {plan.featured && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-50 px-4 py-1 text-xs font-bold text-neutral-950">
-                      Más popular
-                    </div>
-                  )}
-
-                  <h3 className="text-xl font-bold">{plan.name}</h3>
-                  <p className={plan.featured ? 'mt-1 text-sm text-neutral-400' : 'mt-1 text-sm text-muted-foreground'}>
-                    {plan.description}
-                  </p>
-
-                  <div className="mb-8 mt-6">
-                    <span className="text-5xl font-bold">{plan.price}</span>
-                    {plan.period && (
-                      <span className={plan.featured ? 'ml-2 text-sm text-neutral-400' : 'ml-2 text-sm text-muted-foreground'}>
-                        {plan.period}
-                      </span>
-                    )}
-                  </div>
-
-                  {isBusiness ? (
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90"
-                    >
-                      {plan.cta}
-                      <ArrowRight size={16} />
-                    </a>
-                  ) : (
-                    <Link
-                      href={planHref}
-                      className={
-                        plan.featured
-                          ? 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-50 py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90'
-                          : 'mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90'
-                      }
-                    >
-                      {plan.cta}
-                      <ArrowRight size={16} />
-                    </Link>
-                  )}
-
-                  <div className={plan.featured ? 'space-y-3 border-t border-neutral-800 pt-6' : 'space-y-3 border-t border-border pt-6'}>
-                    {plan.features.map((f, j) => (
-                      <div key={j} className="flex items-start gap-3">
-                        <Check size={16} className="mt-0.5 shrink-0" />
-                        <span className={plan.featured ? 'text-sm text-neutral-300' : 'text-sm text-muted-foreground'}>
-                          {f}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        <div className="mb-8 mt-6">
+          <span className="text-5xl font-bold">$0</span>
+          <span className="ml-2 text-sm text-muted-foreground">para siempre</span>
         </div>
-      </section>
+
+        <Link
+          href="/register?plan=free"
+          className="mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background transition hover:opacity-90"
+        >
+          Empezar gratis
+          <ArrowRight size={16} />
+        </Link>
+
+        <div className="space-y-3 border-t border-border pt-6">
+          {[
+            'Presupuestos ilimitados',
+            'Gestión de clientes y productos',
+            'Tablero Kanban de tareas',
+            'Vendedores, instaladores y equipo base',
+            'Recibos, remitos y PDF con tu marca',
+            'Rendiciones: métricas y detalle del período',
+          ].map((f, j) => (
+            <div key={j} className="flex items-start gap-3">
+              <Check size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{f}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PRO */}
+      <div className="relative overflow-hidden rounded-3xl bg-neutral-950 p-8 text-neutral-50 shadow-xl">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#fcc107]/10 blur-2xl" />
+
+        <div className="relative flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fcc107] px-3 py-1 text-xs font-bold text-neutral-950">
+            <Crown size={13} /> PRO
+          </span>
+        </div>
+
+        <h3 className="relative mt-3 text-xl font-bold">Ser PRO te ahorra horas.</h3>
+        <p className="relative mt-1 text-sm text-neutral-400">
+          Automatizá lo que hoy hacés a mano: cálculos, reparto de ganancias y documentos de obra.
+        </p>
+
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative mb-8 mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#fcc107] py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
+        >
+          Quiero PRO
+          <ArrowRight size={16} />
+        </a>
+
+        <div className="relative grid gap-3 border-t border-neutral-800 pt-6 sm:grid-cols-2">
+          {[
+            'Calculadora automática por m² / m³',
+            'Órdenes de trabajo con QR en vivo',
+            'Actualización masiva de precios',
+            'Variantes de producto (talles, colores)',
+            'Reeditar presupuestos ya emitidos',
+            'Reparto de ganancias entre socios',
+            'Dashboard con Business Intelligence',
+            'Exportación de reportes',
+            'Historial detallado de distribución',
+            'PDFs 100% con tu marca, sin la nuestra',
+          ].map((f, j) => (
+            <div key={j} className="flex items-start gap-2.5">
+              <Check size={16} className="mt-0.5 shrink-0 text-[#fcc107]" />
+              <span className="text-sm text-neutral-300">{f}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <p className="mt-8 text-center text-sm text-muted-foreground">
+      ¿Ya usás .budgets y querés pasarte a PRO?{' '}
+      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-2">
+        Escribinos por WhatsApp
+      </a>
+    </p>
+  </div>
+</section>
 
       {/* ── FAQ ── */}
       <section id="faq" className="px-4 py-24 sm:px-6 lg:px-8">

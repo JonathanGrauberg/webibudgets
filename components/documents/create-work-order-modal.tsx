@@ -18,6 +18,7 @@ import useSWR from 'swr'
 import { hasFeature } from '@/lib/features'
 import { UpgradeModal } from '@/components/feature-gate'
 import { Crown } from 'lucide-react'
+import { buildMapLinks } from '@/lib/maps'
 
 interface TenantUser { id: string; name: string }
 interface MaterialRow { productServiceId: string | null; customName: string; quantity: number; unit: string }
@@ -44,6 +45,7 @@ export function CreateWorkOrderModal({
   const { data: branding } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json())) // 👈 nuevo
   const hasWorkOrdersFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'workOrders') // 👈 nuevo
   const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
+  
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -55,6 +57,8 @@ export function CreateWorkOrderModal({
   const [scheduledTimeTo, setScheduledTimeTo] = useState('')
   const [estimatedHours, setEstimatedHours] = useState('')
   const [locationUrl, setLocationUrl] = useState('')
+  const mapLinks = buildMapLinks(locationUrl) // 👈 nuevo — se recalcula en cada render mientras escriben
+
   const [tasksText, setTasksText] = useState('')
   const [toolsText, setToolsText] = useState('')
   const [checklistText, setChecklistText] = useState('')
@@ -231,6 +235,18 @@ export function CreateWorkOrderModal({
                 </Button>
               )}
             </div>
+
+            {/* 👇 nuevo — solo aparece si hay algo cargado, para chequear antes de guardar */}
+            {mapLinks?.google && (
+              <a
+                href={mapLinks.google}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline"
+              >
+                <MapPin className="h-3.5 w-3.5" /> Ver en el mapa
+              </a>
+            )}
           </div>
 
           {/* Personal asignado */}

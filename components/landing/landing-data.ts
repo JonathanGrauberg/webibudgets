@@ -107,27 +107,27 @@ export const brandStats = [
 export const faqs = [
   {
     question: '¿Puedo presupuestar productos a medida o fuera de mi catálogo?',
-    answer: '¡Sí, totalmente! Podés usar el botón "Item Libre" para crear servicios al vuelo, o activar la calculadora por dimensiones (ancho y alto) para obtener totales automáticos por m², metro lineal o volumen.',
+    answer: 'Sí, con el botón "Item Libre" podés crear servicios al vuelo en cualquier presupuesto, sin depender de tu catálogo — disponible en el plan Free. Si además querés que el sistema te calcule el total automático a partir de medidas (ancho, alto, m³), esa calculadora automática es una herramienta PRO.',
   },
   {
     question: '¿Cómo funciona el control de ganancias y rendiciones?',
-    answer: 'El módulo de Rendiciones te permite transparentar la utilidad neta de cada trabajo. Podés desglosar automáticamente el porcentaje (%) o monto fijo ($) a distribuir entre vendedores, instaladores o socios.',
+    answer: 'En Free ya podés ver cuánto facturaste, cuánto ganaste y el detalle de cada presupuesto completado en el período. El módulo PRO suma el reparto automático: asignar un porcentaje o monto fijo a cada vendedor, instalador o socio, con historial y exportación para liquidar comisiones.',
   },
   {
     question: '¿Puedo generar remitos u órdenes de trabajo desde el sistema?',
-    answer: 'Sí. A partir de cualquier presupuesto podés emitir al instante Recibos de cobro, Remitos de entrega u Órdenes de Trabajo vinculadas, incluyendo numeración y código QR de validación.',
+    answer: 'Los Recibos de cobro y Remitos de entrega están disponibles en el plan Free, con numeración propia y PDF. Las Órdenes de Trabajo con checklist, materiales autocompletados y QR de seguimiento en vivo son una herramienta PRO.',
   },
   {
     question: '¿Los PDFs de los presupuestos llevan mi propia marca?',
-    answer: 'Sí, de eso se trata .budgets. Podés personalizar el logo, favicon, colores HEX primarios/secundarios, marca de agua y pie con firma digital para mantener una marca blanca profesional.',
+    answer: 'Sí. Podés personalizar logo, favicon, colores y marca de agua desde el plan Free. Si además querés que tus PDFs no lleven ninguna mención a .budgets, esa opción de marca 100% blanca está en PRO.',
   },
   {
     question: '¿Cómo gestiono los permisos de mi equipo de trabajo?',
-    answer: 'Desde el módulo de Equipo podés dar de alta usuarios y asignar roles específicos (Administrador, Vendedor, Instalador, Visualizador) para que cada persona acceda únicamente a lo que necesita.',
+    answer: 'Desde el módulo de Equipo podés dar de alta usuarios y asignar roles específicos (Administrador, Vendedor, Instalador, Visualizador) para que cada persona acceda únicamente a lo que necesita. Disponible en el plan Free.',
   },
   {
     question: '¿Necesito tarjeta de crédito para empezar?',
-    answer: 'No. Podés crear tu cuenta y comenzar a explorar la plataforma sin ingresar ningún dato de pago.',
+    answer: 'No. Te registrás y usás el plan Free sin ingresar ningún dato de pago, y sin límite de tiempo. Pasás a PRO cuando vos decidas que lo necesitás.',
   },
 ]
 
