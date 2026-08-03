@@ -1,3 +1,4 @@
+//lib\pdf\work-order-template.ts
 import QRCode from 'qrcode'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -30,14 +31,10 @@ export async function workOrderPdfTemplate(workOrder: any, opts: { logoDataUri?:
   const client = budget?.client
 
   // QR: prioriza la URL de ubicación cargada en la propia OT; si no hay, cae al código de verificación
-  const hasLocation = !!workOrder.locationUrl
-  const qrText = hasLocation
-    ? workOrder.locationUrl
-    : [
-        `ORDEN DE TRABAJO N° ${String(workOrder.workOrderNumber).padStart(6, '0')}`,
-        tenant?.name ?? '',
-        `Fecha: ${workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toLocaleDateString('es-AR') : ''}`,
-      ].filter(Boolean).join(' | ')
+  // 👇 antes: priorizaba locationUrl directo. Ahora SIEMPRE apunta a la página de verificación,
+  // que exige login + mismo tenant antes de mostrar mapa, checklist o cualquier dato.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://budgets.webistudio.net'
+  const qrText = `${baseUrl}/verify/work-order/${workOrder.id}`
 
   let qrDataUri = ''
   try {
@@ -210,7 +207,7 @@ export async function workOrderPdfTemplate(workOrder: any, opts: { logoDataUri?:
     <div class="section" style="display:flex; justify-content:space-between; align-items:center;">
       <div class="qr-block">
         ${qrDataUri ? `<img src="${qrDataUri}" width="65" height="65" alt="QR" />` : ''}
-        <p>${hasLocation ? 'Escaneá para abrir la ubicación' : 'Código de verificación de la orden'}</p>
+        <p>Escaneá para ver ubicación, checklist y detalles (requiere iniciar sesión)</p>
       </div>
       <div style="text-align:right;font-size:9px;color:#888;">
         Presupuesto N° ${String(budget?.budgetNumber ?? 0).padStart(6, '0')}<br/>
