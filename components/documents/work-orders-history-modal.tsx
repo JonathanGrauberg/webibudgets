@@ -1,5 +1,5 @@
 'use client'
-
+//components\documents\work-orders-history-modal.tsx
 import useSWR, { mutate } from 'swr'
 import { useState } from 'react'
 import {
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Download, ChevronDown, ChevronUp, Ban, Pause } from 'lucide-react'
+import { WorkOrderDetailContent } from '@/components/work-orders/work-order-detail-content'
 
 type ChecklistItem = { id: string; label: string; completed: boolean }
 type WorkOrder = {
@@ -77,8 +78,11 @@ interface WorkOrdersHistoryModalProps {
 
 export function WorkOrdersHistoryModal({ open, onOpenChange, budgetId, budgetNumber }: WorkOrdersHistoryModalProps) {
   const key = open ? `/api/budgets/${budgetId}/work-orders` : null
-  const { data: workOrders = [], isLoading } = useSWR<WorkOrder[]>(key, fetcher)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const { data: workOrders = [], isLoading } = useSWR<WorkOrder[]>(key, fetcher, {
+    refreshInterval: expandedId ? 4000 : 0, // 👈 nuevo
+  })
+  
 
   const handleStatusChange = async (
     id: string,
@@ -220,23 +224,13 @@ export function WorkOrdersHistoryModal({ open, onOpenChange, budgetId, budgetNum
                     </div>
 
                     {isExpanded && (
-                      <div className="mt-3 space-y-3 border-t pt-3">
-                        {w.checklist.length > 0 && (
-                          <div className="space-y-1.5">
-                            {w.checklist.map((item) => (
-                              <label key={item.id} className="flex items-center gap-2 text-xs cursor-pointer">
-                                <Checkbox
-                                  checked={item.completed}
-                                  disabled={isVoided}
-                                  onCheckedChange={(checked) => handleToggleChecklistItem(w.id, item.id, !!checked)}
-                                />
-                                <span className={item.completed ? 'line-through text-muted-foreground' : ''}>
-                                  {item.label}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
+                    <div className="mt-3 space-y-3 border-t pt-3">
+                      <WorkOrderDetailContent
+                        workOrder={w as any} // el tipo local `WorkOrder` de este archivo no trae tasks/materials/tools todavía — hay que sumarlos, ver nota abajo
+                        onToggleChecklistItem={(itemId, completed) => handleToggleChecklistItem(w.id, itemId, completed)}
+                        disabled={isVoided}
+                        compact
+                      />
 
                         {!isVoided && NEXT_ACTIONS[w.status].length > 0 && (
                           <div className="flex flex-wrap gap-2">

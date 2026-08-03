@@ -1,3 +1,4 @@
+// app/verify/work-order/[id]/page.tsx
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
@@ -18,17 +19,10 @@ export default async function VerifyWorkOrderPage({
 
   const userTenantId = (session.user as any).tenantId
 
+  // 👇 ahora solo pedimos lo mínimo para el gate — el resto lo trae el cliente vía /api/work-orders/[id]
   const workOrder = await prisma.workOrder.findUnique({
     where: { id },
-    include: {
-      checklist: { orderBy: { order: 'asc' } },
-      tasks: { orderBy: { order: 'asc' } },
-      tools: { orderBy: { order: 'asc' } },
-      materials: { orderBy: { order: 'asc' } },
-      assignedToUser: { select: { name: true } },
-      helpers: { include: { user: { select: { name: true } } } },
-      budget: { include: { client: true } },
-    },
+    select: { id: true, tenantId: true },
   })
 
   if (!workOrder) {
@@ -39,7 +33,6 @@ export default async function VerifyWorkOrderPage({
     )
   }
 
-  // 🔒 El chequeo que de verdad importa: mismo tenant, sin importar rol
   if (workOrder.tenantId !== userTenantId) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-center">
@@ -53,5 +46,5 @@ export default async function VerifyWorkOrderPage({
     )
   }
 
-  return <WorkOrderVerifyClient workOrder={workOrder} />
+  return <WorkOrderVerifyClient workOrderId={id} />
 }
