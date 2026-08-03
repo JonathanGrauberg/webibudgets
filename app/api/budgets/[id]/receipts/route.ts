@@ -1,3 +1,4 @@
+//app\api\budgets\[id]\receipts\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
@@ -53,6 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: {
         tenantId,
         budgetId: id,
+        isStandalone: false, // 👈 nuevo, explícito
         receiptNumber,
         issuePlace: data.issuePlace || null,
         concept: data.concept || `Presupuesto N° ${String(budget.budgetNumber ?? 0).padStart(6, '0')}`,

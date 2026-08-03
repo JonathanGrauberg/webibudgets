@@ -1,3 +1,4 @@
+//lib\pdf\receipt-template.ts
 import { formatCurrency as formatCurrencyBase } from '@/lib/format'
 import QRCode from 'qrcode'
 
@@ -31,7 +32,7 @@ export async function receiptPdfTemplate(receipt: any, opts: { logoDataUri?: str
     console.error('QR generation failed:', e)
   }
 
-  const client = receipt.budget?.client
+  const client = receipt.budget?.client ?? receipt.client // 👈 antes: solo receipt.budget?.client
 
   return `
 <!DOCTYPE html>

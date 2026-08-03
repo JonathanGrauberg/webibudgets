@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\documents\page.tsx
 import { useState } from 'react'
 import useSWR from 'swr'
 import { PageHeader } from '@/components/page-header'
@@ -324,6 +324,7 @@ function DocumentRow({
 
 export default function DocumentsPage() {
   const [search, setSearch] = useState('')
+  const [standaloneReceiptOpen, setStandaloneReceiptOpen] = useState(false) // 👈 nuevo
   const { filterBudgets } = usePermissions()
 
   // Obtenemos presupuestos y todos los recibos
@@ -342,7 +343,7 @@ export default function DocumentsPage() {
   const budgets = filterBudgets(budgetsRaw)
 
   const { data: branding, isLoading: isLoadingBranding } = useSWR('/api/tenants', fetcher)
-  const hasVouchersFeature = hasFeature({ features: branding?.features }, 'vouchers')
+  const hasVouchersFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'vouchers') // 👈 agregado plan
 
   // Mapeo seguro de cobrados por cada presupuesto
   const collectedMap: Record<string, number> = {}
@@ -431,7 +432,18 @@ export default function DocumentsPage() {
       <PageHeader
         title="Gestión de Documentos"
         description="Generá recibos de cobro, remitos de entrega y órdenes de trabajo para tus clientes"
-      />
+      >
+        {hasVouchersFeature && (
+          <Button
+            size="sm"
+            className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+            onClick={() => setStandaloneReceiptOpen(true)}
+          >
+            <Receipt className="h-4 w-4" />
+            Recibo sin presupuesto
+          </Button>
+        )}
+      </PageHeader>
 
       <div className="p-4 md:p-6 lg:p-8 pt-0 space-y-6">
         {/* KPI Cards superiores */}
@@ -608,6 +620,15 @@ export default function DocumentsPage() {
           </Card>
         )}
       </div>
+
+      {/* 👇 nuevo — modal de recibo standalone, vive a nivel de página, no depende de ningún presupuesto */}
+      <CreateReceiptModal
+        open={standaloneReceiptOpen}
+        onOpenChange={setStandaloneReceiptOpen}
+        onCreated={() => {
+          mutateReceipts()
+        }}
+      />
     </div>
   )
 }

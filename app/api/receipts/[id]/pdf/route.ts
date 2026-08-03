@@ -1,6 +1,6 @@
 export const runtime = "nodejs"
 export const maxDuration = 60
-
+//app\api\receipts\[id]\pdf\route.ts
 import { NextResponse } from "next/server"
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
@@ -15,7 +15,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const receipt = await prisma.receipt.findFirst({
       where: { id, tenantId },
       include: {
-        budget: { include: { client: true, tenant: true } },
+        budget: { include: { client: true } }, // 👈 sin tenant acá, lo traemos aparte
+        client: true, // 👈 nuevo — cliente directo, solo poblado si es standalone
         registeredByUser: { select: { name: true } },
       },
     })
@@ -24,10 +25,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
+    // 👇 nuevo — tenant siempre desde tenantId, nunca desde receipt.budget.tenant
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } })
+    if (!tenant) {
+      return NextResponse.json({ error: "Tenant not found" }, { status: 404 })
+    }
+
+    // 👇 nuevo — cliente: del presupuesto si lo hay, sino el directo del recibo standalone
+    const client = receipt.budget?.client ?? receipt.client ?? null
+
     let logoDataUri: string | undefined
-    if (receipt.budget.tenant?.logoUrl) {
+    if (tenant.logoUrl) { // 👈 antes: receipt.budget.tenant?.logoUrl
       try {
-        const res = await fetch(receipt.budget.tenant.logoUrl)
+        const res = await fetch(tenant.logoUrl)
         const arrayBuffer = await res.arrayBuffer()
         logoDataUri = `data:${res.headers.get('content-type') || 'image/png'};base64,${Buffer.from(arrayBuffer).toString('base64')}`
       } catch (e) {
@@ -35,10 +45,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
-    const html = await receiptPdfTemplate(receipt, {
-      logoDataUri,
-      tenant: receipt.budget.tenant,
-    })
+    const html = await receiptPdfTemplate(receipt, { logoDataUri, tenant }) // 👈 sin el spread manual, el template ya resuelve el fallback
 
     const buffer = Buffer.from(await generatePdf(html))
     const fileName = `recibo_${String(receipt.receiptNumber).padStart(6, '0')}.pdf`

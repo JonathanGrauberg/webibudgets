@@ -165,6 +165,7 @@ model Tenant {
   cuit         String?  
   condicionIva String?  
   receiptSequence Int @default(1) 
+  receiptSequenceStandalone Int @default(1) // 👈 nuevo — serie separada para recibos sin presupuesto
   deliveryNoteSequence Int @default(1) // 👈 nuevo
   receipts     Receipt[] 
   deliveryNotes DeliveryNote[] // 👈 nuevo
@@ -304,6 +305,7 @@ model Client {
 
   // Relaciones
   budgets   Budget[]
+  receipts  Receipt[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -596,10 +598,16 @@ model Receipt {
   tenantId       String
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  budgetId       String
-  budget         Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId       String?  // 👈 antes: String (obligatorio)
+  budget         Budget?  @relation(fields: [budgetId], references: [id], onDelete: Cascade) // 👈 antes: Budget (obligatorio)
+  
+  clientId       String?  // 👈 nuevo — solo se usa cuando NO hay budgetId
+  client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull) // 👈 nuevo
 
+  
   receiptNumber  Int
+  isStandalone   Boolean  @default(false) // 👈 nuevo — distingue la serie, más explícito que "budgetId es null"
+
 
   issueDate      DateTime @default(now())
   issuePlace     String?
@@ -627,6 +635,7 @@ model Receipt {
 
   @@index([tenantId])
   @@index([budgetId])
+  @@index([clientId]) // 👈 nuevo
 }
 
 

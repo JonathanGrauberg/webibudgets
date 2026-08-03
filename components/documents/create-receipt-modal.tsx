@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
+import useSWR from 'swr'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogOverlay,
 } from '@/components/ui/dialog'
@@ -16,9 +17,9 @@ import {
 interface CreateReceiptModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  budgetId: string
-  budgetTotal: number
-  budgetNumber: number
+  budgetId?: string        // 👈 antes: obligatorio
+  budgetTotal?: number     // 👈 antes: obligatorio
+  budgetNumber?: number    // 👈 antes: obligatorio
   onCreated: () => void
 }
 
@@ -31,34 +32,65 @@ const PAYMENT_METHODS = [
   { value: 'otro', label: 'Otro' },
 ]
 
+async function fetcher(url: string) {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('Failed to fetch')
+  return res.json()
+}
+
 export function CreateReceiptModal({
   open, onOpenChange, budgetId, budgetTotal, budgetNumber, onCreated,
 }: CreateReceiptModalProps) {
   const { data: session } = useSession()
-  const [amount, setAmount] = useState(String(budgetTotal))
+  const isStandalone = !budgetId // 👈 nuevo
+
+  const { data: clients = [] } = useSWR(isStandalone && open ? '/api/clients' : null, fetcher) // 👈 nuevo
+
+  const [clientId, setClientId] = useState('') // 👈 nuevo
+  const [amount, setAmount] = useState(budgetTotal ? String(budgetTotal) : '')
   const [paymentMethod, setPaymentMethod] = useState('efectivo')
   const [paymentReference, setPaymentReference] = useState('')
   const [issuePlace, setIssuePlace] = useState('')
   const [pendingBalance, setPendingBalance] = useState('')
+  const [concept, setConcept] = useState('') // 👈 nuevo — solo relevante en standalone
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isStandalone && !clientId) {
+      alert('Seleccioná un cliente')
+      return
+    }
     setIsSubmitting(true)
     try {
-      const res = await fetch(`/api/budgets/${budgetId}/receipts`, {
+      const url = isStandalone ? '/api/receipts' : `/api/budgets/${budgetId}/receipts`
+      const body = isStandalone
+        ? {
+            clientId,
+            amount: Number(amount),
+            paymentMethod,
+            paymentReference: paymentReference || null,
+            issuePlace: issuePlace || null,
+            pendingBalance: pendingBalance !== '' ? Number(pendingBalance) : null,
+            concept: concept || null,
+            notes: notes || null,
+            registeredByUserId: (session?.user as any)?.id ?? null,
+          }
+        : {
+            amount: Number(amount),
+            paymentMethod,
+            paymentReference: paymentReference || null,
+            issuePlace: issuePlace || null,
+            pendingBalance: pendingBalance !== '' ? Number(pendingBalance) : null,
+            notes: notes || null,
+            registeredByUserId: (session?.user as any)?.id ?? null,
+          }
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: Number(amount),
-          paymentMethod,
-          paymentReference: paymentReference || null,
-          issuePlace: issuePlace || null,
-          pendingBalance: pendingBalance !== '' ? Number(pendingBalance) : null,
-          notes: notes || null,
-          registeredByUserId: (session?.user as any)?.id ?? null,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Failed to create receipt')
       const receipt = await res.json()
@@ -78,10 +110,26 @@ export function CreateReceiptModal({
       <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nuevo Recibo — Presupuesto #{String(budgetNumber).padStart(6, '0')}</DialogTitle>
+          <DialogTitle>
+            {isStandalone ? 'Nuevo Recibo' : `Nuevo Recibo — Presupuesto #${String(budgetNumber).padStart(6, '0')}`}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isStandalone && (
+            <div className="space-y-2">
+              <Label>Cliente *</Label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar cliente..." /></SelectTrigger>
+                <SelectContent>
+                  {clients.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.company || c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Importe *</Label>
@@ -99,6 +147,13 @@ export function CreateReceiptModal({
               </Select>
             </div>
           </div>
+
+          {isStandalone && (
+            <div className="space-y-2">
+              <Label>Concepto (opcional)</Label>
+              <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Ej: Seña, pago de servicio, etc." />
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
