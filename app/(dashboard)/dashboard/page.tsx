@@ -35,6 +35,7 @@ import { StatusDonut } from '@/components/dashboard/status-donut'
 import { RevenueBarChart } from '@/components/dashboard/revenue-bar-chart'
 import { TopRequestedProducts } from '@/components/dashboard/top-requested-products'
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
+import { useMemo } from 'react'
 
 type DashboardBudget = {
   id: string
@@ -94,11 +95,23 @@ async function fetcher(url: string) {
   return res.json()
 }
 
+type PeriodOption = 'month' | 'year' | 'all'
+
+function getPeriodRange(period: PeriodOption): { from: string; to: string } | null {
+  if (period === 'all') return null
+  const now = new Date()
+  const from = period === 'month'
+    ? new Date(now.getFullYear(), now.getMonth(), 1)
+    : new Date(now.getFullYear(), 0, 1)
+  return { from: from.toISOString(), to: now.toISOString() }
+}
+
 export default function DashboardPage() {
   const { canAccess, filterBudgets, canEdit } = usePermissions()
   const canViewBudgets = canAccess('budgets')
   const canEditBudgets = canEdit('budgets')
   
+  const [period, setPeriod] = useState<PeriodOption>('month') // 👈 nuevo, default "este mes"
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -112,13 +125,17 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview')       // 👈 nuevo
   const [upgradeOpen, setUpgradeOpen] = useState(false)         // 👈 nuevo
 
+  const range = useMemo(() => getPeriodRange(period), [period]) // 👈 nuevo
+
   useEffect(() => {
-    fetch('/api/dashboard')
+    setLoading(true) // 👈 nuevo — vuelve a mostrar loading al cambiar de período
+    const qs = range ? `?from=${range.from}&to=${range.to}` : ''
+    fetch(`/api/dashboard${qs}`) // 👈 antes: sin query string
       .then(res => res.json())
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [range]) // 👈 antes: [] — ahora refetchea cuando cambia el período
 
   if (loading) {
     return <DashboardSkeleton />
@@ -157,20 +174,41 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
   return (
     <div className="min-h-screen bg-background pb-12">
       <PageHeader
-        title="Dashboard Ejecutivo"
-        description="Panel de control e inteligencia comercial de .budgets"
-      >
-        {canEditBudgets && (
-          <div className="flex gap-2">
-            <Button asChild size="sm" className="shadow-sm">
-              <Link href="/budgets/new">
-                <Plus className="mr-1.5 h-4 w-4" />
-                Nuevo Presupuesto
-              </Link>
-            </Button>
-          </div>
-        )}
-      </PageHeader>
+  title="Dashboard Ejecutivo"
+  description="Panel de control e inteligencia comercial de .budgets"
+>
+  <div className="flex items-center gap-2">
+    <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
+      {([
+        { value: 'month', label: 'Este mes' },
+        { value: 'year', label: 'Este año' },
+        { value: 'all', label: 'Histórico' },
+      ] as const).map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => setPeriod(opt.value)}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+            period === opt.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+
+    {canEditBudgets && (
+      <Button asChild size="sm" className="shadow-sm">
+        <Link href="/budgets/new">
+          <Plus className="mr-1.5 h-4 w-4" />
+          Nuevo Presupuesto
+        </Link>
+      </Button>
+    )}
+  </div>
+</PageHeader>
 
       <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
         

@@ -26,27 +26,33 @@ export interface RecentBudget {
   }[]
 }
 
-export async function getDashboardStats(tenantId: string): Promise<DashboardStats> {
-  const totalClients = await prisma.client.count({ where: { tenantId } })
+export async function getDashboardStats(
+  tenantId: string,
+  range?: { from: Date; to: Date } // 👈 nuevo, opcional
+): Promise<DashboardStats> {
+  const dateFilter = range ? { createdAt: { gte: range.from, lte: range.to } } : {}
+
+  const totalClients = await prisma.client.count({ where: { tenantId } }) // 👈 sin filtro, a propósito
   const totalProducts = await prisma.productService.count({
     where: { tenantId, active: true },
-  })
-  const totalBudgets = await prisma.budget.count({ where: { tenantId } })
+  }) // 👈 sin filtro, a propósito
+
+  const totalBudgets = await prisma.budget.count({ where: { tenantId, ...dateFilter } })
   const approvedBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'approved' },
+    where: { tenantId, status: 'approved', ...dateFilter },
   })
   const draftBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'draft' },
+    where: { tenantId, status: 'draft', ...dateFilter },
   })
   const sentBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'sent' },
+    where: { tenantId, status: 'sent', ...dateFilter },
   })
   const rejectedBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'rejected' },
+    where: { tenantId, status: 'rejected', ...dateFilter },
   })
 
   const approvedRevenue = await prisma.budget.aggregate({
-    where: { tenantId, status: 'approved' },
+    where: { tenantId, status: 'approved', ...dateFilter },
     _sum: { total: true },
   })
 
