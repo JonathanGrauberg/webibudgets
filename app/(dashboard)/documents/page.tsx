@@ -35,6 +35,8 @@ import {
   ChevronDown,
   AlertCircle,
   Clock,
+  Ban,
+  Download,
 } from 'lucide-react'
 import type { Budget, Receipt as ReceiptType } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -46,6 +48,8 @@ import { CreateDeliveryNoteModal } from '@/components/documents/create-delivery-
 import { DeliveryNotesHistoryModal } from '@/components/documents/delivery-notes-history-modal'
 import { CreateWorkOrderModal } from '@/components/documents/create-work-order-modal'
 import { WorkOrdersHistoryModal } from '@/components/documents/work-orders-history-modal'
+import { toast } from 'sonner'
+import { Checkbox } from '@/components/ui/checkbox'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -325,6 +329,7 @@ function DocumentRow({
 export default function DocumentsPage() {
   const [search, setSearch] = useState('')
   const [standaloneReceiptOpen, setStandaloneReceiptOpen] = useState(false) // 👈 nuevo
+  const [showVoidedReceipts, setShowVoidedReceipts] = useState(false) //👈 nuevo
   const { filterBudgets } = usePermissions()
 
   // Obtenemos presupuestos y todos los recibos
@@ -339,6 +344,27 @@ export default function DocumentsPage() {
     mutate: mutateReceipts,
     isLoading: isLoadingReceipts,
   } = useSWR<ReceiptType[]>('/api/receipts', fetcher)
+
+  const standaloneReceipts = receipts.filter((r: any) => r.isStandalone)
+  const visibleStandaloneReceipts = showVoidedReceipts
+    ? standaloneReceipts
+    : standaloneReceipts.filter((r: any) => r.status !== 'voided')
+
+  const handleVoidStandaloneReceipt = async (id: string) => {
+    if (!confirm('¿Anular este recibo? Esta acción queda registrada y no se puede deshacer. El monto dejará de contarse en tus métricas.')) return
+    try {
+      const res = await fetch(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'voided' }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Recibo anulado')
+      mutateReceipts()
+    } catch {
+      toast.error('No se pudo anular el recibo')
+    }
+  }
 
   const budgets = filterBudgets(budgetsRaw)
 
@@ -559,6 +585,74 @@ export default function DocumentsPage() {
                 )
               })}
             </div>
+
+            {/* 👇 nuevo — recibos sin presupuesto, listado independiente */}
+            {standaloneReceipts.length > 0 && (
+              <Card className="border-slate-200 shadow-xs overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">Recibos sin presupuesto</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      No están asociados a ningún presupuesto, pero suman a "Cobrado en Recibos"
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer shrink-0">
+                    <Checkbox
+                      checked={showVoidedReceipts}
+                      onCheckedChange={(checked) => setShowVoidedReceipts(!!checked)}
+                    />
+                    Mostrar anulados
+                  </label>
+                </div>
+
+                {visibleStandaloneReceipts.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-xs text-slate-400">
+                    No hay recibos sin presupuesto {showVoidedReceipts ? '' : 'activos'}.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {visibleStandaloneReceipts.map((r: any) => {
+                    const isVoided = r.status === 'voided'
+                    return (
+                      <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {r.client?.company || r.client?.name || 'Sin cliente'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            N° S-{String(r.receiptNumber).padStart(6, '0')} · {formatDate(r.issueDate || r.createdAt)}
+                            {isVoided && <span className="ml-1.5 text-destructive font-medium">· Anulado</span>}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className={`text-sm font-semibold ${isVoided ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                            {formatCurrency(r.amount)}
+                          </span>
+                          <a href={`/api/receipts/${r.id}/pdf`} target="_blank" rel="noreferrer">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </a>
+                          {!isVoided && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleVoidStandaloneReceipt(r.id)}
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              </Card>
+            )}
+
 
             {/* DESKTOP */}
             <div className="hidden md:block w-full overflow-x-auto">
