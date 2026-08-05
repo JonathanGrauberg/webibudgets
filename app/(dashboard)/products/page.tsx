@@ -42,7 +42,7 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw, ChevronDown, ChevronRight, Eye, EyeOff, LayoutList, Layers, Shuffle } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw, ChevronDown, ChevronRight, Eye, EyeOff, LayoutList, Layers, Shuffle, Copy } from 'lucide-react'
 import { ProductForm } from '@/components/product-form'
 import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
@@ -152,6 +152,14 @@ export default function ProductsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductService | null>(null)
 
+  const [duplicatingProduct, setDuplicatingProduct] = useState<ProductService | null>(null)
+
+  const handleDuplicate = (product: ProductService) => {
+    setEditingProduct(null)
+    setDuplicatingProduct(product)
+    setIsDialogOpen(true)
+  }
+
   // Desplegable de variantes
   const [expandedProductIds, setExpandedProductIds] = useState<Record<string, boolean>>({})
 
@@ -223,6 +231,7 @@ export default function ProductsPage() {
   const handleFormSuccess = () => {
     setIsDialogOpen(false)
     setEditingProduct(null)
+    setDuplicatingProduct(null) // 👈 nuevo
     mutate('/api/products')
   }
 
@@ -381,6 +390,19 @@ export default function ProductsPage() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Editar producto</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDuplicate(product)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Duplicar producto</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -719,6 +741,15 @@ export default function ProductsPage() {
 
                               <Button
                                 variant="outline"
+                                className="flex-1"
+                                onClick={() => handleDuplicate(product)}
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Duplicar
+                              </Button>
+
+                              <Button
+                                variant="outline"
                                 className="flex-1 text-destructive hover:text-destructive"
                                 onClick={() => handleDelete(product.id)}
                               >
@@ -801,15 +832,20 @@ export default function ProductsPage() {
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                    {editingProduct ? 'Editar Producto' : duplicatingProduct ? 'Duplicar Producto' : 'Nuevo Producto'}
                   </DialogTitle>
                 </DialogHeader>
 
                 <ProductForm
                   product={editingProduct}
+                  duplicateFrom={duplicatingProduct} // 👈 nuevo
                   defaultCurrency={tenantBranding?.currency}
                   onSuccess={handleFormSuccess}
-                  onCancel={() => setIsDialogOpen(false)}
+                  onCancel={() => {
+                    setIsDialogOpen(false)
+                    setEditingProduct(null)
+                    setDuplicatingProduct(null) // 👈 nuevo — también al cancelar
+                  }}
                 />
               </DialogContent>
             </Dialog>

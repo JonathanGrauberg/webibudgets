@@ -47,12 +47,15 @@ const UNIT_GROUPS: { label: string; units: typeof UNIT_OPTIONS }[] = [
 
 interface ProductFormProps {
   product?: ProductService | null
+  duplicateFrom?: ProductService | null
   defaultCurrency?: string
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: ProductFormProps) {
+export function ProductForm({ product, duplicateFrom, defaultCurrency, onSuccess, onCancel }: ProductFormProps) {
+  const source = product ?? duplicateFrom // 👈 nuevo — de dónde saco los valores default
+  const isDuplicating = !product && !!duplicateFrom // 👈 nuevo
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
@@ -74,19 +77,20 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
   const initialSelect = isKnownUnit ? savedUnit : CUSTOM_UNIT_VALUE
 
   const [formData, setFormData] = useState({
-    name:        product?.name        ?? '',
-    description: product?.description ?? '',
-    price:       product?.price?.toString() ?? '',
-    cost:        product?.cost?.toString()  ?? '',
-    currency:    product?.currency    ?? defaultCurrency ?? DEFAULT_CURRENCY,
+    name:        isDuplicating ? `${source?.name ?? ''} (copia)` : source?.name ?? '', // 👈 sufijo solo al duplicar
+    description: source?.description ?? '',
+    price:       source?.price?.toString() ?? '',
+    cost:        source?.cost?.toString()  ?? '',
+    currency:    source?.currency    ?? defaultCurrency ?? DEFAULT_CURRENCY,
     unit:        savedUnit,
-    active:      product?.active      ?? true,
+    active:      source?.active      ?? true,
   })
 
-  // Estado local del select de unidad (puede diferir de formData.unit cuando es custom)
   const [unitSelect, setUnitSelect]   = useState(initialSelect)
   const [customUnit, setCustomUnit]   = useState(isKnownUnit ? '' : savedUnit)
 
+  // 👇 sigue usando product?.id (no duplicateFrom) — así el fetch de variantes
+  // nunca corre para un duplicado, que todavía no tiene id propio
   const variantsUrl = product?.id ? `/api/products/${product.id}/variants` : null
   const { data: variants = [], isLoading: variantsLoading } = useSWR<ProductVariant[]>(
     variantsUrl,
@@ -95,10 +99,10 @@ export function ProductForm({ product, defaultCurrency, onSuccess, onCancel }: P
 
   // value combinado para el Select: "legacy:other" | "custom:<uuid>"
 const [categoryValue, setCategoryValue] = useState(
-  product?.customCategoryId
-    ? `custom:${product.customCategoryId}`
-    : `legacy:${product?.category ?? 'other'}`
-)
+    source?.customCategoryId
+      ? `custom:${source.customCategoryId}`
+      : `legacy:${source?.category ?? 'other'}`
+  )
 
 const { data: categories = [] } = useSWR<{ id: string; name: string }[]>(
   '/api/categories',
