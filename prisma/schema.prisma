@@ -156,6 +156,7 @@ model Tenant {
   products       ProductService[]
   productCategories TenantProductCategory[]
   stockMovements StockMovement[]
+  serviceProductIds String[] @default([]) // 👈 nuevo — organización manual y visual, no forma parte del modelo de negocio real
 
   features Json? // { "calculator": bool, "commissions": bool, "vouchers": bool, "dashboardMetrics": bool, "stockAnalytics": bool }
 

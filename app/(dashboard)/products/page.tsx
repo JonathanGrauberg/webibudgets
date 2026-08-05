@@ -2,6 +2,7 @@
 // app\(dashboard)\products\page.tsx
 import { hasFeature } from '@/lib/features'
 import { LockedButton } from '@/components/feature-gate'
+import { ProductServiceOrganizer } from '@/components/products/product-service-organizer'
 import React, { Suspense, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Tag, CircleDollarSign, Package, Percent, RefreshCw, ChevronDown, ChevronRight, Eye, EyeOff, LayoutList, Layers, Shuffle } from 'lucide-react'
 import { ProductForm } from '@/components/product-form'
 import useSWR, { mutate } from 'swr'
 import type { ProductService, ProductCategory } from '@/lib/types'
@@ -101,6 +102,9 @@ function getCatalogMetrics(products: ProductService[]) {
   return { total, active, avgMargin, lowMarginCount }
 }
 
+type ViewMode = 'flat' | 'grouped' | 'organizer'
+type SortBy = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
+
 export default function ProductsPage() {
   const { canEdit } = usePermissions()
   const canEditProducts = canEdit('products')
@@ -112,7 +116,7 @@ export default function ProductsPage() {
     { plan: tenantBranding?.plan, features: tenantBranding?.features },
     'bulkPriceUpdate'
   )
-  
+
   // Estados para Filtros
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -127,6 +131,17 @@ export default function ProductsPage() {
   const toggleExpand = (id: string) => {
     setExpandedProductIds((prev) => ({ ...prev, [id]: !prev[id] }))
   }
+
+  // Desplegable de categorías (vista agrupada)
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }))
+  }
+
+  // Orden y modo de vista
+  const [sortBy, setSortBy] = useState<SortBy>('name-asc')
+  const [viewMode, setViewMode] = useState<ViewMode>('flat')
 
   // Actualización masiva de precios
   const [isBulkOpen, setIsBulkOpen] = useState(false)
@@ -147,6 +162,19 @@ export default function ProductsPage() {
 
     return matchesSearch && matchesCategory && matchesActiveStatus
   })
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'name-asc') return a.name.localeCompare(b.name)
+    if (sortBy === 'name-desc') return b.name.localeCompare(a.name)
+    if (sortBy === 'price-asc') return a.price - b.price
+    return b.price - a.price // price-desc
+  })
+
+  const groupedByCategory = sortedProducts.reduce((acc, p) => {
+    const key = p.category
+    ;(acc[key] ??= []).push(p)
+    return acc
+  }, {} as Record<string, typeof sortedProducts>)
 
   const handleCreate = () => {
     setEditingProduct(null)
@@ -174,7 +202,7 @@ export default function ProductsPage() {
   const handleBulkUpdateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const pct = Number(bulkPercentage)
-    
+
     if (!bulkPercentage || isNaN(pct) || pct === 0) {
       alert('Por favor, ingresá un porcentaje numérico válido diferente de 0.')
       return
@@ -204,7 +232,7 @@ export default function ProductsPage() {
 
       const result = await res.json()
       alert(`¡Éxito! Se actualizaron los precios de ${result.count} productos.`)
-      
+
       setBulkPercentage('')
       setBulkCategory('all')
       setIsBulkOpen(false)
@@ -215,6 +243,166 @@ export default function ProductsPage() {
     } finally {
       setIsSubmittingBulk(false)
     }
+  }
+
+  const handleOrganizerChange = async (serviceProductIds: string[]) => {
+    await fetch('/api/products/organizer', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serviceProductIds }),
+    })
+    mutate('/api/tenants')
+  }
+
+  // Fila de un producto — se reusa en la vista plana y en la agrupada
+  function renderProductRow(product: ProductService) {
+    const { cost, ganancia, margen } = getCostMetrics(product)
+    const hasVariants = product.variants && product.variants.length > 0
+    const isExpanded = !!expandedProductIds[product.id]
+
+    return (
+      <React.Fragment key={product.id}>
+        <TableRow className={`${isExpanded ? 'bg-muted/30 border-b-0' : ''} ${!product.active ? 'opacity-60 bg-muted/10' : ''}`}>
+          {/* Flechita para desplegar */}
+          <TableCell className="p-2">
+            {hasVariants ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => toggleExpand(product.id)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-primary" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            ) : null}
+          </TableCell>
+
+          <TableCell>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="line-clamp-2 font-medium text-card-foreground break-words">
+                  {product.name}
+                </p>
+                {hasVariants && (
+                  <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
+                    {product.variants?.length} variantes
+                  </Badge>
+                )}
+              </div>
+              <p className="line-clamp-2 break-words text-xs text-muted-foreground">
+                {product.description}
+              </p>
+            </div>
+          </TableCell>
+
+          <TableCell>
+            <Badge className={CATEGORY_COLORS[product.category]}>
+              {CATEGORY_LABELS[product.category]}
+            </Badge>
+          </TableCell>
+
+          <TableCell className="text-right">
+            {cost != null ? formatCurrency(cost, product.currency) : '—'}
+          </TableCell>
+
+          <TableCell className="text-right font-medium">
+            <div className="flex items-center justify-end gap-1.5">
+              {formatCurrency(product.price, product.currency)}
+              {product.currency !== 'ARS' && (
+                <Badge variant="outline" className="text-[10px] px-1.5">
+                  {product.currency}
+                </Badge>
+              )}
+            </div>
+          </TableCell>
+
+          <TableCell className="text-right">
+            {ganancia != null ? formatCurrency(ganancia, product.currency) : '—'}
+          </TableCell>
+
+          <TableCell className="text-right">
+            {margen != null ? (
+              <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
+                {margen.toFixed(0)}%
+              </Badge>
+            ) : '—'}
+          </TableCell>
+
+          <TableCell className="text-muted-foreground">
+            {product.unit}
+          </TableCell>
+
+          <TableCell>
+            <Badge variant={product.active ? 'default' : 'secondary'}>
+              {product.active ? 'Activo' : 'Inactivo'}
+            </Badge>
+          </TableCell>
+
+          {canEditProducts && (
+            <TableCell>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(product)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar producto</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(product.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Eliminar producto</TooltipContent>
+                </Tooltip>
+              </div>
+            </TableCell>
+          )}
+        </TableRow>
+
+        {/* FILA DESPLEGABLE CON VARIANTES */}
+        {hasVariants && isExpanded && (
+          <TableRow className="bg-muted/20 hover:bg-muted/20">
+            <TableCell colSpan={canEditProducts ? 10 : 9} className="py-2 pl-12 pr-6">
+              <div className="rounded-lg border bg-background p-3">
+                <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Variantes disponibles
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {product.variants?.map((v) => (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between rounded border bg-muted/10 px-3 py-1.5 text-xs"
+                    >
+                      <span className="font-medium text-foreground">{v.label}</span>
+                      <Badge variant="secondary" className="font-mono text-[10px]">
+                        {v.stock} u.
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </React.Fragment>
+    )
   }
 
   return (
@@ -299,8 +487,8 @@ export default function ProductsPage() {
               )
             })()}
 
-            {/* Barra de Filtros + Switch Ocultar/Mostrar Inactivos */}
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Barra de Filtros + Orden + Switch Ocultar/Mostrar Inactivos */}
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
                 <div className="relative w-full sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -323,6 +511,16 @@ export default function ProductsPage() {
                         {label}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={(v: SortBy) => setSortBy(v)}>
+                  <SelectTrigger className="w-full sm:w-[190px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Nombre A-Z</SelectItem>
+                    <SelectItem value="name-desc">Nombre Z-A</SelectItem>
+                    <SelectItem value="price-asc">Precio: menor a mayor</SelectItem>
+                    <SelectItem value="price-desc">Precio: mayor a menor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -350,7 +548,39 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {isLoading ? (
+            {/* Switch de modo de vista */}
+            <div className="mb-6 flex gap-1 rounded-lg border bg-muted/40 p-0.5 w-fit">
+              {([
+                { value: 'flat', label: 'Lista', icon: LayoutList },
+                { value: 'grouped', label: 'Por categoría', icon: Layers },
+                { value: 'organizer', label: 'Organizador', icon: Shuffle },
+              ] as const).map((opt) => {
+                const Icon = opt.icon
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setViewMode(opt.value)}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                      viewMode === opt.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {viewMode === 'organizer' ? (
+              <ProductServiceOrganizer
+                products={products}
+                serviceProductIds={tenantBranding?.serviceProductIds ?? []}
+                onChange={handleOrganizerChange}
+              />
+            ) : isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
                   <p className="text-muted-foreground">Cargando productos...</p>
@@ -374,9 +604,9 @@ export default function ProductsPage() {
               </Card>
             ) : (
               <>
-                {/* MOBILE: cards con acordeón */}
+                {/* MOBILE: cards (siempre en orden plano, el acordeón de categoría es solo desktop) */}
                 <div className="space-y-4 md:hidden">
-                  {filteredProducts.map((product) => {
+                  {sortedProducts.map((product) => {
                     const { cost, margen } = getCostMetrics(product)
                     const hasVariants = product.variants && product.variants.length > 0
                     const isExpanded = !!expandedProductIds[product.id]
@@ -486,155 +716,34 @@ export default function ProductsPage() {
                         </TableHeader>
 
                         <TableBody>
-                          {filteredProducts.map((product) => {
-                            const { cost, ganancia, margen } = getCostMetrics(product)
-                            const hasVariants = product.variants && product.variants.length > 0
-                            const isExpanded = !!expandedProductIds[product.id]
+                          {viewMode === 'flat'
+                            ? sortedProducts.map((product) => renderProductRow(product))
+                            : Object.entries(groupedByCategory).map(([category, items]) => {
+                                const isCategoryOpen = expandedCategories[category] !== false // 👈 arranca abierta
 
-                            return (
-                              <React.Fragment key={product.id}>
-                                <TableRow className={`${isExpanded ? 'bg-muted/30 border-b-0' : ''} ${!product.active ? 'opacity-60 bg-muted/10' : ''}`}>
-                                  {/* Flechita para desplegar */}
-                                  <TableCell className="p-2">
-                                    {hasVariants ? (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={() => toggleExpand(product.id)}
-                                      >
-                                        {isExpanded ? (
-                                          <ChevronDown className="h-4 w-4 text-primary" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                      </Button>
-                                    ) : null}
-                                  </TableCell>
-
-                                  <TableCell>
-                                    <div className="space-y-1">
-                                      <div className="flex items-center gap-2">
-                                        <p className="line-clamp-2 font-medium text-card-foreground break-words">
-                                          {product.name}
-                                        </p>
-                                        {hasVariants && (
-                                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
-                                            {product.variants?.length} variantes
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <p className="line-clamp-2 break-words text-xs text-muted-foreground">
-                                        {product.description}
-                                      </p>
-                                    </div>
-                                  </TableCell>
-
-                                  <TableCell>
-                                    <Badge className={CATEGORY_COLORS[product.category]}>
-                                      {CATEGORY_LABELS[product.category]}
-                                    </Badge>
-                                  </TableCell>
-
-                                  <TableCell className="text-right">
-                                    {cost != null ? formatCurrency(cost, product.currency) : '—'}
-                                  </TableCell>
-                                  
-                                  <TableCell className="text-right font-medium">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      {formatCurrency(product.price, product.currency)}
-                                      {product.currency !== 'ARS' && (
-                                        <Badge variant="outline" className="text-[10px] px-1.5">
-                                          {product.currency}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </TableCell>
-
-                                  <TableCell className="text-right">
-                                    {ganancia != null ? formatCurrency(ganancia, product.currency) : '—'}
-                                  </TableCell>
-
-                                  <TableCell className="text-right">
-                                    {margen != null ? (
-                                      <Badge className={margen < 25 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-800'}>
-                                        {margen.toFixed(0)}%
-                                      </Badge>
-                                    ) : '—'}
-                                  </TableCell>
-
-                                  <TableCell className="text-muted-foreground">
-                                    {product.unit}
-                                  </TableCell>
-
-                                  <TableCell>
-                                    <Badge variant={product.active ? 'default' : 'secondary'}>
-                                      {product.active ? 'Activo' : 'Inactivo'}
-                                    </Badge>
-                                  </TableCell>
-
-                                  {canEditProducts && (
-                                    <TableCell>
-                                      <div className="flex items-center gap-1">
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => handleEdit(product)}
-                                            >
-                                              <Pencil className="h-4 w-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Editar producto</TooltipContent>
-                                        </Tooltip>
-
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => handleDelete(product.id)}
-                                              className="text-destructive hover:text-destructive"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Eliminar producto</TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                    </TableCell>
-                                  )}
-                                </TableRow>
-
-                                {/* FILA DESPLEGABLE CON VARIANTES */}
-                                {hasVariants && isExpanded && (
-                                  <TableRow className="bg-muted/20 hover:bg-muted/20">
-                                    <TableCell colSpan={10} className="py-2 pl-12 pr-6">
-                                      <div className="rounded-lg border bg-background p-3">
-                                        <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                          Variantes disponibles
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                          {product.variants?.map((v) => (
-                                            <div
-                                              key={v.id}
-                                              className="flex items-center justify-between rounded border bg-muted/10 px-3 py-1.5 text-xs"
-                                            >
-                                              <span className="font-medium text-foreground">{v.label}</span>
-                                              <Badge variant="secondary" className="font-mono text-[10px]">
-                                                {v.stock} u.
-                                              </Badge>
-                                            </div>
-                                          ))}
+                                return (
+                                  <React.Fragment key={category}>
+                                    <TableRow
+                                      className="cursor-pointer bg-muted/40 hover:bg-muted/50"
+                                      onClick={() => toggleCategory(category)}
+                                    >
+                                      <TableCell colSpan={canEditProducts ? 10 : 9} className="py-2.5">
+                                        <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                                          {isCategoryOpen ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                          )}
+                                          {CATEGORY_LABELS[category as ProductCategory] ?? category}
+                                          <Badge variant="secondary" className="ml-1 text-[10px]">{items.length}</Badge>
                                         </div>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </React.Fragment>
-                            )
-                          })}
+                                      </TableCell>
+                                    </TableRow>
+
+                                    {isCategoryOpen && items.map((product) => renderProductRow(product))}
+                                  </React.Fragment>
+                                )
+                              })}
                         </TableBody>
                       </Table>
                     </div>
@@ -673,7 +782,7 @@ export default function ProductsPage() {
                 <DialogHeader>
                   <DialogTitle>Actualización Masiva de Precios</DialogTitle>
                 </DialogHeader>
-                
+
                 <form onSubmit={handleBulkUpdateSubmit} className="space-y-4 pt-2">
                   <div className="space-y-2">
                     <Label htmlFor="bulkPercentage">Porcentaje de Ajuste</Label>

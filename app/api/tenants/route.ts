@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       showPageNumbers: true,
       showWebsiteInPdf: true,
       showFooterBranding: true,
+      serviceProductIds: true,
 
       features: true,
     }
