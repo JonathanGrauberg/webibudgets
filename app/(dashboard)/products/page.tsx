@@ -29,7 +29,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -60,11 +62,35 @@ async function fetchTenantBranding() {
   return res.json()
 }
 
+async function fetchCategories() {
+  const res = await fetch('/api/categories')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  return res.json()
+}
+
 const CATEGORY_COLORS: Record<ProductCategory, string> = {
   biodigesters: 'bg-emerald-100 text-emerald-800',
   grease_traps: 'bg-blue-100 text-blue-800',
   maintenance: 'bg-amber-100 text-amber-800',
   other: 'bg-gray-100 text-gray-800',
+}
+
+// Categoría "efectiva" de un producto: la personalizada si tiene, sino la del sistema
+function getEffectiveCategoryLabel(product: ProductService): string {
+  return product.customCategory?.name ?? CATEGORY_LABELS[product.category]
+}
+
+function getEffectiveCategoryKey(product: ProductService): string {
+  // clave única para agrupar/filtrar: "custom:<id>" o "legacy:<category>"
+  return product.customCategoryId ? `custom:${product.customCategoryId}` : `legacy:${product.category}`
+}
+
+function CategoryBadge({ product }: { product: ProductService }) {
+  return (
+    <Badge className={product.customCategory ? 'bg-violet-100 text-violet-800' : CATEGORY_COLORS[product.category]}>
+      {getEffectiveCategoryLabel(product)}
+    </Badge>
+  )
 }
 
 function Loading() {
@@ -111,6 +137,7 @@ export default function ProductsPage() {
 
   const { data: products = [], isLoading } = useSWR<ProductService[]>('/api/products', fetchProducts)
   const { data: tenantBranding } = useSWR('/api/tenants', fetchTenantBranding) // 👈 esto va primero
+  const { data: customCategories = [] } = useSWR<{ id: string; name: string }[]>('/api/categories', fetchCategories)
 
   const canBulkUpdate = hasFeature(
     { plan: tenantBranding?.plan, features: tenantBranding?.features },
@@ -135,8 +162,8 @@ export default function ProductsPage() {
   // Desplegable de categorías (vista agrupada)
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }))
+  const toggleCategory = (categoryKey: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [categoryKey]: !prev[categoryKey] }))
   }
 
   // Orden y modo de vista
@@ -156,7 +183,7 @@ export default function ProductsPage() {
       product.description.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesCategory =
-      categoryFilter === 'all' || product.category === categoryFilter
+      categoryFilter === 'all' || getEffectiveCategoryKey(product) === categoryFilter
 
     const matchesActiveStatus = showInactive ? true : product.active
 
@@ -171,7 +198,7 @@ export default function ProductsPage() {
   })
 
   const groupedByCategory = sortedProducts.reduce((acc, p) => {
-    const key = p.category
+    const key = getEffectiveCategoryKey(p)
     ;(acc[key] ??= []).push(p)
     return acc
   }, {} as Record<string, typeof sortedProducts>)
@@ -300,9 +327,7 @@ export default function ProductsPage() {
           </TableCell>
 
           <TableCell>
-            <Badge className={CATEGORY_COLORS[product.category]}>
-              {CATEGORY_LABELS[product.category]}
-            </Badge>
+            <CategoryBadge product={product} />
           </TableCell>
 
           <TableCell className="text-right">
@@ -506,11 +531,28 @@ export default function ProductsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las categorías</SelectItem>
-                    {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                        Categorías del sistema
+                      </SelectLabel>
+                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={`legacy:${value}`}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                    {customCategories.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          Tus categorías
+                        </SelectLabel>
+                        {customCategories.map((c) => (
+                          <SelectItem key={c.id} value={`custom:${c.id}`}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
 
@@ -624,9 +666,7 @@ export default function ProductsPage() {
                           </div>
 
                           <div className="flex flex-wrap gap-2">
-                            <Badge className={CATEGORY_COLORS[product.category]}>
-                              {CATEGORY_LABELS[product.category]}
-                            </Badge>
+                            <CategoryBadge product={product} />
 
                             <Badge variant={product.active ? 'default' : 'secondary'}>
                               {product.active ? 'Activo' : 'Inactivo'}
@@ -718,14 +758,15 @@ export default function ProductsPage() {
                         <TableBody>
                           {viewMode === 'flat'
                             ? sortedProducts.map((product) => renderProductRow(product))
-                            : Object.entries(groupedByCategory).map(([category, items]) => {
-                                const isCategoryOpen = expandedCategories[category] !== false // 👈 arranca abierta
+                            : Object.entries(groupedByCategory).map(([categoryKey, items]) => {
+                                const isCategoryOpen = expandedCategories[categoryKey] !== false // 👈 arranca abierta
+                                const label = getEffectiveCategoryLabel(items[0])
 
                                 return (
-                                  <React.Fragment key={category}>
+                                  <React.Fragment key={categoryKey}>
                                     <TableRow
                                       className="cursor-pointer bg-muted/40 hover:bg-muted/50"
-                                      onClick={() => toggleCategory(category)}
+                                      onClick={() => toggleCategory(categoryKey)}
                                     >
                                       <TableCell colSpan={canEditProducts ? 10 : 9} className="py-2.5">
                                         <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
@@ -734,7 +775,7 @@ export default function ProductsPage() {
                                           ) : (
                                             <ChevronRight className="h-4 w-4" />
                                           )}
-                                          {CATEGORY_LABELS[category as ProductCategory] ?? category}
+                                          {label}
                                           <Badge variant="secondary" className="ml-1 text-[10px]">{items.length}</Badge>
                                         </div>
                                       </TableCell>
@@ -815,6 +856,9 @@ export default function ProductsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      La actualización masiva por ahora solo filtra por categorías del sistema, no por categorías personalizadas.
+                    </p>
                   </div>
 
                   <DialogFooter className="pt-4">

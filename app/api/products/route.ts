@@ -13,16 +13,16 @@ export async function GET(request: Request) {
     const products = await prisma.productService.findMany({
       where: tenantWhere(tenantId),
       orderBy: { createdAt: 'desc' },
-      include: { variants: { orderBy: { label: 'asc' } } },
+      include: {
+        variants: { orderBy: { label: 'asc' } },
+        customCategory: { select: { id: true, name: true } }, // 👈 nuevo
+      },
     })
 
     return NextResponse.json(products)
   } catch (error) {
     console.error('Error fetching products:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch products' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
   }
 }
 

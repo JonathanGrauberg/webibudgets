@@ -34,7 +34,8 @@ export interface ProductService {
   name: string
   description: string
   category: ProductCategory
-  customCategoryId: string | null
+  customCategoryId?: string | null // 👈 nuevo
+  customCategory?: { id: string; name: string } | null // 👈 nuevo
   price: number
   cost?: number | null
   currency: string

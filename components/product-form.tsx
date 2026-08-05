@@ -134,7 +134,15 @@ const handleCreateCategory = async () => {
     })
     if (!res.ok) throw new Error('No se pudo crear la categoría')
     const cat = await res.json()
-    mutate('/api/categories')
+
+    // 👇 antes: mutate('/api/categories') — pedía refetch y no esperaba
+    // ahora: inyectamos la categoría nueva directo en la caché, sin ir a la red
+    await mutate(
+      '/api/categories',
+      (current: { id: string; name: string }[] = []) => [...current, cat],
+      { revalidate: false }
+    )
+
     setCategoryValue(`custom:${cat.id}`)
     setNewCategoryName('')
     setCreatingCategory(false)
