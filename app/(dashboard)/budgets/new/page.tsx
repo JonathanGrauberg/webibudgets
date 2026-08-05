@@ -11,7 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
+  SelectGroup, // 👈 nuevo
   SelectItem,
+  SelectLabel, // 👈 nuevo
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -35,6 +37,7 @@ import { hasFeature } from '@/lib/features'
 import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator'
 import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
+import { ProductPicker } from '@/components/budget/product-picker'
 
 
 /* ================================
@@ -482,6 +485,16 @@ export default function NewBudgetPage() {
     () => products.filter((p) => p.active && p.currency === currency),
     [products, currency]
   )
+
+  // 👇 nuevo
+  const groupedActiveProducts = useMemo(() => {
+    return activeProducts.reduce((acc, p) => {
+      const key = p.category
+      ;(acc[key] ??= []).push(p)
+      return acc
+    }, {} as Record<ProductCategory, typeof activeProducts>)
+  }, [activeProducts])
+
   const activeSellers   = useMemo(() => sellers.filter((s) => s.active), [sellers])
   const activeInstallers = useMemo(() => installers.filter((i) => i.active), [installers])
 
@@ -856,28 +869,14 @@ export default function NewBudgetPage() {
                 <CardContent className="min-w-0 space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {/* Select Principal de Productos */}
-                    <Select 
-                      value={selectedProductId} 
-                      onValueChange={(value) => {
-                        setSelectedProductId(value)
-                        setSelectedVariantId('') // Resetea la variante al cambiar de producto
+                    <ProductPicker
+                      products={activeProducts}
+                      value={selectedProductId}
+                      onChange={(id) => {
+                        setSelectedProductId(id)
+                        setSelectedVariantId('')
                       }}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar producto o servicio..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeProducts.map((p) => {
-                          const variantCount = p.variants?.filter((v) => v.active)?.length ?? 0
-                          return (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} – {formatCurrency(p.price, p.currency)}
-                              {variantCount > 0 ? ` (${variantCount} opciones)` : ''}
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                    />
 
                     {/* Desplegable de Variantes (Aparece automáticamente si el producto tiene variantes activas) */}
                     {selectedProductVariants.length > 0 && (

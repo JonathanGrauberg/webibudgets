@@ -35,6 +35,7 @@ import { hasFeature } from '@/lib/features'
 import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator'
 import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
+import { ProductPicker } from '@/components/budget/product-picker'
 
 /* ================================
    TYPES & INTERFACES
@@ -907,28 +908,14 @@ export default function EditBudgetPage() {
                 </CardHeader>
                 <CardContent className="min-w-0 space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Select
+                    <ProductPicker
+                      products={activeProducts}
                       value={selectedProductId}
-                      onValueChange={(value) => {
-                        setSelectedProductId(value)
+                      onChange={(id) => {
+                        setSelectedProductId(id)
                         setSelectedVariantId('')
                       }}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar producto o servicio..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeProducts.map((p) => {
-                          const variantCount = p.variants?.filter((v) => v.active)?.length ?? 0
-                          return (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} – {formatCurrency(p.price, p.currency)}
-                              {variantCount > 0 ? ` (${variantCount} opciones)` : ''}
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                    />
 
                     {selectedProductVariants.length > 0 && (
                       <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
