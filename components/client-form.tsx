@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/tooltip'
 import { HelpCircle, MapPin } from 'lucide-react'
 import type { Client } from '@/lib/types'
+import { WhatsappPhoneInput } from '@/components/whatsapp-phone-input'
 
 interface ClientFormProps {
   client?: Client | null
@@ -60,6 +61,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   // 🆕 seguimiento comercial
   assignedSeller: (client as any)?.assignedSeller || '',
   lastContactAt: (client as any)?.lastContactAt || '',
+  whatsappNumber: (client as any)?.whatsappNumber || '', // 👈 nuevo
 })
 
 
@@ -214,6 +216,12 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               required
             />
           </div>
+          
+          {/* 👇 nuevo */}
+          <WhatsappPhoneInput
+            value={formData.whatsappNumber}
+            onChange={(fullNumber) => setFormData({ ...formData, whatsappNumber: fullNumber })}
+          />
         </div>
 
         <div className="space-y-2">

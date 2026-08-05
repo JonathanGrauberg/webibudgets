@@ -76,6 +76,9 @@ export async function PUT(
           : null,
       email: data.email?.trim() || null,
       phone: data.phone?.trim(),
+      whatsappNumber: typeof data.whatsappNumber === 'string' && data.whatsappNumber.trim()
+      ? data.whatsappNumber.trim()
+      : null, // 👈 nuevo
       address: data.address?.trim() || '—',
       city: data.city?.trim() || null, // 👈 nuevo
       province: data.province?.trim() || null, // 👈 nuevo

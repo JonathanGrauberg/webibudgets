@@ -15,6 +15,7 @@ export interface Client {
   company: string
   email: string
   phone: string
+  whatsappNumber?: string | null // 👈 nuevo
   address: string
   city?: string | null
   province?: string | null

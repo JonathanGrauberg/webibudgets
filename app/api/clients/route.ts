@@ -39,6 +39,10 @@ export async function POST(request: Request) {
     // 👈 nuevo
     const city = typeof data?.city === 'string' && data.city.trim() ? data.city.trim() : null
     const province = typeof data?.province === 'string' && data.province.trim() ? data.province.trim() : null
+    const whatsappNumber = typeof data?.whatsappNumber === 'string' && data.whatsappNumber.trim()
+    ? data.whatsappNumber.trim()
+    : null // 👈 nuevo
+
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -97,6 +101,7 @@ export async function POST(request: Request) {
               : null,
           email,
           phone,
+          whatsappNumber,
           address: typeof data?.address === 'string' && data.address.trim() ? data.address.trim() : '—',
           city, // 👈 nuevo
           province, // 👈 nuevo

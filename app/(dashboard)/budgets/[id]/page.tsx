@@ -39,6 +39,7 @@ import {
   MapPin,
   User,
   Wrench,
+  MessageCircle,
 } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 import type { Budget, BudgetItem, BudgetStatus } from '@/lib/types'
@@ -61,6 +62,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { toast } from 'sonner'
+import { buildWhatsappLink } from '@/lib/whatsapp'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -304,6 +306,13 @@ const handleGeneratePDF = async () => {
   const budgetNumber = String(
       budget.budgetNumber ?? 0
       ).padStart(6, '0')
+
+  const whatsappMessage = budget?.client
+    ? `Hola ${budget.client.name}! Te escribo por el presupuesto N° ${budgetNumber}. ¿Pudiste revisarlo?`
+    : ''
+  const whatsappHref = (budget?.client as any)?.whatsappNumber
+    ? buildWhatsappLink((budget.client as any).whatsappNumber, whatsappMessage)
+    : null
     
   return (
   <TooltipProvider>
@@ -312,6 +321,24 @@ const handleGeneratePDF = async () => {
         title={`Presupuesto #${budgetNumber}`}
         description={`Creado el ${formatDate(budget.createdAt)}`}
       >
+
+        {whatsappHref && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </Button>
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>
+              {budget.status === 'sent' ? 'Enviar recordatorio por WhatsApp' : 'Abrir chat de WhatsApp con el cliente'}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        
         <Link href="/budgets" className="w-full sm:w-auto">
           <Button variant="outline" className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />

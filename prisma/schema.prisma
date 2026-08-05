@@ -282,6 +282,7 @@ model Client {
   // Contacto
   email     String?
   phone     String
+  whatsappNumber String? // 👈 nuevo — normalizado, solo dígitos, listo para wa.me
 
   // Dirección
   address   String
