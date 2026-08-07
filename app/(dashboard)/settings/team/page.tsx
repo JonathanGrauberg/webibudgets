@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useBranding } from '@/components/branding-provider'
 import { getPlanConfig, trialDaysRemaining, isInTrial, type PlanKey } from '@/lib/plan'
 import { isProPlan } from '@/lib/features' // ajustar import según corresponda — o traer isProPlan de donde quede definitivamente
-
+import { UpgradeToProDialog } from '@/components/upgrade/upgrade-to-pro-dialog'
 
 type User = {
   id: string
@@ -67,6 +67,7 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
   const atLimit = activeUsers >= maxUsers
   const nearLimit = activeUsers >= maxUsers - 1 && !atLimit
   const isPro = isProPlan(plan)
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
   const [isVisible, setIsVisible] = useState(true)
   if (!isVisible) return null
@@ -92,11 +93,15 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
         )}
       </div>
       {!isPro && (
-        <a href="mailto:hola@webistudio.net?subject=Quiero%20pasarme%20a%20PRO" className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-          atLimit ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-amber-800 text-white hover:bg-amber-700'
-        }`}>
+        <button
+          type="button"
+          onClick={() => setUpgradeOpen(true)} // 👈 antes: <a href="mailto:...">
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+            atLimit ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-amber-800 text-white hover:bg-amber-700'
+          }`}
+        >
           Pasate a PRO →
-        </a>
+        </button>
       )}
       <button
         type="button"
@@ -108,6 +113,7 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
+      <UpgradeToProDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> {/* 👈 nuevo */}
     </div>
   )
 }
@@ -117,6 +123,7 @@ function PlanLimitBanner({ planInfo }: { planInfo: PlanInfo }) {
 function PlanCard({ planInfo }: { planInfo: PlanInfo }) {
   const isPro = isProPlan(planInfo.plan)
   const maxUsersLabel = planInfo.maxUsers === 9999 ? 'Ilimitados' : String(planInfo.maxUsers)
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
   return (
     <div className={`mb-10 rounded-2xl border p-6 ${isPro ? 'border-amber-200 bg-amber-50/40' : 'border-zinc-200 bg-white'}`}>
@@ -136,12 +143,13 @@ function PlanCard({ planInfo }: { planInfo: PlanInfo }) {
         </div>
 
         {!isPro && (
-          <a
-            href="mailto:hola@webistudio.net?subject=Quiero%20pasarme%20a%20PRO"
+          <button
+            type="button"
+            onClick={() => setUpgradeOpen(true)} // 👈 antes: <a href="mailto:...">
             className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 shrink-0"
           >
             ⚡ Pasate a PRO
-          </a>
+          </button>
         )}
       </div>
 
@@ -167,6 +175,7 @@ function PlanCard({ planInfo }: { planInfo: PlanInfo }) {
           </div>
         </div>
       )}
+      <UpgradeToProDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> {/* 👈 nuevo */}
     </div>
   )
 }

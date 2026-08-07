@@ -1,7 +1,6 @@
 // app/api/webhooks/mercadopago/route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { resolveMaxUsers } from '@/lib/plan'
 
 // MP manda el evento y nosotros consultamos la suscripción para obtener el estado real
 async function fetchSubscription(subscriptionId: string) {
@@ -13,13 +12,10 @@ async function fetchSubscription(subscriptionId: string) {
 }
 
 // Mapeo de plan MP → planKey interno (Se alimenta 100% del .env cargado en producción)
-function planKeyFromMpPlanId(mpPlanId: string): string | null {
-  const map: Record<string, string> = {
-    [process.env.MP_PLAN_STARTER  ?? '']: 'starter',
-    [process.env.MP_PLAN_TEAM     ?? '']: 'team',
-    [process.env.MP_PLAN_BUSINESS ?? '']: 'business',
-  }
-  return map[mpPlanId] ?? null
+function resolveBillingInterval(mpPlanId: string): 'monthly' | 'annual' | null {
+  if (mpPlanId === process.env.MP_PLAN_PRO_MONTHLY) return 'monthly'
+  if (mpPlanId === process.env.MP_PLAN_PRO_ANNUAL) return 'annual'
+  return null
 }
 
 export async function POST(req: NextRequest) {
@@ -61,43 +57,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const planKey = planKeyFromMpPlanId(mpPlanId)
-
     if (status === 'authorized') {
-      // Pago aprobado con éxito o suscripción activa -> Activar Plan Premium
-      if (!planKey) {
-        console.warn('[webhook/mp] Mapeo de plan fallido. El ID de MP no coincide con el .env:', mpPlanId)
-        return NextResponse.json({ ok: true })
-      }
-
-      await prisma.tenant.update({
-        where: { id: tenantId },
-        data: {
-          plan: planKey,
-          maxUsers: resolveMaxUsers(planKey),
-          trialEndsAt: null, // Fin del período de prueba
-          mpSubscriptionId: subscriptionId,
-          active: true, // Cuenta totalmente operativa
-        },
-      })
-
-      console.log(`[webhook/mp] ✅ Tenant ${tenantId} actualizado exitosamente al plan: ${planKey}`)
-
-    } else if (status === 'cancelled' || status === 'paused') {
-      // La suscripción se cayó, se pausó por falta de fondos o el cliente la canceló
-      await prisma.tenant.update({
-        where: { id: tenantId },
-        data: {
-          plan: 'free',
-          maxUsers: 1,
-          trialEndsAt: null,
-          mpSubscriptionId: subscriptionId,
-          active: true, // Mantenemos la cuenta activa para que no lo rebote el Login, pero en plan Free
-        },
-      })
-
-      console.log(`[webhook/mp] ⚠️ Tenant ${tenantId} bajado a plan free debido a estado: ${status}`)
+    const interval = resolveBillingInterval(mpPlanId)
+    if (!interval) {
+      console.warn('[webhook/mp] El ID de plan de MP no coincide con ningún plan PRO conocido:', mpPlanId)
+      return NextResponse.json({ ok: true })
     }
+
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        plan: 'custom', // 👈 PRO = plan 'custom' en tu sistema de features
+        proBillingInterval: interval,
+        trialEndsAt: null,
+        mpSubscriptionId: subscriptionId,
+        active: true,
+      },
+    })
+
+    console.log(`[webhook/mp] ✅ Tenant ${tenantId} activado a PRO (${interval})`)
+
+  } else if (status === 'cancelled' || status === 'paused') {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        plan: 'free',
+        proBillingInterval: null,
+        trialEndsAt: null,
+        mpSubscriptionId: subscriptionId,
+        active: true,
+      },
+    })
+
+    console.log(`[webhook/mp] ⚠️ Tenant ${tenantId} bajado a Free debido a estado: ${status}`)
+  }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

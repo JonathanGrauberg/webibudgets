@@ -141,6 +141,7 @@ model Tenant {
   maxUsers Int?    @default(5)
   trialEndsAt DateTime?
   mpSubscriptionId String?
+  proBillingInterval String? // 👈 nuevo — "monthly" | "annual", solo informativo/UI
 
   active Boolean @default(true)
   
@@ -176,6 +177,8 @@ model Tenant {
 
   tasks Task[] // 👈 nuevo
 
+  referralCodeId String?
+  referralCode   ResellerCode? @relation(fields: [referralCodeId], references: [id])
 }
 
 /* =========================
@@ -956,4 +959,21 @@ model Task {
 
   @@index([tenantId])
   @@index([tenantId, column])
+}
+
+/* =========================
+   RECELLERS
+========================= */
+
+model ResellerCode {
+  id              String   @id @default(uuid())
+  code            String   @unique // "GUALEGUAYCHU10"
+  resellerName    String
+  resellerContact String?
+  discountPercent Int      // 10, 40, etc. — debe tener su par de planes MP creado
+  active          Boolean  @default(true)
+
+  tenants         Tenant[]
+
+  createdAt       DateTime @default(now())
 }

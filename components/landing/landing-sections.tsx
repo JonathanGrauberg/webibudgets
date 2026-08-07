@@ -104,6 +104,7 @@ export function LandingSections({
   openFaqIndex,
   setOpenFaqIndex,
 }: LandingSectionsProps) { 
+  const [isAnnual, setIsAnnual] = useState(false) // 👈 nuevo
   return (
     <main className="overflow-x-hidden bg-background text-foreground">
 
@@ -190,10 +191,10 @@ export function LandingSections({
       {/* ── FEATURES GRID ── */}
       <FeaturesGrid />
 
-      {/* ── PRICING ── */}
+      {/* PRICING */}
 <section id="pricing" className="px-4 py-24 sm:px-6 lg:px-8">
   <div className="mx-auto max-w-6xl">
-    <div className="mb-14 text-center">
+    <div className="mb-10 text-center">
       <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#fcc107]">Planes</p>
       <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
         Empezá gratis. Subí a PRO cuando lo necesites.
@@ -203,8 +204,34 @@ export function LandingSections({
       </p>
     </div>
 
+    {/* Toggle Mensual/Anual */}
+<div className="mb-8 flex items-center justify-center gap-3">
+  <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+    Mensual
+  </span>
+  <button
+    type="button"
+    onClick={() => setIsAnnual((v) => !v)}
+    className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors ${
+      isAnnual ? 'bg-[#fcc107]' : 'bg-slate-300'
+    }`}
+  >
+    <span
+      className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+        isAnnual ? 'translate-x-5' : 'translate-x-0'
+      }`}
+    />
+  </button>
+  <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+    Anual
+  </span>
+  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+    Ahorrás 10%
+  </span>
+</div>
+
     <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
-      {/* FREE */}
+      {/* FREE — sin cambios respecto a lo que ya teníamos */}
       <div className="relative rounded-3xl border border-border bg-card p-8 text-card-foreground">
         <h3 className="text-xl font-bold">Free</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -241,7 +268,7 @@ export function LandingSections({
         </div>
       </div>
 
-      {/* PRO */}
+      {/* PRO — con precio dinámico según el toggle */}
       <div className="relative overflow-hidden rounded-3xl bg-neutral-950 p-8 text-neutral-50 shadow-xl">
         <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#fcc107]/10 blur-2xl" />
 
@@ -256,11 +283,25 @@ export function LandingSections({
           Automatizá lo que hoy hacés a mano: cálculos, reparto de ganancias y documentos de obra.
         </p>
 
+        {/* Precio dinámico */}
+        <div className="relative mb-2 mt-6">
+          <span className="text-5xl font-bold">
+            ${isAnnual ? '36.000' : '40.000'}
+          </span>
+          <span className="ml-2 text-sm text-neutral-400">/ mes</span>
+        </div>
+        {isAnnual && (
+          <p className="relative mb-6 text-xs text-neutral-400">
+            Facturado anual: <span className="font-semibold text-neutral-200">$432.000/año</span> — ahorrás 10% vs. mensual
+          </p>
+        )}
+        {!isAnnual && <div className="relative mb-6" />}
+
         <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="relative mb-8 mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#fcc107] py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
+          className="relative mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-[#fcc107] py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
         >
           Quiero PRO
           <ArrowRight size={16} />

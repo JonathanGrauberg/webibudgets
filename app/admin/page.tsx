@@ -1,109 +1,84 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-//app\admin\page.tsx
+import { Users, Building2, Crown, Ticket, ArrowUpRight, Plus } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
-  const totalTenants = await prisma.tenant.count()
-  const totalUsers = await prisma.user.count()
+  const [totalTenants, totalUsers, proTenants, activeResellerCodes] = await Promise.all([
+    prisma.tenant.count(),
+    prisma.user.count(),
+    prisma.tenant.count({ where: { plan: 'custom' } }),
+    prisma.resellerCode.count({ where: { active: true } }),
+  ])
+
+  const stats = [
+    { label: 'Tenants totales', value: totalTenants, icon: Building2, color: 'text-zinc-900' },
+    { label: 'Usuarios totales', value: totalUsers, icon: Users, color: 'text-zinc-900' },
+    { label: 'Tenants PRO', value: proTenants, icon: Crown, color: 'text-amber-600' },
+    { label: 'Códigos activos', value: activeResellerCodes, icon: Ticket, color: 'text-emerald-600' },
+  ]
+
+  const sections = [
+    { title: 'Tenants', description: 'Gestionar planes, trial y módulos por tenant', href: '/admin/tenants', icon: Building2 },
+    { title: 'Revendedores', description: 'Códigos de descuento y comisiones a pagar', href: '/admin/resellers', icon: Ticket },
+    { title: 'Nuevo tenant', description: 'Alta manual de un cliente beta', href: '/admin/create-tenant', icon: Plus },
+  ]
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 sm:py-10 space-y-6 sm:space-y-10">
+    <div className="min-h-screen bg-zinc-50">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-10">
 
-        {/* ── Hero header ── */}
-        <div className="flex items-start justify-between gap-4 sm:flex-row sm:items-end">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5 sm:mb-2">
-              Panel Admin
-            </p>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-primary leading-none">
-              .budgets
-            </h1>
-            <p className="mt-1.5 sm:mt-2 text-sm text-zinc-400 hidden sm:block">
-              Gestioná tenants, usuarios y onboarding de clientes.
-            </p>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">Panel Admin</p>
+            <h1 className="text-4xl font-black tracking-tighter text-zinc-950">.budgets</h1>
+            <p className="mt-2 text-sm text-zinc-500">Gestioná tenants, planes y revendedores.</p>
           </div>
-
-          {/* Mobile: icon-only pill / Desktop: full label */}
-          <Link
-            href="/admin/create-tenant"
-            className="shrink-0 mb-0 sm:mb-1 inline-flex items-center justify-center gap-2 rounded-full bg-black px-4 py-2.5 sm:px-5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            <span className="text-base leading-none">+</span>
-            <span className="hidden sm:inline">Nuevo tenant</span>
-          </Link>
-        </div>
-
-        {/* thin divider */}
-        <div className="h-px bg-zinc-200" />
-
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 shadow-sm">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
-              Tenants
-            </p>
-            <p className="mt-2 sm:mt-4 text-[44px] sm:text-[56px] font-black leading-none tracking-tighter text-black">
-              {totalTenants}
-            </p>
-            <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs text-zinc-400 leading-snug">
-              <span className="sm:hidden">Activos en el sistema.</span>
-              <span className="hidden sm:inline">Tenants activos y configurados en el sistema.</span>
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 shadow-sm">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
-              Usuarios
-            </p>
-            <p className="mt-2 sm:mt-4 text-[44px] sm:text-[56px] font-black leading-none tracking-tighter text-black">
-              {totalUsers}
-            </p>
-            <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs text-zinc-400 leading-snug">
-              <span className="sm:hidden">Cuentas en el sistema.</span>
-              <span className="hidden sm:inline">Cuentas de clientes y administradores en el sistema.</span>
-            </p>
-          </div>
-        </div>
-
-        {/* ── Quick actions (mobile only) ── */}
-        <div className="flex gap-2 sm:hidden">
-          <Link
-            href="/admin/tenants"
-            className="flex-1 rounded-xl border border-zinc-200 bg-white py-3 text-center text-xs font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 transition"
-          >
-            Ver tenants
-          </Link>
           <Link
             href="/dashboard"
-            className="flex-1 rounded-xl border border-zinc-200 bg-white py-3 text-center text-xs font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 transition"
+            className="inline-flex items-center gap-2 self-start rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
           >
-            Ver como cliente
+            Ver como cliente <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        {/* ── Next steps ── */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 shadow-sm">
-          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-3 sm:mb-4">
-            Siguientes pasos
-          </p>
-          <ul className="space-y-3">
-            {[
-              'Creá un nuevo tenant para un cliente beta.',
-              'Revisá o editá la información desde /admin/tenants.',
-              'Ingresá como cliente para verificar la experiencia de onboarding.',
-            ].map((step, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-zinc-600">
-                <span className="mt-0.5 font-mono text-[11px] text-zinc-300 w-4 shrink-0 tabular-nums">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ul>
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{s.label}</p>
+                <s.icon className={`h-4 w-4 ${s.color}`} />
+              </div>
+              <p className={`mt-3 text-4xl font-black leading-none tracking-tighter ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
         </div>
 
+        {/* Secciones */}
+        <div>
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">Secciones</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {sections.map((s) => (
+              <Link
+                key={s.href}
+                href={s.href}
+                className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-zinc-300 hover:shadow-md"
+              >
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 transition group-hover:bg-zinc-950 group-hover:text-white">
+                  <s.icon className="h-5 w-5" />
+                </div>
+                <p className="flex items-center gap-1.5 font-semibold text-zinc-900">
+                  {s.title}
+                  <ArrowUpRight className="h-3.5 w-3.5 text-zinc-300 transition group-hover:text-zinc-500" />
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">{s.description}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

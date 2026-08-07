@@ -1,40 +1,30 @@
-// scripts/create-mp-plans.js
+// scripts/create-pro-mp-plans.js
 require('dotenv').config();
 
 const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const BACK_URL = 'https://budgets.webistudio.net'; 
+const BACK_URL = 'https://budgets.webistudio.net';
 
 const plansToCreate = [
   {
-    reason: "Plan Básico",
+    envVar: 'MP_PLAN_PRO_MONTHLY',
+    reason: "PRO Mensual",
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: 6990, // 👈 El precio va acá
+      transaction_amount: 40000,
       currency_id: "ARS",
-      type: "recurring" // 👈 Define que es por Checkout Web (Link)
     }
   },
   {
-    reason: "Plan Negocio",
+    envVar: 'MP_PLAN_PRO_ANNUAL',
+    reason: "PRO Anual",
     auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: 19990,
+      frequency: 12,
+      frequency_type: "months", // MP no soporta "years" directo, se hace 12 meses de frecuencia
+      transaction_amount: 432000,
       currency_id: "ARS",
-      type: "recurring"
     }
   },
-  {
-    reason: "Plan Empresa",
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: 49990,
-      currency_id: "ARS",
-      type: "recurring"
-    }
-  }
 ];
 
 async function createPlans() {
@@ -43,7 +33,7 @@ async function createPlans() {
     return;
   }
 
-  console.log("🚀 Generando planes definitivos (Precio + Checkout Web)...");
+  console.log("🚀 Creando planes PRO (mensual + anual)...\n");
 
   for (const plan of plansToCreate) {
     try {
@@ -63,10 +53,10 @@ async function createPlans() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log(`\n   ✅ "${plan.reason}" creado.`);
-        console.log(`   👉 ID: ${data.id}`);
+        console.log(`✅ "${plan.reason}" creado.`);
+        console.log(`   Agregá esto a tu .env: ${plan.envVar}="${data.id}"\n`);
       } else {
-        console.error(`❌ Error:`, data);
+        console.error(`❌ Error creando "${plan.reason}":`, data);
       }
     } catch (error) {
       console.error(`❌ Error de red:`, error);

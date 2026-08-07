@@ -6,6 +6,8 @@ import { motion } from 'framer-motion'
 import { Crown, Users, Star } from 'lucide-react'
 import { getContrastColor } from '@/lib/contrast'
 import { isProPlan } from '@/lib/features' // 👈 nuevo
+import { useState } from 'react'
+import { UpgradeToProDialog } from '@/components/upgrade/upgrade-to-pro-dialog'
 
 interface ColorSystem {
   primary: string
@@ -20,13 +22,9 @@ interface TeamPlanCardProps {
 }
 // 👆 se sacaron currentBudgets/maxBudgets — ya no existen límites de presupuestos por plan
 
-export default function TeamPlanCard({
-  currentUsers,
-  maxUsers,
-  plan,
-  colors,
-}: TeamPlanCardProps) {
-  const isPro = isProPlan(plan) // 👈 reemplaza a isStarter
+export default function TeamPlanCard({ currentUsers, maxUsers, plan, colors }: TeamPlanCardProps) {
+  const isPro = isProPlan(plan)
+  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
 
   const usagePercentUsers = maxUsers > 0 ? Math.min(100, (currentUsers / maxUsers) * 100) : 0
   const isAtLimitUsers = currentUsers >= maxUsers
@@ -100,15 +98,17 @@ export default function TeamPlanCard({
 
         {/* 👇 nuevo — solo si no es PRO */}
         {!isPro && (
-          <a
-            href="mailto:hola@webistudio.net?subject=Quiero%20pasarme%20a%20PRO"
-            className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700"
-          >
-            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            Pasate a PRO
-          </a>
-        )}
+        <button
+          type="button"
+          onClick={() => setUpgradeOpen(true)} // 👈 antes: <a href="mailto:...">
+          className="mt-2 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700"
+        >
+          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+          Pasate a PRO
+        </button>
+      )}
       </div>
+    <UpgradeToProDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> {/* 👈 nuevo */}
     </div>
   )
 }

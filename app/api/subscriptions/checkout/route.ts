@@ -1,61 +1,69 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { getPlanConfig, isValidPlan } from '@/lib/plan'
+import { prisma } from '@/lib/prisma'
+import { getDiscountedPlanId } from '@/lib/reseller-discounts'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
-    const { plan, tenantId: bodyTenantId } = body ?? {}
+    const interval = body?.interval
+    const code = typeof body?.code === 'string' ? body.code.trim().toUpperCase() : null
 
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-    const tenantId = (token?.tenantId as string | undefined) ?? bodyTenantId
+    const tenantId = token?.tenantId as string | undefined
 
     if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant no identificado' }, { status: 400 })
+      return NextResponse.json({ error: 'No estás logueado' }, { status: 401 })
+    }
+    if (interval !== 'monthly' && interval !== 'annual') {
+      return NextResponse.json({ error: 'Intervalo inválido' }, { status: 400 })
     }
 
-    if (!isValidPlan(plan) || plan === 'free') {
-      return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
+    let mpPlanId = interval === 'monthly'
+      ? process.env.MP_PLAN_PRO_MONTHLY
+      : process.env.MP_PLAN_PRO_ANNUAL
+
+    // 🎟️ Si mandaron código, validamos y cambiamos al plan descontado
+    if (code) {
+      const resellerCode = await prisma.resellerCode.findFirst({
+        where: { code, active: true },
+      })
+
+      if (!resellerCode) {
+        return NextResponse.json({ error: 'Código inválido o vencido' }, { status: 400 })
+      }
+
+      const discountedPlanId = getDiscountedPlanId(resellerCode.discountPercent, interval)
+      if (!discountedPlanId) {
+        return NextResponse.json({ error: 'Ese descuento no está disponible por ahora' }, { status: 500 })
+      }
+
+      mpPlanId = discountedPlanId
+
+      // 👇 Atribución permanente — se guarda ANTES de ir a MercadoPago, "de por vida"
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { referralCodeId: resellerCode.id },
+      })
     }
 
-    const config = getPlanConfig(plan)
-    if (!config.mpPlanId) {
-      return NextResponse.json({ error: 'Plan sin ID de MercadoPago configurado' }, { status: 400 })
+    if (!mpPlanId) {
+      return NextResponse.json({ error: 'Plan PRO no configurado en el servidor' }, { status: 500 })
     }
 
-    // 🌐 Detectar dinámicamente el dominio (Sirve tanto para localhost como para budgets.webistudio.net)
     const origin = req.nextUrl.origin
-
-    // 🔗 Definimos las URLs de retorno para el usuario
-    const successUrl = `${origin}/dashboard?subscription=success`
     const pendingUrl = `${origin}/dashboard?subscription=pending`
+    const successUrl = `${origin}/dashboard?subscription=success`
 
-    // Construimos la URL oficial de Mercado Pago para suscripciones de forma directa.
-    const baseUrl = 'https://www.mercadopago.com.ar/subscriptions/checkout'
-    
-    const checkoutUrl = new URL(baseUrl)
-    checkoutUrl.searchParams.append('preapproval_plan_id', config.mpPlanId)
-    checkoutUrl.searchParams.append('external_reference', tenantId) // Clave crucial para tu Webhook
-    
-    // 🇦🇷 AGREGAMOS LAS REGLAS DE RETORNO A MERCADOPAGO
-    // MercadoPago usa 'back_url' de forma global en sus checkouts directos
-    checkoutUrl.searchParams.append('back_url', pendingUrl) 
-    
-    // Si tu plan de MercadoPago soporta parámetros avanzados, le inyectamos success explícito
+    const checkoutUrl = new URL('https://www.mercadopago.com.ar/subscriptions/checkout')
+    checkoutUrl.searchParams.append('preapproval_plan_id', mpPlanId)
+    checkoutUrl.searchParams.append('external_reference', tenantId)
+    checkoutUrl.searchParams.append('back_url', pendingUrl)
     checkoutUrl.searchParams.append('success_url', successUrl)
     checkoutUrl.searchParams.append('failure_url', pendingUrl)
+    if (token?.email) checkoutUrl.searchParams.append('payer_email', token.email as string)
 
-    if (token?.email) {
-      checkoutUrl.searchParams.append('payer_email', token.email)
-    }
-
-    console.log('[checkout] Generada URL Directa de MP con BackURLs:', checkoutUrl.toString())
-
-    // Devolvemos la URL al frontend exactamente igual que antes
-    return NextResponse.json({
-      checkoutUrl: checkoutUrl.toString(),
-      subscriptionId: `DIRECT-${config.mpPlanId}`, // ID temporal referencial
-    })
+    return NextResponse.json({ checkoutUrl: checkoutUrl.toString() })
   } catch (err) {
     console.error('[checkout]', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
