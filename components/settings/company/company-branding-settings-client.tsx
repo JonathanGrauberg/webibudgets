@@ -32,6 +32,7 @@ import { useSession } from 'next-auth/react'
 
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
 import { SmartAssetRow } from '@/components/branding/smart-asset-row'
+import { SmartPdfRow } from '@/components/branding/smart-pdf-row'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { useSearchParams } from 'next/navigation'
 
@@ -50,8 +51,8 @@ type CompanyInfo = {
   website?: string
   description: string
   currency: string
-  cuit: string          // 👈 nuevo
-  condicionIva: string  // 👈 nuevo
+  cuit: string
+  condicionIva: string
 }
 
 type BrandingAssets = {
@@ -59,6 +60,17 @@ type BrandingAssets = {
   favicon: string | null
   watermark: string | null
   sidebarIcon: string | null
+}
+
+// 👇 nuevo — agrupa todo lo que antes viajaba suelto como "pdfSettings" en cada llamada
+type PdfSettings = {
+  watermarkOpacity: number
+  logoSize: number
+  showPageNumbers: boolean
+  showWebsiteInPdf: boolean
+  showFooterBranding: boolean
+  conditionsPdfUrl: string | null
+  conditionsPdfName: string | null
 }
 
 type TeamMember = {
@@ -88,6 +100,8 @@ type PersistedState = {
   showPageNumbers: boolean
   showWebsiteInPdf: boolean
   showFooterBranding: boolean
+  conditionsPdfUrl: string | null
+  conditionsPdfName: string | null
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -98,7 +112,7 @@ function buildPersistedState(
   companyInfo: CompanyInfo,
   brandingAssets: BrandingAssets,
   colorSystem: ColorSystem,
-  pdfSettings: { watermarkOpacity: number; logoSize: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean } // 👈 agregado logoSize
+  pdfSettings: PdfSettings
 ): PersistedState {
   return {
     name: companyInfo.name,
@@ -110,17 +124,19 @@ function buildPersistedState(
     secondaryColor: colorSystem.secondary,
     accentColor: colorSystem.accent,
     watermarkOpacity: pdfSettings.watermarkOpacity,
-    logoSize: pdfSettings.logoSize, // 👈 antes: 100 hardcodeado
+    logoSize: pdfSettings.logoSize,
     showPageNumbers: pdfSettings.showPageNumbers,
     showWebsiteInPdf: pdfSettings.showWebsiteInPdf,
     showFooterBranding: pdfSettings.showFooterBranding,
+    conditionsPdfUrl: pdfSettings.conditionsPdfUrl,
+    conditionsPdfName: pdfSettings.conditionsPdfName,
   }
 }
 
 function serializeBranding(
   brandingAssets: BrandingAssets,
   colorSystem: ColorSystem,
-  pdfSettings: { watermarkOpacity: number; logoSize: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean } // 👈 agregado logoSize acá
+  pdfSettings: PdfSettings
 ): string {
   return JSON.stringify({
     logoUrl: brandingAssets.logo,
@@ -131,7 +147,9 @@ function serializeBranding(
     secondaryColor: colorSystem.secondary,
     accentColor: colorSystem.accent,
     watermarkOpacity: pdfSettings.watermarkOpacity,
-    logoSize: pdfSettings.logoSize, // 👈 antes: brandingAssets.logoSize (no existe)
+    logoSize: pdfSettings.logoSize,
+    conditionsPdfUrl: pdfSettings.conditionsPdfUrl,
+    conditionsPdfName: pdfSettings.conditionsPdfName,
     showPageNumbers: pdfSettings.showPageNumbers,
     showWebsiteInPdf: pdfSettings.showWebsiteInPdf,
     showFooterBranding: pdfSettings.showFooterBranding,
@@ -199,18 +217,16 @@ export default function CompanyBrandingSettingsClient({
   currentBudgets = 0,
   maxBudgets = 30,
   }: CompanyBrandingSettingsClientProps) {
-    
+
   const { data: session } = useSession()
 
-  
-
-  // 👇 nuevo — trae plan/features frescos, no depende de lo que traiga initialBranding
+  // 👇 trae plan/features frescos, no depende de lo que traiga initialBranding
   const { data: tenantPlanData } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
   const hasWhiteLabel = hasFeature(
     { plan: tenantPlanData?.plan, features: tenantPlanData?.features },
     'whiteLabel'
   )
-  const [upgradeOpen, setUpgradeOpen] = useState(false) // 👈 nuevo
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
 
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
@@ -230,8 +246,8 @@ export default function CompanyBrandingSettingsClient({
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
       currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
-      cuit: (initialBranding as any)?.cuit ?? '',                 // 👈 nuevo
-      condicionIva: (initialBranding as any)?.condicionIva ?? '', // 👈 nuevo
+      cuit: (initialBranding as any)?.cuit ?? '',
+      condicionIva: (initialBranding as any)?.condicionIva ?? '',
     }
   })
 
@@ -257,6 +273,19 @@ export default function CompanyBrandingSettingsClient({
   const [showPageNumbers, setShowPageNumbers] = useState<boolean>((initialBranding as any)?.showPageNumbers ?? true)
   const [showWebsiteInPdf, setShowWebsiteInPdf] = useState<boolean>((initialBranding as any)?.showWebsiteInPdf ?? true)
   const [showFooterBranding, setShowFooterBranding] = useState<boolean>((initialBranding as any)?.showFooterBranding ?? false)
+  const [conditionsPdfUrl, setConditionsPdfUrl] = useState<string | null>((initialBranding as any)?.conditionsPdfUrl ?? null)
+  const [conditionsPdfName, setConditionsPdfName] = useState<string | null>((initialBranding as any)?.conditionsPdfName ?? null)
+
+  // 👇 nuevo — helper para no repetir el mismo objeto 6 veces a lo largo del archivo
+  const currentPdfSettings = useCallback((): PdfSettings => ({
+    watermarkOpacity,
+    logoSize,
+    showPageNumbers,
+    showWebsiteInPdf,
+    showFooterBranding,
+    conditionsPdfUrl,
+    conditionsPdfName,
+  }), [watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding, conditionsPdfUrl, conditionsPdfName])
 
   const [colorSystem, setColorSystem] = useState<ColorSystem>({
     primary: effective.primaryColor ?? '#0ea5e9',
@@ -270,10 +299,12 @@ export default function CompanyBrandingSettingsClient({
       { primary: effective.primaryColor ?? '#0ea5e9', secondary: effective.secondaryColor ?? '#64748b', accent: effective.accentColor ?? '#10b981' },
       {
         watermarkOpacity: (initialBranding as any)?.watermarkOpacity ?? 0.06,
-        logoSize: (initialBranding as any)?.logoSize ?? 100, // 👈 nuevo, faltaba acá
+        logoSize: (initialBranding as any)?.logoSize ?? 100,
         showPageNumbers: (initialBranding as any)?.showPageNumbers ?? true,
         showWebsiteInPdf: (initialBranding as any)?.showWebsiteInPdf ?? true,
         showFooterBranding: (initialBranding as any)?.showFooterBranding ?? false,
+        conditionsPdfUrl: (initialBranding as any)?.conditionsPdfUrl ?? null, // 👈 faltaba
+        conditionsPdfName: (initialBranding as any)?.conditionsPdfName ?? null, // 👈 faltaba
       }
     )
   )
@@ -293,8 +324,8 @@ export default function CompanyBrandingSettingsClient({
       website: (initialBranding as any)?.website ?? '',
       description: (initialBranding as any)?.description ?? '',
       currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
-      cuit: (initialBranding as any)?.cuit ?? '',                 // 👈 nuevo
-      condicionIva: (initialBranding as any)?.condicionIva ?? '', // 👈 nuevo
+      cuit: (initialBranding as any)?.cuit ?? '',
+      condicionIva: (initialBranding as any)?.condicionIva ?? '',
     })
   })
 
@@ -334,6 +365,8 @@ export default function CompanyBrandingSettingsClient({
         showPageNumbers: (initialBranding as any).showPageNumbers ?? true,
         showWebsiteInPdf: (initialBranding as any).showWebsiteInPdf ?? true,
         showFooterBranding: (initialBranding as any).showFooterBranding ?? false,
+        conditionsPdfUrl: (initialBranding as any).conditionsPdfUrl ?? null, // 👈 faltaba
+        conditionsPdfName: (initialBranding as any).conditionsPdfName ?? null, // 👈 faltaba
       }
     )
 
@@ -354,6 +387,8 @@ export default function CompanyBrandingSettingsClient({
       setShowPageNumbers((initialBranding as any).showPageNumbers ?? true)
       setShowWebsiteInPdf((initialBranding as any).showWebsiteInPdf ?? true)
       setShowFooterBranding((initialBranding as any).showFooterBranding ?? false)
+      setConditionsPdfUrl((initialBranding as any).conditionsPdfUrl ?? null) // 👈 faltaba
+      setConditionsPdfName((initialBranding as any).conditionsPdfName ?? null) // 👈 faltaba
       setSavedBrandingSnapshot(incomingBrandingSerialized)
       lastSeenBrandingPropsRef.current = incomingBrandingSerialized
     }
@@ -366,8 +401,8 @@ export default function CompanyBrandingSettingsClient({
       website: (initialBranding as any).website ?? '',
       description: (initialBranding as any).description ?? '',
       currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
-      cuit: (initialBranding as any).cuit ?? '',                 // 👈 nuevo
-      condicionIva: (initialBranding as any).condicionIva ?? '', // 👈 nuevo
+      cuit: (initialBranding as any).cuit ?? '',
+      condicionIva: (initialBranding as any).condicionIva ?? '',
     })
 
     if (incomingCompanySerialized !== lastSeenCompanyPropsRef.current) {
@@ -379,8 +414,8 @@ export default function CompanyBrandingSettingsClient({
         website: (initialBranding as any).website ?? '',
         description: (initialBranding as any).description ?? '',
         currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
-        cuit: (initialBranding as any).cuit ?? '',                 // 👈 nuevo
-        condicionIva: (initialBranding as any).condicionIva ?? '', // 👈 nuevo
+        cuit: (initialBranding as any).cuit ?? '',
+        condicionIva: (initialBranding as any).condicionIva ?? '',
       })
       setSavedCompanySnapshot(incomingCompanySerialized)
       setSavedName(eff.name ?? '')
@@ -388,14 +423,9 @@ export default function CompanyBrandingSettingsClient({
     }
   }, [initialBranding, effective])
 
+  // 👇 corregido — antes faltaban logoSize/conditionsPdfUrl/conditionsPdfName en este objeto
   const brandingChanged =
-    serializeBranding(brandingAssets, colorSystem, {
-      watermarkOpacity,
-      showPageNumbers,
-      showWebsiteInPdf,
-      showFooterBranding,
-      logoSize,
-    }) !== savedBrandingSnapshot
+    serializeBranding(brandingAssets, colorSystem, currentPdfSettings()) !== savedBrandingSnapshot
 
   const companyChanged =
     JSON.stringify({
@@ -406,8 +436,8 @@ export default function CompanyBrandingSettingsClient({
       website: companyInfo.website ?? '',
       description: companyInfo.description,
       currency: companyInfo.currency,
-      cuit: companyInfo.cuit,                 // 👈 nuevo
-      condicionIva: companyInfo.condicionIva, // 👈 nuevo
+      cuit: companyInfo.cuit,
+      condicionIva: companyInfo.condicionIva,
     }) !== savedCompanySnapshot
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
@@ -442,6 +472,7 @@ export default function CompanyBrandingSettingsClient({
             throw new Error(body.error || 'Failed to save settings')
           }
 
+          // 👇 corregido — antes no incluía conditionsPdfUrl/conditionsPdfName acá
           setSavedBrandingSnapshot(
             serializeBranding(
               {
@@ -457,10 +488,12 @@ export default function CompanyBrandingSettingsClient({
               },
               {
                 watermarkOpacity: currentPayload.watermarkOpacity,
+                logoSize: currentPayload.logoSize,
                 showPageNumbers: currentPayload.showPageNumbers,
                 showWebsiteInPdf: currentPayload.showWebsiteInPdf,
                 showFooterBranding: currentPayload.showFooterBranding,
-                logoSize: currentPayload.logoSize,
+                conditionsPdfUrl: currentPayload.conditionsPdfUrl, // 👈 faltaba
+                conditionsPdfName: currentPayload.conditionsPdfName, // 👈 faltaba
               }
             )
           )
@@ -500,21 +533,21 @@ export default function CompanyBrandingSettingsClient({
   )
 
   useEffect(() => {
-  if (!hasMountedRef.current) { hasMountedRef.current = true; return }
-  if (!brandingChanged) return
+    if (!hasMountedRef.current) { hasMountedRef.current = true; return }
+    if (!brandingChanged) return
 
-  const timer = setTimeout(() => {
-    const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, {
-      watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding,
-    })
-    void persistBranding(payload)
-  }, AUTOSAVE_DEBOUNCE_MS)
+    const timer = setTimeout(() => {
+      // 👇 corregido — antes no mandaba conditionsPdfUrl/conditionsPdfName
+      const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, currentPdfSettings())
+      void persistBranding(payload)
+    }, AUTOSAVE_DEBOUNCE_MS)
 
-  return () => clearTimeout(timer)
-}, [
-  brandingAssets, colorSystem, brandingChanged, companyInfo, persistBranding,
-  watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding, // 👈 logoSize agregado
-])
+    return () => clearTimeout(timer)
+  }, [
+    brandingAssets, colorSystem, brandingChanged, companyInfo, persistBranding,
+    watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding,
+    conditionsPdfUrl, conditionsPdfName, currentPdfSettings, // 👈 faltaban en el array de deps
+  ])
 
   useEffect(() => {
     return () => {
@@ -522,7 +555,7 @@ export default function CompanyBrandingSettingsClient({
     }
   }, [])
 
-{/* Modificamos el useEffect que carga el equipo para mapear correctamente el plan 'vip' */}
+  // Modificamos el useEffect que carga el equipo para mapear correctamente el plan 'vip'
   useEffect(() => {
     if (activeTab !== 'plan') return
 
@@ -537,10 +570,10 @@ export default function CompanyBrandingSettingsClient({
           if (Array.isArray(payload.users)) {
             setTeamMembers(payload.users)
           }
-          
+
           // 🌟 Normalizamos la información en caso de que venga el plan 'vip'
           const isVipOrBusiness = payload.plan === 'vip' || payload.plan === 'business'
-          
+
           setPlanInfo({
             maxUsers: isVipOrBusiness ? 999 : (payload.maxUsers ?? 5),
             activeUsers: payload.activeUsers ?? 0,
@@ -558,7 +591,7 @@ export default function CompanyBrandingSettingsClient({
     }
   }, [activeTab])
 
-  // 👇 nuevo — en cuanto sabemos que no tiene whiteLabel, forzamos el switch a true
+  // 👇 en cuanto sabemos que no tiene whiteLabel, forzamos el switch a true
   useEffect(() => {
     if (tenantPlanData && !hasWhiteLabel && !showFooterBranding) {
       setShowFooterBranding(true)
@@ -590,8 +623,8 @@ export default function CompanyBrandingSettingsClient({
       website: companyInfo.website ?? null,
       description: companyInfo.description,
       currency: companyInfo.currency,
-      cuit: companyInfo.cuit || null,                 // 👈 nuevo
-      condicionIva: companyInfo.condicionIva || null,  // 👈 nuevo
+      cuit: companyInfo.cuit || null,
+      condicionIva: companyInfo.condicionIva || null,
     }
 
     try {
@@ -631,11 +664,11 @@ export default function CompanyBrandingSettingsClient({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto">
           {tabs.map((tab) => (
-            <TabButton key={tab.id} 
-            id={`tab-${tab.id}`} 
-            active={activeTab === tab.id} 
-            onClick={() => setActiveTab(tab.id)} 
-            icon={tab.icon} 
+            <TabButton key={tab.id}
+            id={`tab-${tab.id}`}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            icon={tab.icon}
             label={tab.label} />
           ))}
         </div>
@@ -866,6 +899,13 @@ export default function CompanyBrandingSettingsClient({
                       value={brandingAssets.sidebarIcon}
                       onChange={(v) => updateBrandingAsset('sidebarIcon', v)}
                     />
+                    {/* 👇 nuevo — PDF de condiciones, mismo lugar que el resto de los assets */}
+                    <SmartPdfRow
+                      label="PDF de Condiciones"
+                      fileName={conditionsPdfName}
+                      value={conditionsPdfUrl}
+                      onChange={(dataUri, name) => { setConditionsPdfUrl(dataUri); setConditionsPdfName(name) }}
+                    />
                   </div>
                 </div>
 
@@ -978,7 +1018,7 @@ export default function CompanyBrandingSettingsClient({
                         </label>
                       ))}
 
-                      {/* 👇 nuevo — footer branding, con lógica propia de PRO */}
+                      {/* 👇 footer branding, con lógica propia de PRO */}
                       <label className={`flex items-center gap-3 group ${hasWhiteLabel ? 'cursor-pointer' : 'cursor-pointer'}`}>
                         <div
                           className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
@@ -987,7 +1027,7 @@ export default function CompanyBrandingSettingsClient({
                           style={showFooterBranding ? { backgroundColor: colorSystem.primary } : {}}
                           onClick={() => {
                             if (!hasWhiteLabel) {
-                              setUpgradeOpen(true) // 👈 no permite tocarlo, abre el modal
+                              setUpgradeOpen(true)
                               return
                             }
                             setShowFooterBranding(!showFooterBranding)
@@ -1028,7 +1068,7 @@ export default function CompanyBrandingSettingsClient({
                       watermark={brandingAssets.watermark}
                       logo={previewLogo}
                       watermarkOpacity={watermarkOpacity}
-                      logoSize={logoSize} // 👈 nuevo, si el componente lo soporta
+                      logoSize={logoSize}
                       showPageNumbers={showPageNumbers}
                       showWebsiteInPdf={showWebsiteInPdf}
                       showFooterBranding={showFooterBranding}
@@ -1108,8 +1148,8 @@ export default function CompanyBrandingSettingsClient({
           </div>
         </div>
 
-        {/* 🌟 Pasamos el plan limpio. Si en TeamPlanCard tenés lógica interna para renderizar 
-            un badge o barra de progreso, al mandarle maxUsers={999} vas a poder pintar el símbolo "∞" 
+        {/* 🌟 Pasamos el plan limpio. Si en TeamPlanCard tenés lógica interna para renderizar
+            un badge o barra de progreso, al mandarle maxUsers={999} vas a poder pintar el símbolo "∞"
             o deshabilitar la barra de límite fácilmente. */}
         <TeamPlanCard
           currentUsers={planInfo.activeUsers}

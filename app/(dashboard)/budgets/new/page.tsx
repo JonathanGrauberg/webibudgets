@@ -11,9 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
-  SelectGroup, // 👈 nuevo
+  SelectGroup,
   SelectItem,
-  SelectLabel, // 👈 nuevo
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, ChevronDown, FileText } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
@@ -39,7 +39,6 @@ import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
 import { ProductPicker } from '@/components/budget/product-picker'
 
-
 /* ================================
    TYPES & INTERFACES
 ================================ */
@@ -47,11 +46,12 @@ type BudgetItemInput = {
   id: string
   productServiceId: string | null
   productVariantId: string | null
-  variantLabel: string | null 
+  variantLabel: string | null
   name: string
   category?: ProductCategory
   quantity: number
   unitPrice: number
+  cost: number | null // 👈 nuevo — solo se usa/muestra cuando isCustom
   unit?: string
   isCustom?: boolean
   widthCm:  number | null
@@ -222,6 +222,25 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           )}
         </TableCell>
 
+        {/* ── COSTO (solo ítems libres) ── */}
+        <TableCell className="text-right">
+          {item.isCustom ? (
+            <div className="relative">
+              <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+              <Input
+                type="number"
+                min={0}
+                className="pl-6 text-right"
+                placeholder="Opcional"
+                value={item.cost ?? ''}
+                onChange={(e) => handleFieldChange('cost', e.target.value === '' ? null : Number(e.target.value))}
+              />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+
         {/* ── SUBTOTAL ── */}
         <TableCell className="text-right font-medium">
           {formatCurrency(item.unitPrice * item.quantity, currency)}
@@ -243,7 +262,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
       {/* ── CALCULADORA DE MEDIDAS ── */}
       {showCalc && isExpanded && (
         <TableRow>
-          <TableCell colSpan={6} className="bg-muted/20 px-4 py-2">
+          <TableCell colSpan={7} className="bg-muted/20 px-4 py-2">
             <BudgetItemCalculator
               unit={item.unit}
               unitPrice={item.unitPrice}
@@ -393,6 +412,24 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
         </div>
       </div>
 
+      {/* ── COSTO (solo ítems libres) ── */}
+      {item.isCustom && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Costo (opcional)</p>
+          <div className="relative">
+            <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+            <Input
+              type="number"
+              min={0}
+              className="pl-6"
+              placeholder="Lo que gastaste en este ítem"
+              value={item.cost ?? ''}
+              onChange={(e) => handleFieldChange('cost', e.target.value === '' ? null : Number(e.target.value))}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── CALCULADORA DE MEDIDAS ── */}
       {showCalc && (
         <button
@@ -458,7 +495,9 @@ export default function NewBudgetPage() {
   // shippingIncluded = false -> el envío se cobra aparte (input habilitado; puede ser 0 = envío gratis declarado)
   const [shippingIncluded, setShippingIncluded] = useState(true)
   const [shippingCost, setShippingCost]     = useState(0)
-  const [shippingSectionOpen, setShippingSectionOpen] = useState(false) // 👈 nuevo
+  const [shippingSectionOpen, setShippingSectionOpen] = useState(false)
+  const [conditionsSectionOpen, setConditionsSectionOpen] = useState(false)
+
   const [paymentTerms, setPaymentTerms]     = useState('')
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
@@ -486,7 +525,6 @@ export default function NewBudgetPage() {
     [products, currency]
   )
 
-  // 👇 nuevo
   const groupedActiveProducts = useMemo(() => {
     return activeProducts.reduce((acc, p) => {
       const key = p.category
@@ -497,6 +535,9 @@ export default function NewBudgetPage() {
 
   const activeSellers   = useMemo(() => sellers.filter((s) => s.active), [sellers])
   const activeInstallers = useMemo(() => installers.filter((i) => i.active), [installers])
+
+  const [attachConditions, setAttachConditions] = useState(true) // 👈 default true si el tenant tiene PDF cargado
+
 
   /* ================================
      MONEDA HELPERS
@@ -616,6 +657,7 @@ export default function NewBudgetPage() {
           category: product.category as ProductCategory,
           quantity: 1,
           unitPrice: product.price,
+          cost: null,
           unit: product.unit,
           isCustom: false,
           widthCm: null,
@@ -641,10 +683,11 @@ export default function NewBudgetPage() {
         name:             '',
         quantity:         1,
         unitPrice:        0,
+        cost:             null, // 👈 nuevo
         unit:             'un.',
         isCustom:         true,
         widthCm:          null,
-        heightCm:          null,
+        heightCm:         null,
         depthCm:          null,
         direct:           null,
         hours:            null,
@@ -752,12 +795,14 @@ export default function NewBudgetPage() {
           // 0 = envío gratis declarado aparte (lo discriminaron y tildaron "no incluido" con costo 0)
           // >0 = costo de envío discriminado
           shippingCost: shippingSectionOpen && !shippingIncluded ? safeShippingCost : null,
+          attachConditionsPdf: !!branding?.conditionsPdfUrl && attachConditions,
           items: items.map((i) => ({
             productServiceId: i.productServiceId,
             productVariantId: i.productVariantId,
             customName:       i.isCustom ? i.name : null,
             quantity:         i.quantity,
             unitPrice:        i.unitPrice,
+            cost:             i.isCustom ? i.cost : null, // 👈 nuevo — costo declarado a mano en ítems libres
             subtotal:         i.unitPrice * i.quantity,
             widthCm:          i.widthCm  ?? null,
             heightCm:         i.heightCm ?? null,
@@ -841,11 +886,13 @@ export default function NewBudgetPage() {
                     <Select value={clientId} onValueChange={setClientId}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar cliente..." /></SelectTrigger>
                       <SelectContent>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.company} - {c.name}
-                          </SelectItem>
-                        ))}
+                        {[...clients]
+                          .sort((a, b) => (a.company || a.name).localeCompare(b.company || b.name))
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.company} - {c.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -878,7 +925,7 @@ export default function NewBudgetPage() {
                       }}
                     />
 
-                    {/* Desplegable de Variantes (Aparece automáticamente si el producto tiene variantes activas) */}
+                    {/* Desplegable de Variantes */}
                     {selectedProductVariants.length > 0 && (
                       <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
                         <SelectTrigger className="w-full sm:w-[220px] border-amber-500/50 bg-amber-50/30">
@@ -895,11 +942,11 @@ export default function NewBudgetPage() {
                     )}
 
                     {/* Botón para agregar al presupuesto */}
-                    <Button 
-                      type="button" 
-                      onClick={addItem} 
+                    <Button
+                      type="button"
+                      onClick={addItem}
                       disabled={
-                        !selectedProductId || 
+                        !selectedProductId ||
                         (selectedProductVariants.length > 0 && !selectedVariantId)
                       }
                       className="shrink-0"
@@ -909,7 +956,6 @@ export default function NewBudgetPage() {
                     </Button>
                   </div>
 
-                  {/* Alerta de ayuda si seleccionó un producto pero le falta elegir variante */}
                   {selectedProductId && selectedProductVariants.length > 0 && !selectedVariantId && (
                     <p className="text-xs text-amber-600 font-medium animate-in fade-in-50">
                       ⚠️ Seleccioná una variante (ej: Borravino, Negro) para poder agregar este producto.
@@ -944,13 +990,14 @@ export default function NewBudgetPage() {
 
                       {/* Desktop */}
                       <div className="mt-4 hidden overflow-x-auto rounded-lg border sm:block">
-                        <Table className="min-w-[640px]">
+                        <Table className="min-w-[720px]">
                           <TableHeader>
                             <TableRow>
                               <TableHead>Item</TableHead>
                               <TableHead className="w-[100px]">Cant.</TableHead>
                               <TableHead className="text-right w-[90px]">Stock</TableHead>
                               <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
+                              <TableHead className="text-right w-[130px]">Costo</TableHead>
                               <TableHead className="text-right">Subtotal</TableHead>
                               <TableHead />
                             </TableRow>
@@ -1220,6 +1267,44 @@ export default function NewBudgetPage() {
                       </>
                     )}
                   </div>
+
+                  {/* ADJUNTAR CONDICIONES */}
+                  {branding?.conditionsPdfUrl && (
+                    <div className="space-y-2 border-t pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setConditionsSectionOpen((v) => !v)}
+                        className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <span>Adjuntar condiciones</span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${conditionsSectionOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+
+                      {conditionsSectionOpen && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="truncate text-sm text-muted-foreground">
+                                {branding.conditionsPdfName}
+                              </span>
+                            </div>
+                            <Switch
+                              checked={attachConditions}
+                              onCheckedChange={setAttachConditions}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {attachConditions
+                              ? 'Se agregará como página adicional al final del PDF del presupuesto.'
+                              : 'No se incluirá en este presupuesto.'}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
                     <span>Total</span>

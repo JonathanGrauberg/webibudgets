@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import { budgetPdfTemplate } from "@/lib/pdf/template"
 import { generatePdf } from "@/lib/pdf/generator"
+import { PDFDocument } from 'pdf-lib' // 👈 nuevo import
 
 const FALLBACK_LOGO_URL = "https://budgets.webistudio.net/placeholder-logo.png"
 const FALLBACK_WATERMARK_URL = "https://budgets.webistudio.net/watermark.png"
@@ -125,8 +126,28 @@ export async function GET(
     })
 
     const pdfUint8 = await generatePdf(html)
-    const buffer = Buffer.from(pdfUint8)
+    let buffer = Buffer.from(pdfUint8)
 
+    // 👇 nuevo — merge con el PDF de condiciones, si corresponde
+    if (budget.attachConditionsPdf && budget.tenant?.conditionsPdfUrl) {
+      try {
+        const finalPdf = await PDFDocument.create()
+        const mainPdf = await PDFDocument.load(buffer)
+        const mainPages = await finalPdf.copyPages(mainPdf, mainPdf.getPageIndices())
+        mainPages.forEach((p) => finalPdf.addPage(p))
+
+        // el PDF de condiciones está en base64, "data:application/pdf;base64,XXXX"
+        const base64Data = budget.tenant.conditionsPdfUrl.split(',')[1]
+        const conditionsBytes = Buffer.from(base64Data, 'base64')
+        const conditionsPdf = await PDFDocument.load(conditionsBytes)
+        const conditionsPages = await finalPdf.copyPages(conditionsPdf, conditionsPdf.getPageIndices())
+        conditionsPages.forEach((p) => finalPdf.addPage(p))
+
+        buffer = Buffer.from(await finalPdf.save())
+      } catch (e) {
+        console.error('Error merging conditions PDF, se envía solo el presupuesto:', e) // 👈 fail-safe: si el merge falla, igual entrega el presupuesto
+      }
+    }
     /* ========================
        Nombre del archivo de descarga
     ======================== */

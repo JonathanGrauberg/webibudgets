@@ -1,5 +1,5 @@
 'use client'
-
+//components\branding\smart-asset-row.tsx
 /**
  * SmartAssetRow — Drop-in replacement for CompactAssetRow
  * 

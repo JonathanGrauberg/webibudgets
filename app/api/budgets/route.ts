@@ -187,9 +187,7 @@ export async function POST(request: Request) {
     // ===============================================
     const budget = await prisma.budget.create({
       data: {
-        tenant: {
-          connect: { id: tenantId },
-        },
+        tenant: { connect: { id: tenantId } },
         status: 'draft',
         budgetNumber,
         currency: budgetCurrency,
@@ -197,6 +195,7 @@ export async function POST(request: Request) {
         installationResponsible: data.installationResponsible ?? null,
         installerReference: data.installerReference ?? null,
         details: Array.isArray(data.details) ? data.details : [],
+        attachConditionsPdf: data.attachConditionsPdf !== false, // 👈 nuevo — default true si no viene explícito en false
         subtotal: calculation.subtotal,
         discount: calculation.discountAmount,
         tax: calculation.taxAmount,
@@ -204,9 +203,7 @@ export async function POST(request: Request) {
         total: calculation.total,
         paymentTerms: data.paymentTerms ?? null,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        client: {
-          connect: { id: data.clientId },
-        },
+        client: { connect: { id: data.clientId } },
         ...(sellerId ? { seller: { connect: { id: sellerId } } } : {}),
         ...(installerId ? { installer: { connect: { id: installerId } } } : {}),
 
@@ -221,8 +218,9 @@ export async function POST(request: Request) {
               subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
               discount: Number(item.discount ?? 0),
               customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
-              cost: !isCustom ? productCostMap.get(item.productServiceId) ?? null : null, // 👈 Snapshot de costo agregado con éxito
-              widthCm: item.widthCm ?? null,
+              cost: !isCustom
+                ? productCostMap.get(item.productServiceId) ?? null
+                : (item.cost !== undefined && item.cost !== null ? Number(item.cost) : null), // 👈 antes: null fijo              widthCm: item.widthCm ?? null,
               heightCm: item.heightCm ?? null,
               depthCm: item.depthCm ?? null,
               direct: item.direct ?? null,

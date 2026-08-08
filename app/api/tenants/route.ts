@@ -40,6 +40,8 @@ export async function GET(request: Request) {
       showWebsiteInPdf: true,
       showFooterBranding: true,
       serviceProductIds: true,
+      conditionsPdfUrl: true,  // 👈 nuevo
+      conditionsPdfName: true, // 👈 nuevo
 
       features: true,
     }
@@ -99,7 +101,8 @@ export async function PUT(request: NextRequest) {
     'showPageNumbers',
     'showWebsiteInPdf',
     'showFooterBranding',
-
+    'conditionsPdfUrl',  // 👈 nuevo
+    'conditionsPdfName', // 👈 nuevo
     'plan',
     'maxUsers',
   ]

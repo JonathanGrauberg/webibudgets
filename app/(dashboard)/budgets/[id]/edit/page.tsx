@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, Loader2, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Sparkles, Ruler, Loader2, ChevronDown, FileText } from 'lucide-react'
 import useSWR from 'swr'
 import { CATEGORY_LABELS, type Client, type ProductService } from '@/lib/types'
 import type { ProductCategory } from '@/lib/types'
@@ -39,7 +39,7 @@ import { ProductPicker } from '@/components/budget/product-picker'
 
 /* ================================
    TYPES & INTERFACES
-   (alineados con new/page.tsx — se agregan productVariantId / variantLabel)
+   (alineados con new/page.tsx — se agregan productVariantId / variantLabel / cost)
 ================================ */
 type BudgetItemInput = {
   id: string
@@ -50,6 +50,7 @@ type BudgetItemInput = {
   category?: ProductCategory
   quantity: number
   unitPrice: number
+  cost: number | null // 👈 nuevo — solo se usa/muestra cuando isCustom
   unit?: string
   isCustom?: boolean
   widthCm:  number | null
@@ -216,6 +217,25 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
           )}
         </TableCell>
 
+        {/* ── COSTO (solo ítems libres) ── */}
+        <TableCell className="text-right">
+          {item.isCustom ? (
+            <div className="relative">
+              <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+              <Input
+                type="number"
+                min={0}
+                className="pl-6 text-right"
+                placeholder="Opcional"
+                value={item.cost ?? ''}
+                onChange={(e) => handleFieldChange('cost', e.target.value === '' ? null : Number(e.target.value))}
+              />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+
         <TableCell className="text-right font-medium">
           {formatCurrency(item.unitPrice * item.quantity, currency)}
         </TableCell>
@@ -234,7 +254,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
 
       {showCalc && isExpanded && (
         <TableRow>
-          <TableCell colSpan={6} className="bg-muted/20 px-4 py-2">
+          <TableCell colSpan={7} className="bg-muted/20 px-4 py-2">
             <BudgetItemCalculator
               unit={item.unit}
               unitPrice={item.unitPrice}
@@ -255,7 +275,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
 })
 
 /* ================================
-   BUDGET ITEM CARD (MOBILE) — agregado, faltaba en edit
+   BUDGET ITEM CARD (MOBILE)
 ================================ */
 const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
   item,
@@ -381,6 +401,24 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
         </div>
       </div>
 
+      {/* ── COSTO (solo ítems libres) ── */}
+      {item.isCustom && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Costo (opcional)</p>
+          <div className="relative">
+            <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">$</span>
+            <Input
+              type="number"
+              min={0}
+              className="pl-6"
+              placeholder="Lo que gastaste en este ítem"
+              value={item.cost ?? ''}
+              onChange={(e) => handleFieldChange('cost', e.target.value === '' ? null : Number(e.target.value))}
+            />
+          </div>
+        </div>
+      )}
+
       {showCalc && (
         <button
           type="button"
@@ -456,6 +494,8 @@ export default function EditBudgetPage() {
   const [shippingIncluded, setShippingIncluded] = useState(true)
   const [shippingCost, setShippingCost]     = useState(0)
   const [shippingSectionOpen, setShippingSectionOpen] = useState(false)
+  const [conditionsSectionOpen, setConditionsSectionOpen] = useState(false) // 👈 nuevo
+  const [attachConditions, setAttachConditions] = useState(true) // 👈 nuevo — se hidrata del presupuesto existente
   const [paymentTerms, setPaymentTerms]     = useState('')
   const [validUntil, setValidUntil]         = useState('')
   const [sellerId, setSellerId]             = useState('')
@@ -508,6 +548,9 @@ export default function EditBudgetPage() {
       setShippingSectionOpen(false)
     }
 
+    // 👈 nuevo — hidrata el estado de "adjuntar condiciones" desde lo que se guardó al crear
+    setAttachConditions(existingBudget.attachConditionsPdf !== false)
+
     setDetails(
       Array.isArray(existingBudget.details) && existingBudget.details.length > 0
         ? existingBudget.details.map((d: any) => ({
@@ -528,6 +571,7 @@ export default function EditBudgetPage() {
         category: it.productService?.category,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
+        cost: it.productServiceId ? null : (it.cost ?? null), // 👈 nuevo — solo relevante para ítems libres
         unit: it.productService?.unit || 'un.',
         isCustom: !it.productServiceId,
         widthCm: it.widthCm ?? null,
@@ -642,6 +686,7 @@ export default function EditBudgetPage() {
           category: product.category as ProductCategory,
           quantity: 1,
           unitPrice: product.price,
+          cost: null,
           unit: product.unit,
           isCustom: false,
           widthCm: null,
@@ -667,6 +712,7 @@ export default function EditBudgetPage() {
         name:             '',
         quantity:         1,
         unitPrice:        0,
+        cost:             null, // 👈 nuevo
         unit:             'un.',
         isCustom:         true,
         widthCm:          null,
@@ -774,12 +820,14 @@ export default function EditBudgetPage() {
           // null = envío incluido en el precio o no discriminado
           // número = costo de envío cobrado aparte (0 = gratis declarado)
           shippingCost: shippingSectionOpen && !shippingIncluded ? safeShippingCost : null,
+          attachConditionsPdf: !!branding?.conditionsPdfUrl && attachConditions, // 👈 nuevo
           items: items.map((i) => ({
             productServiceId: i.productServiceId,
             productVariantId: i.productVariantId,
             customName:       i.isCustom ? i.name : null,
             quantity:         i.quantity,
             unitPrice:        i.unitPrice,
+            cost:             i.isCustom ? i.cost : null, // 👈 nuevo
             subtotal:         i.unitPrice * i.quantity,
             widthCm:          i.widthCm  ?? null,
             heightCm:         i.heightCm ?? null,
@@ -878,11 +926,13 @@ export default function EditBudgetPage() {
                     <Select value={clientId} disabled>
                       <SelectTrigger><SelectValue placeholder="Seleccionar cliente..." /></SelectTrigger>
                       <SelectContent>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.company} - {c.name}
-                          </SelectItem>
-                        ))}
+                        {[...clients]
+                          .sort((a, b) => (a.company || a.name).localeCompare(b.company || b.name))
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.company} - {c.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -979,13 +1029,14 @@ export default function EditBudgetPage() {
 
                       {/* Desktop */}
                       <div className="mt-4 hidden overflow-x-auto rounded-lg border sm:block">
-                        <Table className="min-w-[640px]">
+                        <Table className="min-w-[720px]">
                           <TableHeader>
                             <TableRow>
                               <TableHead>Item</TableHead>
                               <TableHead className="w-[100px]">Cant.</TableHead>
                               <TableHead className="text-right w-[90px]">Stock</TableHead>
                               <TableHead className="text-right w-[140px]">Precio Unit.</TableHead>
+                              <TableHead className="text-right w-[130px]">Costo</TableHead>
                               <TableHead className="text-right">Subtotal</TableHead>
                               <TableHead />
                             </TableRow>
@@ -1255,6 +1306,44 @@ export default function EditBudgetPage() {
                       </>
                     )}
                   </div>
+
+                  {/* ADJUNTAR CONDICIONES — nuevo, faltaba en edit */}
+                  {branding?.conditionsPdfUrl && (
+                    <div className="space-y-2 border-t pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setConditionsSectionOpen((v) => !v)}
+                        className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <span>Adjuntar condiciones</span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${conditionsSectionOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+
+                      {conditionsSectionOpen && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="truncate text-sm text-muted-foreground">
+                                {branding.conditionsPdfName}
+                              </span>
+                            </div>
+                            <Switch
+                              checked={attachConditions}
+                              onCheckedChange={setAttachConditions}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {attachConditions
+                              ? 'Se agregará como página adicional al final del PDF del presupuesto.'
+                              : 'No se incluirá en este presupuesto.'}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
                     <span>Total</span>

@@ -1,5 +1,5 @@
 'use client'
-
+//app\(dashboard)\clients\page.tsx
 import { Suspense, useState } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -49,14 +49,15 @@ export default function ClientsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
 
-  const filteredClients = clients.filter((client) => {
+  const filteredClients = clients
+  .filter((client) => {
     const name = client.name?.toLowerCase() ?? ''
     const company = client.company?.toLowerCase() ?? ''
     const email = client.email?.toLowerCase() ?? ''
     const query = searchQuery.toLowerCase()
-
     return name.includes(query) || company.includes(query) || email.includes(query)
   })
+  .sort((a, b) => (a.company || a.name).localeCompare(b.company || b.name)) // 👈 nuevo
 
   const handleCreate = () => {
     setEditingClient(null)

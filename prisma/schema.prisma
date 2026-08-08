@@ -180,6 +180,9 @@ model Tenant {
 
   referralCodeId String?
   referralCode   ResellerCode? @relation(fields: [referralCodeId], references: [id])
+
+  conditionsPdfUrl  String? // data URI base64 del PDF de condiciones
+  conditionsPdfName String? // nombre original, para mostrarlo en la UI
 }
 
 /* =========================
@@ -436,6 +439,8 @@ model Budget {
   deliveryNotes DeliveryNote[] // 👈 nuevo
   workOrders WorkOrder[] // 👈 nuevo
 
+  attachConditionsPdf Boolean @default(true) // 👈 nuevo — se guarda por presupuesto, no solo en el form
+   
   @@index([tenantId])
   @@index([clientId])
 }
