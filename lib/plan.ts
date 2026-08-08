@@ -151,9 +151,9 @@ export const PUBLIC_PLANS = (Object.entries(PLAN_LIMITS) as [PlanKey, PlanLimit]
   .map(([value, config]) => ({ value, ...config }))
 
 // Todos los planes para selects internos (admin)
-export const PLAN_OPTIONS = (Object.entries(PLAN_LIMITS) as [PlanKey, PlanLimit][]).map(
-  ([value, config]) => ({ value, label: config.label, description: config.description })
-)
+export const PLAN_OPTIONS = (Object.entries(PLAN_LIMITS) as [PlanKey, PlanLimit][])
+  .filter(([value]) => !['starter', 'team', 'business'].includes(value)) // 👈 agregar este filtro
+  .map(([value, config]) => ({ value, label: config.label, description: config.description }))
 
 export function isValidPlan(plan: unknown): plan is PlanKey {
   return typeof plan === 'string' && plan in PLAN_LIMITS

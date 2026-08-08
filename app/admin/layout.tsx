@@ -1,5 +1,5 @@
 'use client'
-
+//app\admin\layout.tsx
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -8,6 +8,7 @@ import { signOut } from 'next-auth/react' // 👈 Importamos el método nativo d
 const navLinks = [
   { href: '/admin', label: 'Inicio' },
   { href: '/admin/tenants', label: 'Tenants' },
+  { href: '/admin/resellers', label: 'Revendedores' }, // 👈 nuevo
   { href: '/admin/create-tenant', label: 'Nuevo tenant' },
 ]
 

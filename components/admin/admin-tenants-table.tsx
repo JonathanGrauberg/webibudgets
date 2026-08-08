@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
 import { Crown, Gem, Trash2, Search, X } from 'lucide-react'
-import TenantFeaturesForm from '@/components/admin/tenant-features-form' // 👈 nuevo
+import TenantFeaturesForm from '@/components/admin/tenant-features-form'
 
 interface TenantRow {
   id: string
@@ -15,7 +15,7 @@ interface TenantRow {
   trialEndsAt: string | null
   active: boolean
   createdAt: string
-  features: Record<string, boolean> | null // 👈 nuevo
+  features: Record<string, boolean> | null
 }
 
 interface EditState {
@@ -90,19 +90,19 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
   }
 
   function startEdit(t: TenantRow) {
-  const plan = normalizePlan(t.plan)
-  setEditingId(t.id)
-  setConfirmDeleteId(null)
-  setConfirmHardDeleteId(null)
-  setEdit({
-    plan,
-    originalPlan: plan,
-    maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan]?.maxUsers ?? 9999),
-    trialEndsAt: planHasTrial(plan) ? toDateInputValue(t.trialEndsAt) : '', // 👈
-    active: t.active,
-  })
-  setError(null)
-}
+    const plan = normalizePlan(t.plan)
+    setEditingId(t.id)
+    setConfirmDeleteId(null)
+    setConfirmHardDeleteId(null)
+    setEdit({
+      plan,
+      originalPlan: plan,
+      maxUsers: t.maxUsers != null ? String(t.maxUsers) : String(PLAN_LIMITS[plan]?.maxUsers ?? 9999),
+      trialEndsAt: planHasTrial(plan) ? toDateInputValue(t.trialEndsAt) : '',
+      active: t.active,
+    })
+    setError(null)
+  }
 
   function cancelEdit() {
     setEditingId(null)
@@ -200,73 +200,98 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
 
   if (!mounted) return null
 
+  // ── EditFields: campos compartidos entre la card mobile (compact) y la fila desktop (<td> reales) ──
   function EditFields({ compact = false }: { compact?: boolean }) {
     if (!edit) return null
+
+    const planField = (
+      <select
+        value={edit.plan}
+        onChange={(e) => {
+          const newPlan = e.target.value as PlanKey
+          const limits = PLAN_LIMITS[newPlan]
+          setEdit((prev) => prev ? {
+            ...prev,
+            plan: newPlan,
+            maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
+            trialEndsAt: planHasTrial(newPlan) ? prev.trialEndsAt : '',
+          } : prev)
+        }}
+        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
+      >
+        {PLAN_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    )
+
+    const maxUsersField = (
+      <input
+        type="number"
+        min={0}
+        disabled={edit.plan === 'vip'}
+        value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
+        onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
+        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+    )
+
+    const trialField = edit.plan === 'vip' ? (
+      <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
+    ) : !planHasTrial(edit.plan) ? (
+      <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Sin trial (plan {planLabel(edit.plan)})</span>
+    ) : (
+      <input
+        type="date"
+        value={edit.trialEndsAt}
+        onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
+        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
+      />
+    )
+
+    const activeField = (
+      <label className="inline-flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={edit.active}
+          onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
+          className="w-4 h-4"
+        />
+        <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
+      </label>
+    )
+
+    if (compact) {
+      return (
+        <div className="space-y-3">
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Plan</p>
+            {planField}
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Max usuarios</p>
+            {maxUsersField}
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Trial hasta</p>
+            {trialField}
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Estado</p>
+            {activeField}
+          </div>
+        </div>
+      )
+    }
+
+    // Desktop: 4 <td> reales, hijos directos de la <tr> que la usa — nunca un <div>
     return (
-      <div className={compact ? 'space-y-3' : 'contents'}>
-        <div className={compact ? '' : 'px-6 py-4 text-sm text-slate-600 dark:text-slate-400'}>
-          {compact && <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Plan</p>}
-          <select
-            value={edit.plan}
-            onChange={(e) => {
-            const newPlan = e.target.value as PlanKey
-            const limits = PLAN_LIMITS[newPlan]
-            setEdit((prev) => prev ? {
-              ...prev,
-              plan: newPlan,
-              maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
-              trialEndsAt: planHasTrial(newPlan) ? prev.trialEndsAt : '', // 👈
-            } : prev)
-          }}
-            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-          >
-            {PLAN_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className={compact ? '' : 'px-6 py-4 text-sm text-slate-600 dark:text-slate-400'}>
-          {compact && <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Max usuarios</p>}
-          <input
-            type="number"
-            min={0}
-            disabled={edit.plan === 'vip'}
-            value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
-            onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
-            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-        </div>
-
-        <div className={compact ? '' : 'px-6 py-4 text-sm text-slate-600 dark:text-slate-400'}>
-          {compact && <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Trial hasta</p>}
-          {edit.plan === 'vip' ? (
-            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
-          ) : !planHasTrial(edit.plan) ? (
-            <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Sin trial (plan {planLabel(edit.plan)})</span>
-          ) : (
-            <input
-              type="date"
-              value={edit.trialEndsAt}
-              onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-            />
-          )}
-        </div>
-
-        <div className={compact ? '' : 'px-6 py-4 text-sm'}>
-          {compact && <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Estado</p>}
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={edit.active}
-              onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
-              className="w-4 h-4"
-            />
-            <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
-          </label>
-        </div>
-      </div>
+      <>
+        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{planField}</td>
+        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{maxUsersField}</td>
+        <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{trialField}</td>
+        <td className="px-6 py-4 text-sm">{activeField}</td>
+      </>
     )
   }
 
@@ -487,6 +512,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
 
         {/* ── DESKTOP: tabla ─────────────────────────────────────────────────── */}
         {filteredTenants.length > 0 && (
+          <div className="w-full overflow-x-auto">
           <table className="hidden lg:table min-w-full divide-y divide-slate-200 dark:divide-slate-800">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
               <tr>
@@ -497,7 +523,9 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                 <th className="px-6 py-4">Trial hasta</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4">Creado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
+                <th className="sticky right-0 whitespace-nowrap bg-slate-50 px-6 py-4 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-900">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
@@ -520,88 +548,39 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
 
-                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                        {isEditing && edit ? (
-                          <select
-                            value={edit.plan}
-                            onChange={(e) => {
-                              const newPlan = e.target.value as PlanKey
-                              const limits = PLAN_LIMITS[newPlan]
-                              setEdit((prev) => prev ? {
-                                ...prev,
-                                plan: newPlan,
-                                maxUsers: newPlan === 'vip' ? '9999' : (limits?.maxUsers != null ? String(limits.maxUsers) : '9999'),
-                                trialEndsAt: newPlan === 'vip' ? '' : prev.trialEndsAt,
-                              } : prev)
-                            }}
-                            className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-                          >
-                            {PLAN_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>{planLabel(tenant.plan)}</span>
-                        )}
-                      </td>
+                      {isEditing && edit ? (
+                        <EditFields />
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>{planLabel(tenant.plan)}</span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            {maxUsersDisplay(tenant.maxUsers, tenant.plan)}
+                          </td>
+                          <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            {tenant.plan === 'vip' ? (
+                              <span className="text-amber-600 dark:text-amber-400 font-semibold">Ilimitado (VIP)</span>
+                            ) : tenant.trialEndsAt ? (
+                              new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
+                            ) : '—'}
+                          </td>
+                        </>
+                      )}
 
-                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                        {isEditing && edit ? (
-                          <input
-                            type="number"
-                            min={0}
-                            disabled={edit.plan === 'vip'}
-                            value={edit.plan === 'vip' ? '9999' : edit.maxUsers}
-                            onChange={(e) => setEdit((prev) => (prev ? { ...prev, maxUsers: e.target.value } : prev))}
-                            className="w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                        ) : (
-                          maxUsersDisplay(tenant.maxUsers, tenant.plan)
-                        )}
-                      </td>
-
-                      <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                        {isEditing && edit ? (
-                          edit.plan === 'vip' ? (
-                            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bonificado (Eterno)</span>
-                          ) : (
-                            <input
-                              type="date"
-                              value={edit.trialEndsAt}
-                              onChange={(e) => setEdit((prev) => (prev ? { ...prev, trialEndsAt: e.target.value } : prev))}
-                              className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-sm outline-none focus:border-black focus:bg-white dark:border-slate-700 dark:bg-slate-900"
-                            />
-                          )
-                        ) : isCurrentVip ? (
-                          <span className="text-amber-600 dark:text-amber-400 font-semibold">Ilimitado (VIP)</span>
-                        ) : tenant.trialEndsAt ? (
-                          new Date(tenant.trialEndsAt).toLocaleDateString('es-AR')
-                        ) : '—'}
-                      </td>
-
-                      <td className="px-6 py-4 text-sm">
-                        {isEditing && edit ? (
-                          <label className="inline-flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={edit.active}
-                              onChange={(e) => setEdit((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
-                              className="w-4 h-4"
-                            />
-                            <span className="text-sm text-slate-600">{edit.active ? 'Activo' : 'Inactivo'}</span>
-                          </label>
-                        ) : (
+                      {!isEditing && (
+                        <td className="px-6 py-4 text-sm">
                           <span className={`font-medium ${tenant.active ? 'text-emerald-600' : 'text-zinc-400'}`}>
                             {tenant.active ? 'Activo' : 'Inactivo'}
                           </span>
-                        )}
-                      </td>
+                        </td>
+                      )}
 
                       <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                         {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
                       </td>
 
-                      <td className="px-6 py-4 text-right text-sm">
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
                         {isEditing ? (
                           <div className="flex justify-end gap-2">
                             <button onClick={saveEdit} disabled={isSaving} className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
@@ -676,6 +655,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

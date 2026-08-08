@@ -129,6 +129,7 @@ model Tenant {
   secondaryColor String?
   accentColor    String?
   watermarkOpacity Float? @default(0.06)
+  logoSize         Int?   @default(100) 
   showPageNumbers  Boolean? @default(true)
   showWebsiteInPdf Boolean? @default(true)
   showFooterBranding Boolean? @default(false)

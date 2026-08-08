@@ -109,6 +109,7 @@ export async function GET(
           website: budget.tenant.website ?? undefined,
           primaryColor: (budget.tenant as any).primaryColor ?? undefined,
           watermarkOpacity: (budget.tenant as any).watermarkOpacity ?? undefined,
+          logoSize: (budget.tenant as any).logoSize ?? undefined, // 👈 nuevo
           showPageNumbers: (budget.tenant as any).showPageNumbers ?? undefined,
           showWebsiteInPdf: (budget.tenant as any).showWebsiteInPdf ?? undefined,
           showFooterBranding: (budget.tenant as any).showFooterBranding ?? undefined,

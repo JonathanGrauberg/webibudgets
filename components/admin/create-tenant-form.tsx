@@ -38,7 +38,7 @@ export default function CreateTenantForm() {
           adminEmail, 
           password, 
           plan, // Enviamos el plan directo ('free', 'starter', 'team', 'business' o 'vip')
-          trialEndsAt: plan === 'vip' ? null : undefined // Si es VIP, explícitamente no lleva trial
+            trialEndsAt: (plan === 'vip' || plan === 'custom') ? null : undefined, // 👈 antes: solo vip
         }),
       })
 
@@ -48,8 +48,11 @@ export default function CreateTenantForm() {
       }
 
       const data = await response.json()
-      setMessage(`Tenant creado: ${data.tenant.name} (${data.tenant.slug}) ${plan === 'vip' ? '⭐ [PLAN VIP ILIMITADO]' : ''}`)
-      
+      setMessage(
+        `Tenant creado: ${data.tenant.name} (${data.tenant.slug}) ${
+          plan === 'vip' ? '⭐ [PLAN VIP ILIMITADO]' : plan === 'custom' ? '💎 [PLAN PRO]' : ''
+        }`
+      )      
       // Resetear formulario
       setCompanyName('')
       setSlug('')

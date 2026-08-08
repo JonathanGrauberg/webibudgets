@@ -157,6 +157,7 @@ export async function getTenantBranding(tenantId: string) {
       logoUrl: true,
       faviconUrl: true,
       watermarkUrl: true,
+      logoSize: true,
       sidebarIconUrl: true,
       primaryColor: true,
       secondaryColor: true,

@@ -124,6 +124,7 @@ export function PDFPreview({
   watermark,
   logo,
   watermarkOpacity = 0.06,
+  logoSize = 100, // 👈 nuevo
   showPageNumbers = true,
   showWebsiteInPdf = true,
   showFooterBranding = false,
@@ -132,10 +133,12 @@ export function PDFPreview({
   watermark: string | null
   logo: string | null
   watermarkOpacity?: number
+  logoSize?: number // 👈 nuevo
   showPageNumbers?: boolean
   showWebsiteInPdf?: boolean
   showFooterBranding?: boolean
-}){
+}) {
+  const logoPx = Math.round(48 * (logoSize / 100)) // 👈 nuevo — 48px = el w-12/h-12 actual (12 * 4px de Tailwind)
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700">
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
@@ -181,7 +184,8 @@ export function PDFPreview({
           <img
             src={logo}
             alt="Logo"
-            className="w-12 h-12 object-contain"
+            className="object-contain" // 👈 antes: "w-12 h-12 object-contain"
+            style={{ width: logoPx, height: logoPx }} // 👈 nuevo — tamaño dinámico en vez de fijo
           />
         )}
       </div>

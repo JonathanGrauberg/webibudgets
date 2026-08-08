@@ -84,6 +84,7 @@ type PersistedState = {
   secondaryColor: string
   accentColor: string
   watermarkOpacity: number
+  logoSize: number
   showPageNumbers: boolean
   showWebsiteInPdf: boolean
   showFooterBranding: boolean
@@ -97,7 +98,7 @@ function buildPersistedState(
   companyInfo: CompanyInfo,
   brandingAssets: BrandingAssets,
   colorSystem: ColorSystem,
-  pdfSettings: { watermarkOpacity: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean }
+  pdfSettings: { watermarkOpacity: number; logoSize: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean } // 👈 agregado logoSize
 ): PersistedState {
   return {
     name: companyInfo.name,
@@ -109,6 +110,7 @@ function buildPersistedState(
     secondaryColor: colorSystem.secondary,
     accentColor: colorSystem.accent,
     watermarkOpacity: pdfSettings.watermarkOpacity,
+    logoSize: pdfSettings.logoSize, // 👈 antes: 100 hardcodeado
     showPageNumbers: pdfSettings.showPageNumbers,
     showWebsiteInPdf: pdfSettings.showWebsiteInPdf,
     showFooterBranding: pdfSettings.showFooterBranding,
@@ -118,7 +120,7 @@ function buildPersistedState(
 function serializeBranding(
   brandingAssets: BrandingAssets,
   colorSystem: ColorSystem,
-  pdfSettings: { watermarkOpacity: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean }
+  pdfSettings: { watermarkOpacity: number; logoSize: number; showPageNumbers: boolean; showWebsiteInPdf: boolean; showFooterBranding: boolean } // 👈 agregado logoSize acá
 ): string {
   return JSON.stringify({
     logoUrl: brandingAssets.logo,
@@ -129,6 +131,7 @@ function serializeBranding(
     secondaryColor: colorSystem.secondary,
     accentColor: colorSystem.accent,
     watermarkOpacity: pdfSettings.watermarkOpacity,
+    logoSize: pdfSettings.logoSize, // 👈 antes: brandingAssets.logoSize (no existe)
     showPageNumbers: pdfSettings.showPageNumbers,
     showWebsiteInPdf: pdfSettings.showWebsiteInPdf,
     showFooterBranding: pdfSettings.showFooterBranding,
@@ -250,6 +253,7 @@ export default function CompanyBrandingSettingsClient({
   })
 
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>((initialBranding as any)?.watermarkOpacity ?? 0.06)
+  const [logoSize, setLogoSize] = useState<number>((initialBranding as any)?.logoSize ?? 100)
   const [showPageNumbers, setShowPageNumbers] = useState<boolean>((initialBranding as any)?.showPageNumbers ?? true)
   const [showWebsiteInPdf, setShowWebsiteInPdf] = useState<boolean>((initialBranding as any)?.showWebsiteInPdf ?? true)
   const [showFooterBranding, setShowFooterBranding] = useState<boolean>((initialBranding as any)?.showFooterBranding ?? false)
@@ -262,19 +266,11 @@ export default function CompanyBrandingSettingsClient({
 
   const [savedBrandingSnapshot, setSavedBrandingSnapshot] = useState(() =>
     serializeBranding(
-      {
-        logo: effective.logoUrl ?? null,
-        favicon: effective.faviconUrl ?? null,
-        watermark: effective.watermarkUrl ?? null,
-        sidebarIcon: effective.sidebarIconUrl ?? null,
-      },
-      {
-        primary: effective.primaryColor ?? '#0ea5e9',
-        secondary: effective.secondaryColor ?? '#64748b',
-        accent: effective.accentColor ?? '#10b981',
-      },
+      { logo: effective.logoUrl ?? null, favicon: effective.faviconUrl ?? null, watermark: effective.watermarkUrl ?? null, sidebarIcon: effective.sidebarIconUrl ?? null },
+      { primary: effective.primaryColor ?? '#0ea5e9', secondary: effective.secondaryColor ?? '#64748b', accent: effective.accentColor ?? '#10b981' },
       {
         watermarkOpacity: (initialBranding as any)?.watermarkOpacity ?? 0.06,
+        logoSize: (initialBranding as any)?.logoSize ?? 100, // 👈 nuevo, faltaba acá
         showPageNumbers: (initialBranding as any)?.showPageNumbers ?? true,
         showWebsiteInPdf: (initialBranding as any)?.showWebsiteInPdf ?? true,
         showFooterBranding: (initialBranding as any)?.showFooterBranding ?? false,
@@ -334,6 +330,7 @@ export default function CompanyBrandingSettingsClient({
       },
       {
         watermarkOpacity: (initialBranding as any).watermarkOpacity ?? 0.06,
+        logoSize: (initialBranding as any).logoSize ?? 100,
         showPageNumbers: (initialBranding as any).showPageNumbers ?? true,
         showWebsiteInPdf: (initialBranding as any).showWebsiteInPdf ?? true,
         showFooterBranding: (initialBranding as any).showFooterBranding ?? false,
@@ -353,6 +350,7 @@ export default function CompanyBrandingSettingsClient({
         accent: eff.accentColor ?? '#10b981',
       })
       setWatermarkOpacity((initialBranding as any).watermarkOpacity ?? 0.06)
+      setLogoSize((initialBranding as any).logoSize ?? 100)
       setShowPageNumbers((initialBranding as any).showPageNumbers ?? true)
       setShowWebsiteInPdf((initialBranding as any).showWebsiteInPdf ?? true)
       setShowFooterBranding((initialBranding as any).showFooterBranding ?? false)
@@ -396,6 +394,7 @@ export default function CompanyBrandingSettingsClient({
       showPageNumbers,
       showWebsiteInPdf,
       showFooterBranding,
+      logoSize,
     }) !== savedBrandingSnapshot
 
   const companyChanged =
@@ -461,6 +460,7 @@ export default function CompanyBrandingSettingsClient({
                 showPageNumbers: currentPayload.showPageNumbers,
                 showWebsiteInPdf: currentPayload.showWebsiteInPdf,
                 showFooterBranding: currentPayload.showFooterBranding,
+                logoSize: currentPayload.logoSize,
               }
             )
           )
@@ -500,35 +500,21 @@ export default function CompanyBrandingSettingsClient({
   )
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true
-      return
-    }
+  if (!hasMountedRef.current) { hasMountedRef.current = true; return }
+  if (!brandingChanged) return
 
-    if (!brandingChanged) return
+  const timer = setTimeout(() => {
+    const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, {
+      watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding,
+    })
+    void persistBranding(payload)
+  }, AUTOSAVE_DEBOUNCE_MS)
 
-    const timer = setTimeout(() => {
-      const payload = buildPersistedState(companyInfo, brandingAssets, colorSystem, {
-        watermarkOpacity,
-        showPageNumbers,
-        showWebsiteInPdf,
-        showFooterBranding,
-      })
-      void persistBranding(payload)
-    }, AUTOSAVE_DEBOUNCE_MS)
-
-    return () => clearTimeout(timer)
-  }, [
-    brandingAssets,
-    colorSystem,
-    brandingChanged,
-    companyInfo,
-    persistBranding,
-    watermarkOpacity,
-    showPageNumbers,
-    showWebsiteInPdf,
-    showFooterBranding,
-  ])
+  return () => clearTimeout(timer)
+}, [
+  brandingAssets, colorSystem, brandingChanged, companyInfo, persistBranding,
+  watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding, // 👈 logoSize agregado
+])
 
   useEffect(() => {
     return () => {
@@ -951,6 +937,22 @@ export default function CompanyBrandingSettingsClient({
                         style={{ accentColor: colorSystem.primary }}
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <label className="text-slate-700 dark:text-slate-300">Tamaño del logo en PDF</label>
+                        <span className="font-medium text-slate-500">{logoSize}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="150"
+                        step="5"
+                        value={logoSize}
+                        onChange={(e) => setLogoSize(Number(e.target.value))}
+                        className="w-full accent-current"
+                        style={{ accentColor: colorSystem.primary }}
+                      />
+                    </div>
                     <div className="space-y-2.5">
                       {[
                         { label: 'Mostrar numeración de páginas', value: showPageNumbers, setter: setShowPageNumbers },
@@ -1026,6 +1028,7 @@ export default function CompanyBrandingSettingsClient({
                       watermark={brandingAssets.watermark}
                       logo={previewLogo}
                       watermarkOpacity={watermarkOpacity}
+                      logoSize={logoSize} // 👈 nuevo, si el componente lo soporta
                       showPageNumbers={showPageNumbers}
                       showWebsiteInPdf={showWebsiteInPdf}
                       showFooterBranding={showFooterBranding}

@@ -19,6 +19,7 @@ export function budgetPdfTemplate(
       website?: string
       primaryColor?: string
       watermarkOpacity?: number
+      logoSize?: number // 👈 nuevo, si no está ya
       showPageNumbers?: boolean
       showWebsiteInPdf?: boolean
       showFooterBranding?: boolean
@@ -27,6 +28,7 @@ export function budgetPdfTemplate(
 ) {
 
   const tenant = opts?.tenant
+  const logoWidthPx = Math.round(56 * ((tenant?.logoSize ?? 100) / 100)) // 👈 nuevo — 56px es el alto base actual
   const watermarkOpacity = tenant?.watermarkOpacity ?? 0.06
   const pdfPrimary = tenant?.primaryColor ?? '#0F172A'
   const pdfHeaderText = getContrastColor(pdfPrimary)
@@ -39,6 +41,12 @@ export function budgetPdfTemplate(
   const hasTax = Number(budget.tax ?? 0) > 0
   const hasShipping = budget.shippingCost !== null && budget.shippingCost !== undefined
   const shippingValue = Number(budget.shippingCost ?? 0)
+
+  // 👇 nuevo — reconstruye el % a partir del monto, mismo criterio que ya usa el edit
+  const taxedBase = Math.max(0, Number(budget.subtotal ?? 0) - Number(budget.discount ?? 0))
+  const taxPercentageDisplay = hasTax && taxedBase > 0
+    ? Math.round((Number(budget.tax) / taxedBase) * 100 * 10) / 10 // redondeo a 1 decimal
+    : 0
 
   // Logo arriba derecha (chico)
   const logo = opts?.logoDataUri ? `<img class="logo" src="${opts.logoDataUri}" alt="WebiBudgets" />` : ''
@@ -118,7 +126,7 @@ export function budgetPdfTemplate(
     .muted { color: #666; font-size: 11px; margin: 0; }
 
     .logo {
-      height: 56px;
+      height: ${logoWidthPx}px; /* 👈 antes: 56px fijo */
       width: auto;
       object-fit: contain;
     }
@@ -301,14 +309,14 @@ export function budgetPdfTemplate(
         }
 
         ${
-          hasTax
-            ? `
-        <tr>
-          <td>Impuestos</td>
-          <td class="right">+ ${formatCurrency(Number(budget.tax ?? 0))}</td>
-        </tr>`
-            : ''
-        }
+            hasTax
+              ? `
+          <tr>
+            <td>IVA (${taxPercentageDisplay}%)</td>
+            <td class="right">+ ${formatCurrency(Number(budget.tax ?? 0))}</td>
+          </tr>`
+              : ''
+          }
 
         ${
           hasShipping
