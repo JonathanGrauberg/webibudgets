@@ -1,15 +1,16 @@
 'use client'
 // app/(dashboard)/kiosco/page.tsx
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom' // 👈 nuevo
 import { useSession } from 'next-auth/react'
 import useSWR, { mutate } from 'swr'
-import { Plus, X, Crown, LayoutGrid, Pointer, MoreVertical } from 'lucide-react'
+import { Plus, X, Crown, LayoutGrid, Pointer, MoreVertical, AlertTriangle, VolumeX } from 'lucide-react'
 import { TasksBoard } from '@/components/tasks/tasks-board'
 import { hasFeature } from '@/lib/features'
 import { motion } from 'framer-motion'
 
 const MANAGER_ROLES = ['owner', 'admin']
+const EMPTY_BOARDS: KioskBoard[] = [] // 👈 nuevo — referencia estable, evita bucle infinito cuando data está undefined
 
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent' // 👈 nuevo — mismo enum que en tasks-board
 
@@ -123,7 +124,7 @@ export default function KioskPage() {
   const { data: branding } = useSWR('/api/tenants', fetcher)
   const hasKioskFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'kiosk')
 
-  const { data: boards = [], isLoading } = useSWR<KioskBoard[]>(
+  const { data: boards = EMPTY_BOARDS, isLoading } = useSWR<KioskBoard[]>(
     hasKioskFeature ? '/api/kiosk-boards' : null,
     fetcher,
     { refreshInterval: 8000 } // 👈 nuevo — los tableros cambian menos seguido que las tareas, intervalo más largo
@@ -201,11 +202,55 @@ export default function KioskPage() {
   const [showScreensaver, setShowScreensaver] = useState(false)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // 👇 nuevo — AudioContext para los beeps de alarma. Se crea/desbloquea con
+  // el primer toque real del usuario (los navegadores no dejan reproducir
+  // sonido por código sin un gesto humano previo, sobre todo en iOS).
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  const playAlertBeep = useCallback(() => {
+  const ctx = audioCtxRef.current
+  if (!ctx) return
+  if (ctx.state === 'suspended') ctx.resume()
+
+  const now = ctx.currentTime
+  // Notas: Do5 (523Hz), Mi5 (659Hz), Sol5 (784Hz)
+  const notes = [523.25, 659.25, 783.99]
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, now + i * 0.08)
+
+    const startTime = now + i * 0.08
+    const duration = 0.14
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.015)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration)
+  })
+}, [])
+
   useEffect(() => {
     const resetTimer = () => {
       setShowScreensaver(false)
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
       idleTimerRef.current = setTimeout(() => setShowScreensaver(true), IDLE_TIMEOUT_MS)
+
+      // 👇 nuevo — desbloqueo del audio en el primer toque real
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext
+        if (Ctx) audioCtxRef.current = new Ctx()
+      } else if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
     }
 
     const events = ['touchstart', 'mousedown', 'keydown']
@@ -217,6 +262,78 @@ export default function KioskPage() {
       events.forEach((e) => window.removeEventListener(e, resetTimer))
     }
   }, [])
+
+  // ── Alarma de tableros urgentes — modal con 3 acciones, en vez de banner ──
+  const [urgentBoards, setUrgentBoards] = useState<KioskBoard[]>([])
+  const [dismissedBoardIds, setDismissedBoardIds] = useState<Set<string>>(new Set())
+  const [snoozedUntil, setSnoozedUntil] = useState<number>(0)
+  const [alarmModalOpen, setAlarmModalOpen] = useState(false)
+  const previousUrgentIdsRef = useRef<Set<string>>(new Set())
+  const chimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Solo cuenta como "activo" lo urgente que no fue marcado como "No mostrar más"
+  const activeUrgentBoards = useMemo(
+    () => urgentBoards.filter((b) => !dismissedBoardIds.has(b.id)),
+    [urgentBoards, dismissedBoardIds]
+  )
+
+  // Detecta transiciones a "urgente" (no se dispara de nuevo en cada poll si ya estaba urgente)
+  useEffect(() => {
+    const currentUrgent = boards.filter((b) => b.priority === 'urgent')
+    const currentIds = new Set(currentUrgent.map((b) => b.id))
+    const newlyUrgentIds = [...currentIds].filter((id) => !previousUrgentIdsRef.current.has(id))
+
+    setUrgentBoards(currentUrgent)
+
+    if (newlyUrgentIds.length > 0) {
+      // un tablero que vuelve a ponerse urgente sale de la lista de "silenciados"
+      setDismissedBoardIds((prev) => {
+        const next = new Set(prev)
+        newlyUrgentIds.forEach((id) => next.delete(id))
+        return next
+      })
+      setSnoozedUntil(0)
+      setAlarmModalOpen(true)
+      playAlertBeep()
+    }
+    previousUrgentIdsRef.current = currentIds
+  }, [boards, playAlertBeep])
+
+  // Recordatorio periódico cada 60s: suena de nuevo y reabre el modal
+  useEffect(() => {
+    if (chimeIntervalRef.current) clearInterval(chimeIntervalRef.current)
+    if (activeUrgentBoards.length === 0) return
+
+    chimeIntervalRef.current = setInterval(() => {
+      if (Date.now() > snoozedUntil) {
+        playAlertBeep()
+        setAlarmModalOpen(true)
+      }
+    }, 60 * 1000)
+
+    return () => {
+      if (chimeIntervalRef.current) clearInterval(chimeIntervalRef.current)
+    }
+  }, [activeUrgentBoards.length, snoozedUntil, playAlertBeep])
+
+  const showAlarmModal = alarmModalOpen && activeUrgentBoards.length > 0
+
+  const handleDismissAlarm = () => setAlarmModalOpen(false) // vuelve a sonar en el próximo recordatorio (60s)
+
+  const handleMuteAlarm = () => {
+    setDismissedBoardIds((prev) => {
+      const next = new Set(prev)
+      activeUrgentBoards.forEach((b) => next.add(b.id))
+      return next
+    })
+    setAlarmModalOpen(false)
+  }
+
+  const handleGoToUrgentBoard = () => {
+    if (activeUrgentBoards[0]) setActiveBoardId(activeUrgentBoards[0].id)
+    setSnoozedUntil(Date.now() + 5 * 60 * 1000) // ya lo está mirando, no lo satures otra vez en 60s
+    setAlarmModalOpen(false)
+  }
 
   // ── Sin feature PRO ──────────────────────────────────────────────
   if (!hasKioskFeature) {
@@ -234,10 +351,11 @@ export default function KioskPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-full">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="flex items-center justify-center border-b border-border bg-primary py-1.5">
         <span className="text-xs font-black tracking-tighter text-foreground">.budgets</span>
       </div>
+
       {/* Header simple — agrandado para lectura a distancia */}
       <div className="flex items-center gap-2.5 border-b border-border px-6 py-4">
         <LayoutGrid className="h-6 w-6 text-muted-foreground" />
@@ -378,6 +496,47 @@ export default function KioskPage() {
           </div>
         </>,
         document.body
+      )}
+
+      {/* 👇 nuevo — modal de alarma, z-index por encima incluso del protector de pantalla */}
+      {showAlarmModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-7 w-7 animate-pulse text-red-600" />
+            </div>
+            <p className="mb-1 text-lg font-bold text-zinc-900">¡Tarea urgente!</p>
+            <p className="mb-6 text-sm text-zinc-500">
+              {activeUrgentBoards.map((b) => b.name).join(', ')}
+            </p>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleGoToUrgentBoard}
+                className="w-full rounded-xl bg-red-600 py-3 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Ir al tablero
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDismissAlarm}
+                  className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                >
+                  Desestimar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMuteAlarm}
+                  className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                >
+                  No mostrar más
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showScreensaver && (

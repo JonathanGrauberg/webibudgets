@@ -65,6 +65,8 @@ function borderForCard(task: Task, columnAccent: string): string {
   return PRIORITY_BORDER[task.priority] ?? columnAccent
 }
 
+const EMPTY_TASKS: Task[] = [] // 👈 nuevo — referencia estable, mismo motivo que EMPTY_BOARDS en kiosco/page.tsx
+
 const LINK_META: Record<
   NonNullable<TaskLinkType>,
   { label: string; icon: React.ElementType; className: string }
@@ -104,7 +106,7 @@ interface TasksBoardProps {
 
 export function TasksBoard({ boardId = null, canEdit = true, large = false }: TasksBoardProps) {
   const swrKey = boardId ? `/api/tasks?kioskBoardId=${boardId}` : '/api/tasks'
-  const { data: tasks = [] } = useSWR<Task[]>(swrKey, fetcher, { refreshInterval: 4000 }) // 👈 nuevo — polling cada 4s, para que el kiosco se actualice solo sin depender de cambiar de foco
+  const { data: tasks = EMPTY_TASKS } = useSWR<Task[]>(swrKey, fetcher, { refreshInterval: 4000 }) // 👈 nuevo — polling cada 4s, para que el kiosco se actualice solo sin depender de cambiar de foco
   const [linkPickerTaskId, setLinkPickerTaskId] = useState<string | null>(null)
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0)
 
