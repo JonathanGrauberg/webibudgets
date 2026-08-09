@@ -125,7 +125,8 @@ export default function KioskPage() {
 
   const { data: boards = [], isLoading } = useSWR<KioskBoard[]>(
     hasKioskFeature ? '/api/kiosk-boards' : null,
-    fetcher
+    fetcher,
+    { refreshInterval: 8000 } // 👈 nuevo — los tableros cambian menos seguido que las tareas, intervalo más largo
   )
 
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null)

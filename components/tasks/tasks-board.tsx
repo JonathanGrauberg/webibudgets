@@ -104,7 +104,7 @@ interface TasksBoardProps {
 
 export function TasksBoard({ boardId = null, canEdit = true, large = false }: TasksBoardProps) {
   const swrKey = boardId ? `/api/tasks?kioskBoardId=${boardId}` : '/api/tasks'
-  const { data: tasks = [] } = useSWR<Task[]>(swrKey, fetcher)
+  const { data: tasks = [] } = useSWR<Task[]>(swrKey, fetcher, { refreshInterval: 4000 }) // 👈 nuevo — polling cada 4s, para que el kiosco se actualice solo sin depender de cambiar de foco
   const [linkPickerTaskId, setLinkPickerTaskId] = useState<string | null>(null)
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0)
 
