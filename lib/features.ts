@@ -10,9 +10,10 @@ export type FeatureKey =
   | "productVariants"
   | "workOrders"
   | "whiteLabel"
-  | "exportData"    // 👈 nueva
-  | "auditHistory"  // 👈 nueva
+  | "exportData"    
+  | "auditHistory"  
   | "customCategories"
+  | "kiosk" // 👈 nuevo
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {
   free: { vouchers: true },
@@ -28,9 +29,10 @@ const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>
     productVariants: true,
     workOrders: true,
     whiteLabel: true,
-    exportData: true,   // 👈
-    auditHistory: true, // 👈
-    customCategories: true
+    exportData: true,   
+    auditHistory: true, 
+    customCategories: true,
+    kiosk: true, // 👈 nuevo
   },
 }
 

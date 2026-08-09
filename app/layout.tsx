@@ -42,8 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: '.budgets | Presupuestos, Órdenes de Trabajo y Gestión Integral',
     description:
-      'Comenzá gratis. Cotizaciones por m², control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
-    url: 'https://budgets.webistudio.net',
+      'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.', // 👈 agregado "modo Kiosco para tablet de taller"    url: 'https://budgets.webistudio.net',
     siteName: '.budgets',
     images: [
       {
@@ -109,16 +108,17 @@ const jsonLd = {
     ]
   },
   'featureList': [
-    'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
-    'Generación de Órdenes de Trabajo con código QR y geolocalización',
-    'Tablero Kanban de tareas operativo e integrado a presupuestos',
-    'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
-    'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
-    'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
-    'CRM de Clientes y Proveedores con historial financiero unificado',
-    'Exportación rápida de presupuestos y comprobantes en PDF profesional',
-    'Dashboard con métricas clave de facturación y rentabilidad'
-  ]
+  'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
+  'Generación de Órdenes de Trabajo con código QR y geolocalización',
+  'Tablero Kanban de tareas operativo e integrado a presupuestos',
+  'Modo Kiosco: pantalla táctil para pared del taller con tableros por proyecto y prioridades visuales', // 👈 nuevo
+  'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
+  'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
+  'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
+  'CRM de Clientes y Proveedores con historial financiero unificado',
+  'Exportación rápida de presupuestos y comprobantes en PDF profesional',
+  'Dashboard con métricas clave de facturación y rentabilidad'
+]
 }
 
 export default function RootLayout({

@@ -4,8 +4,14 @@ import { getTenantIdFromRequest, tenantWhere, tenantCreateData } from '@/lib/ten
 
 export async function GET(request: Request) {
   const tenantId = await getTenantIdFromRequest(request)
+  const { searchParams } = new URL(request.url)
+  const kioskBoardId = searchParams.get('kioskBoardId') // 👈 nuevo
+
   const tasks = await prisma.task.findMany({
-    where: tenantWhere(tenantId),
+    where: {
+      ...tenantWhere(tenantId),
+      ...(kioskBoardId ? { kioskBoardId } : {}), // 👈 nuevo — si no viene, trae todas (comportamiento viejo intacto)
+    },
     orderBy: [{ column: 'asc' }, { order: 'asc' }],
   })
   return NextResponse.json(tasks)
@@ -21,10 +27,10 @@ export async function POST(request: Request) {
     }
 
     const column = data.column ?? 'backlog'
+    const kioskBoardId = data.kioskBoardId || null // 👈 nuevo
 
-    // 🌟 nueva tarjeta va al final de su columna
     const lastInColumn = await prisma.task.findFirst({
-      where: { tenantId, column },
+      where: { tenantId, column, kioskBoardId }, // 👈 el orden es independiente por tablero
       orderBy: { order: 'desc' },
       select: { order: true },
     })
@@ -39,6 +45,8 @@ export async function POST(request: Request) {
           linkType: data.linkType || null,
           linkId: data.linkId || null,
           createdByUserId: data.createdByUserId || null,
+          kioskBoardId, // 👈 nuevo
+          priority: data.priority ?? 'medium', // 👈 nuevo
         },
         tenantId
       ),

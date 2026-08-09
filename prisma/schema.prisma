@@ -11,6 +11,13 @@ datasource db {
    ENUMS
 ========================= */
 
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
 enum TaskColumn {
   backlog
   todo
@@ -176,7 +183,8 @@ model Tenant {
   workOrderSequence Int @default(1) // 👈 nuevo
   workOrders WorkOrder[] // 👈 nuevo
 
-  tasks Task[] // 👈 nuevo
+  tasks Task[]
+  kioskBoards KioskBoard[] // 👈 nuevo — falta esto, es el lado inverso de KioskBoard.tenant
 
   referralCodeId String?
   referralCode   ResellerCode? @relation(fields: [referralCodeId], references: [id])
@@ -963,6 +971,12 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+
+  kioskBoardId String?
+  kioskBoard   KioskBoard? @relation(fields: [kioskBoardId], references: [id])
+  priority     TaskPriority? @default(medium) // 👈 nuevo, si no existe ya — para el borde rojo
+
+
   @@index([tenantId])
   @@index([tenantId, column])
 }
@@ -982,4 +996,16 @@ model ResellerCode {
   tenants         Tenant[]
 
   createdAt       DateTime @default(now())
+}
+
+model KioskBoard {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String   // "Placard Sr. Gómez", "Reunión", "Producción"...
+  order     Int      @default(0) // para el orden de las solapas
+  priority  TaskPriority @default(medium)
+  createdAt DateTime @default(now())
+
+  tasks Task[]
 }
