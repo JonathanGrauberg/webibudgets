@@ -19,6 +19,13 @@ export default async function AdminTenantsPage() {
       active: true,
       createdAt: true,
       features: true,
+      // 👇 nuevo — conteos reales, sin traer las filas completas de usuarios/presupuestos
+      _count: {
+        select: {
+          users: true,
+          budgets: true,
+        },
+      },
     },
   })
 
@@ -31,6 +38,8 @@ export default async function AdminTenantsPage() {
     // features es el único que escribe este campo y siempre guarda un objeto de
     // booleans, así que el cast acá es seguro.
     features: t.features as Record<string, boolean> | null,
+    userCount: t._count.users, // 👈 nuevo — aplanamos el _count.users a un campo simple
+    budgetCount: t._count.budgets, // 👈 nuevo
   }))
 
   return (
