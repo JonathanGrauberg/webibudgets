@@ -145,7 +145,7 @@ export async function getTenantBranding(tenantId: string) {
     select: {
       id: true,
       name: true,
-      plan: true, // 👈 agregar
+      plan: true,
       email: true,
       phone: true,
       address: true,
@@ -166,6 +166,8 @@ export async function getTenantBranding(tenantId: string) {
       showPageNumbers: true,
       showWebsiteInPdf: true,
       showFooterBranding: true,
+      conditionsPdfUrl: true,  // 👈 nuevo — esto es lo que faltaba
+      conditionsPdfName: true, // 👈 nuevo
       features: true,
     },
   })

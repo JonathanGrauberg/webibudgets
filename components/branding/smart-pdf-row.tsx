@@ -1,5 +1,5 @@
 'use client'
-
+//components\branding\smart-pdf-row.tsx
 import React, { useState, useRef } from 'react'
 import { FileText, Upload, X, AlertCircle } from 'lucide-react'
 
