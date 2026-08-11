@@ -62,11 +62,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
     }
 
-    const validPublicPlans = ['starter', 'team'] as const
+    const validPublicPlans = ['free'] as const
     type PublicPlan = typeof validPublicPlans[number]
     const plan: PublicPlan = validPublicPlans.includes(rawPlan as PublicPlan)
       ? (rawPlan as PublicPlan)
-      : 'starter'
+      : 'free'
 
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)

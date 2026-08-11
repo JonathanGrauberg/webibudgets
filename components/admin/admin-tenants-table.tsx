@@ -525,24 +525,27 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
 
         {/* ── DESKTOP: tabla ─────────────────────────────────────────────────── */}
         {filteredTenants.length > 0 && (
-          <table className="hidden lg:table min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-              <tr>
-                <th className="px-6 py-4">Nombre</th>
-                <th className="px-6 py-4">Slug</th>
-                <th className="px-6 py-4">Plan</th>
-                <th className="px-6 py-4">Max usuarios</th>
-                <th className="px-6 py-4">Trial hasta</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4">Creado</th>
-                <th className="px-6 py-4 text-center" title="Usuarios creados">Usuarios</th>
-                <th className="px-6 py-4 text-center" title="Presupuestos creados — mide uso real">Presup.</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
-              {filteredTenants.map((tenant) => {
-                const isEditing = editingId === tenant.id
+          <div className="hidden w-full overflow-x-auto lg:block">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                  <th className="px-6 py-4">Nombre</th>
+                  <th className="px-6 py-4">Slug</th>
+                  <th className="px-6 py-4">Plan</th>
+                  <th className="px-6 py-4">Max usuarios</th>
+                  <th className="px-6 py-4">Trial hasta</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4">Creado</th>
+                  <th className="px-6 py-4 text-center" title="Usuarios creados">Usuarios</th>
+                  <th className="px-6 py-4 text-center" title="Presupuestos creados — mide uso real">Presup.</th>
+                  <th className="sticky right-0 whitespace-nowrap bg-slate-50 px-6 py-4 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-900">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
+                {filteredTenants.map((tenant) => {
+                  const isEditing = editingId === tenant.id
                 const isConfirmingDelete = confirmDeleteId === tenant.id
                 const isConfirmingHardDelete = confirmHardDeleteId === tenant.id
                 const isCurrentVip = tenant.plan === 'vip'
@@ -610,7 +613,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                         {tenant.budgetCount}
                       </td>
 
-                      <td className="px-6 py-4 text-right text-sm">
+                      <td className="sticky right-0 whitespace-nowrap bg-white px-6 py-4 text-right text-sm shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-950">
                         {isEditing ? (
                           <div className="flex justify-end gap-2">
                             <button onClick={saveEdit} disabled={isSaving} className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
@@ -683,8 +686,9 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                   </Fragment>
                 )
               })}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
