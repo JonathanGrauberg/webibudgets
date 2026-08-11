@@ -1,5 +1,5 @@
 'use client'
-//app\(dashboard)\stock\page.tsx
+//app\(dashboard)\stock\page.tsx 
 import { useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { PageHeader } from '@/components/page-header'
@@ -288,6 +288,7 @@ export default function StockPage() {
                                 <Input
                                   type="number"
                                   min={0}
+                                  step="any"
                                   value={getValue(p)}
                                   onChange={(e) =>
                                     setDraft((prev) => ({
@@ -356,6 +357,7 @@ export default function StockPage() {
                                   <Input
                                     type="number"
                                     min={0}
+                                    step="any"
                                     value={getValue(p)}
                                     onChange={(e) =>
                                       setDraft((prev) => ({

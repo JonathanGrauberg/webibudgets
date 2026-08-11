@@ -38,6 +38,8 @@ import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator
 import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
 import { ProductPicker } from '@/components/budget/product-picker'
+import { ClientPicker } from '@/components/budget/client-picker' // 👈 nuevo
+
 
 /* ================================
    TYPES & INTERFACES
@@ -883,18 +885,7 @@ export default function NewBudgetPage() {
 
                   <div>
                     <p className="mb-2 text-sm text-muted-foreground">Cliente</p>
-                    <Select value={clientId} onValueChange={setClientId}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar cliente..." /></SelectTrigger>
-                      <SelectContent>
-                        {[...clients]
-                          .sort((a, b) => (a.company || a.name).localeCompare(b.company || b.name))
-                          .map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.company} - {c.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <ClientPicker clients={clients} value={clientId} onChange={setClientId} />
                   </div>
                 </CardContent>
               </Card>
