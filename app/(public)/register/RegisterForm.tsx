@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { PLAN_LIMITS, type PlanKey } from '@/lib/plan'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -13,8 +12,11 @@ export default function RegisterForm() {
   const searchParams = useSearchParams()
   const { data: session, status } = useSession()
 
-  const planParam = (searchParams.get('plan') ?? 'free') as PlanKey
-  const selectedPlan = PLAN_LIMITS[planParam] ?? PLAN_LIMITS.free
+  // 👇 antes: planParam tipado como PlanKey + lookup en PLAN_LIMITS (no tenía 'pro')
+  // Ahora: un intent simple, desacoplado del sistema de planes internos.
+  const isProIntent = searchParams.get('plan') === 'pro'
+  const intervalParam = (searchParams.get('interval') === 'annual' ? 'annual' : 'monthly') as 'monthly' | 'annual'
+  const proPriceLabel = intervalParam === 'annual' ? '$36.000/mes (facturado $432.000/año)' : '$40.000/mes'
 
   const [companyName, setCompanyName] = useState('')
   const [email, setEmail] = useState('')
@@ -27,20 +29,25 @@ export default function RegisterForm() {
 
     useEffect(() => {
       if (status === 'authenticated' && session?.user) {
-        const userPlan = (session.user as any).plan ?? 'free' // 👈 antes: 'starter'
+        // 👇 nuevo — si ya estaba logueado y vino con intención de pagar, lo mandamos directo al checkout automático
+        if (isProIntent) {
+          router.replace(`/dashboard?subscription=start&interval=${intervalParam}`)
+          return
+        }
+
+        const userPlan = (session.user as any).plan ?? 'free'
         const trialEndsAt = (session.user as any).trialEndsAt
         const isInActiveTrial = trialEndsAt && new Date(trialEndsAt) > new Date()
 
         if (isInActiveTrial) {
           router.replace('/dashboard?welcome=1')
         } else if (userPlan === 'vip' || userPlan === 'custom' || userPlan === 'free') {
-          // 👈 antes: solo 'vip' || 'business' — cualquier otro caso (incluido Free) caía en "pending"
           router.replace('/dashboard')
         } else {
           router.replace('/dashboard?subscription=pending')
         }
       }
-    }, [status, session, router])
+    }, [status, session, router, isProIntent, intervalParam])
 
   if (status === 'loading' || status === 'authenticated') {
     return (
@@ -56,11 +63,11 @@ export default function RegisterForm() {
   }
 
   const [isDuplicate, setIsDuplicate] = useState(false)
-   
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setIsDuplicate(false) // 👈 nuevo — reset en cada intento
+    setIsDuplicate(false)
 
     const cleanEmail = email.trim().toLowerCase()
 
@@ -75,22 +82,23 @@ export default function RegisterForm() {
       const registerRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 
-          companyName: companyName.trim(), 
-          email: cleanEmail, 
-          password, 
-          plan: planParam 
+        body: JSON.stringify({
+          companyName: companyName.trim(),
+          email: cleanEmail,
+          password,
+          // 👇 el backend solo reconoce 'free' como plan público (ver register/route.ts) —
+          // cualquier otra cosa cae a 'free' igual, así que mandamos 'free' explícito acá.
+          // El tenant pasa a 'custom' recién cuando el webhook de MercadoPago confirma el pago.
+          plan: 'free',
         }),
       })
 
       const registerData = await registerRes.json()
 
       if (!registerRes.ok) {
-        if (registerRes.status === 409) setIsDuplicate(true) // 👈 nuevo
+        if (registerRes.status === 409) setIsDuplicate(true)
         throw new Error(registerData?.error ?? 'Error al crear la cuenta')
       }
-
-      const { tenantId } = registerData
 
       const signInRes = await signIn('credentials', {
         email: cleanEmail,
@@ -102,13 +110,13 @@ export default function RegisterForm() {
         throw new Error('Cuenta creada. Iniciá sesión en /auth/login')
       }
 
-      if (planParam !== 'free') {
+      if (isProIntent) {
         setStep('redirecting')
 
         const checkoutRes = await fetch('/api/subscriptions/checkout', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ plan: planParam, tenantId }),
+          body: JSON.stringify({ interval: intervalParam }), // 👈 antes: { plan: planParam, tenantId } — no coincidía con lo que espera el endpoint real
         })
 
         const checkoutData = await checkoutRes.json()
@@ -133,8 +141,12 @@ export default function RegisterForm() {
 
   const handleGoogleRegister = async () => {
     setIsGoogleLoading(true)
+    // 👇 nuevo — si venía con intención de pagar, el callback dispara el checkout automático en /dashboard
+    const callbackUrl = isProIntent
+      ? `/dashboard?subscription=start&interval=${intervalParam}`
+      : '/dashboard?welcome=1'
     try {
-      await signIn('google', { callbackUrl: '/dashboard?welcome=1' })
+      await signIn('google', { callbackUrl })
     } catch (err) {
       console.error('[google-register-error]', err)
       setIsGoogleLoading(false)
@@ -150,15 +162,12 @@ export default function RegisterForm() {
           </h1>
           <p className="text-lg font-semibold text-foreground">Redirigiendo a MercadoPago...</p>
           <p className="text-sm text-muted-foreground">
-            Tu cuenta ya fue creada. Completá el pago para activar el plan {selectedPlan.label}.
+            Tu cuenta ya fue creada. Completá el pago para activar el plan PRO.
           </p>
         </div>
       </div>
     )
   }
-
-  // 🔒 Detectamos si el error guardado en el estado coincide con la respuesta del mail duplicado
-  const isDuplicateAccountError = error === 'La cuenta ya existe, debes iniciar sesion'
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
@@ -173,7 +182,7 @@ export default function RegisterForm() {
 
           <h1 className="mt-5 mb-2 text-sm font-semibold text-foreground">Crear cuenta</h1>
           <p className="mb-6 text-xs text-muted-foreground">
-            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : 'Empezá gratis, sin vencimiento'}
+            {isProIntent ? `Plan PRO · ${proPriceLabel}` : 'Empezá gratis, sin vencimiento'}
           </p>
 
           <button
@@ -203,8 +212,8 @@ export default function RegisterForm() {
               <div className="mb-5 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-xs text-amber-800 dark:text-amber-400">
                 <span className="font-semibold">La cuenta ya existe en nuestro sistema.</span>
                 <p>No necesitas crear un nuevo tenant. Podés iniciar sesión directamente con tus accesos de siempre.</p>
-                <Link 
-                  href="/auth/login" 
+                <Link
+                  href="/auth/login"
                   className="mt-1 font-bold underline text-amber-900 dark:text-amber-300 hover:opacity-80 transition flex items-center gap-1"
                 >
                   Ir a Iniciar Sesión →
@@ -279,7 +288,7 @@ export default function RegisterForm() {
               disabled={isSubmitting || isGoogleLoading}
               className="w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
             >
-              {isSubmitting ? 'Creando cuenta...' : planParam !== 'free' ? `Crear cuenta e ir a pagar` : 'Crear cuenta gratis'}
+              {isSubmitting ? 'Creando cuenta...' : isProIntent ? 'Crear cuenta e ir a pagar' : 'Crear cuenta gratis'}
             </button>
           </form>
 

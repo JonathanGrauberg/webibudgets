@@ -8,6 +8,7 @@ import {
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react' // 👈 nuevo
 import { faqs } from './landing-data' // 👈 ya no usamos "plans"
 
 import { ProductosBanner } from '../productos-banner'
@@ -36,12 +37,6 @@ const colors = [
   'text-violet-500',
   'text-orange-500'
 ]
-
-const whatsappUrl =
-  'https://wa.me/5493436959359?text=' +
-  encodeURIComponent(
-    '👋 ¡Hola .budgets!\n\n🚀 Estoy interesado en el Plan Empresa (Corporativo).\n📋 Me gustaría coordinar una demo y conocer las opciones de integración personalizada.'
-  )
 
 interface LandingSectionsProps {
   openFaqIndex: number | null
@@ -104,7 +99,15 @@ export function LandingSections({
   openFaqIndex,
   setOpenFaqIndex,
 }: LandingSectionsProps) { 
-  const [isAnnual, setIsAnnual] = useState(false) // 👈 nuevo
+  const [isAnnual, setIsAnnual] = useState(false)
+  const { data: session } = useSession() // 👈 nuevo
+
+  // 👇 nuevo — si ya hay sesión, "Quiero PRO" va directo al checkout automático;
+  // si no hay sesión, va a /register con la intención de PRO marcada en la URL
+  const proHref = session
+    ? `/dashboard?subscription=start&interval=${isAnnual ? 'annual' : 'monthly'}`
+    : `/register?plan=pro&interval=${isAnnual ? 'annual' : 'monthly'}`
+
   return (
     <main className="overflow-x-hidden bg-background text-foreground">
 
@@ -297,15 +300,14 @@ export function LandingSections({
         )}
         {!isAnnual && <div className="relative mb-6" />}
 
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* 👇 antes: <a href={whatsappUrl}> — ahora respeta si hay sesión o no */}
+        <Link
+          href={proHref}
           className="relative mb-8 flex w-full items-center justify-center gap-2 rounded-full bg-[#fcc107] py-3 text-sm font-semibold text-neutral-950 transition hover:opacity-90"
         >
           Quiero PRO
           <ArrowRight size={16} />
-        </a>
+        </Link>
 
         <div className="relative grid gap-3 border-t border-neutral-800 pt-6 sm:grid-cols-2">
           {[
@@ -329,12 +331,15 @@ export function LandingSections({
       </div>
     </div>
 
-    <p className="mt-8 text-center text-sm text-muted-foreground">
-      ¿Ya usás .budgets y querés pasarte a PRO?{' '}
-      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-2">
-        Escribinos por WhatsApp
-      </a>
-    </p>
+    {/* 👇 antes: <a href={whatsappUrl}>Escribinos por WhatsApp</a> — ya no tiene sentido para quien está logueado, así que solo se muestra a visitantes anónimos */}
+    {!session && (
+      <p className="mt-8 text-center text-sm text-muted-foreground">
+        ¿Ya usás .budgets y querés pasarte a PRO?{' '}
+        <Link href="/auth/login" className="font-medium text-foreground underline underline-offset-2">
+          Iniciá sesión para activarlo
+        </Link>
+      </p>
+    )}
   </div>
 </section>
 
@@ -426,7 +431,7 @@ export function LandingSections({
             {[
               { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing']] },
               { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#']] },
-              { title: 'Legal', links: [['Privacidad', '#'], ['Términos', '#']] },
+              { title: 'Legal', links: [['Privacidad', '/privacidad'], ['Términos', '/terminos']] },
             ].map((col) => (
               <div key={col.title}>
                 <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">{col.title}</h4>

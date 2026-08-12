@@ -26,6 +26,26 @@ export function ModalPagoPendiente() {
       return
     }
 
+    // 👇 nuevo — checkout automático: viene de la landing (ya logueado) o de Google con intención de pagar
+    if (subParam === 'start') {
+      const interval = searchParams.get('interval') === 'annual' ? 'annual' : 'monthly'
+      fetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ interval }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.checkoutUrl) {
+            window.location.href = data.checkoutUrl
+          } else {
+            router.replace('/dashboard?subscription=pending')
+          }
+        })
+        .catch(() => router.replace('/dashboard?subscription=pending'))
+      return // no seguimos con el resto de la lógica del modal en este caso
+    }
+
     // CASO A: volvió de MercadoPago sin completar el pago (cerró el checkout, o falló)
     if (subParam === 'pending') {
       setModalType('payment_incomplete')
@@ -33,8 +53,8 @@ export function ModalPagoPendiente() {
       return
     }
 
-    // CASO B: primer ingreso después de registrarse gratis
-    if (welcomeParam === '1') {
+    // CASO B: primer ingreso después de registrarse gratis — solo si es alta nueva de verdad
+    if (welcomeParam === '1' && (session?.user as any)?.isNewAccount === true) {
       const alreadySeen = localStorage.getItem('webibudgets_welcome_seen')
       if (!alreadySeen) {
         setModalType('welcome')
@@ -42,7 +62,7 @@ export function ModalPagoPendiente() {
         localStorage.setItem('webibudgets_welcome_seen', 'true')
       }
     }
-  }, [subParam, welcomeParam, userPlan])
+  }, [subParam, welcomeParam, userPlan, searchParams, router, session])
 
   function handleGoToPricing() {
     setIsOpen(false)

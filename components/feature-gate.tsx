@@ -1,9 +1,11 @@
 'use client'
+//components\feature-gate.tsx
 import { useState } from 'react'
 import { Crown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogOverlay } from '@/components/ui/dialog'
 import type { FeatureKey } from '@/lib/features'
+import { UpgradeToProDialog } from '@/components/upgrade/upgrade-to-pro-dialog' // 👈 nuevo import
 
 const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: string }>> = {
   bulkPriceUpdate: {
@@ -57,26 +59,38 @@ export function UpgradeModal({ feature, open, onOpenChange }: {
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false) // 👈 nuevo
   const copy = FEATURE_COPY[feature] ?? { title: 'Función PRO', description: 'Esta función está disponible en el plan PRO.' }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
-      <DialogContent className="max-w-sm text-center">
-        <DialogHeader>
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-            <Crown className="h-6 w-6 text-amber-600" />
-          </div>
-          <DialogTitle>{copy.title}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">{copy.description}</p>
-        <DialogFooter className="mt-4 justify-center">
-          <Button onClick={() => onOpenChange(false)} variant="outline">Ahora no</Button>
-          <Button onClick={() => { /* redirigir a /settings/billing o similar */ }}>
-            Quiero PRO
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+              <Crown className="h-6 w-6 text-amber-600" />
+            </div>
+            <DialogTitle>{copy.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{copy.description}</p>
+          <DialogFooter className="mt-4 justify-center">
+            <Button onClick={() => onOpenChange(false)} variant="outline">Ahora no</Button>
+            <Button
+              onClick={() => {
+                onOpenChange(false) // 👈 cierra este modal explicativo
+                setShowUpgradeDialog(true) // 👈 y abre directo el de pago
+              }}
+            >
+              Quiero PRO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 👇 nuevo — el modal de pago real, mismo que usa team-plan-card.tsx */}
+      <UpgradeToProDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog} />
+    </>
   )
 }
 
