@@ -26,6 +26,7 @@ export default function RegisterForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
+  const [isDuplicate, setIsDuplicate] = useState(false) // 👈 movido acá — antes estaba después de un return condicional, rompiendo el orden de hooks
 
     useEffect(() => {
       if (status === 'authenticated' && session?.user) {
@@ -61,8 +62,6 @@ export default function RegisterForm() {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[.,\-*@#$%^&+=]).{8,}$/
     return regex.test(pass)
   }
-
-  const [isDuplicate, setIsDuplicate] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
