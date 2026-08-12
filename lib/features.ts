@@ -10,30 +10,34 @@ export type FeatureKey =
   | "productVariants"
   | "workOrders"
   | "whiteLabel"
-  | "exportData"    
-  | "auditHistory"  
+  | "exportData"
+  | "auditHistory"
   | "customCategories"
-  | "kiosk" // 👈 nuevo
+  | "kiosk"
+
+// 👇 nuevo — evita repetir las 14 claves dos veces (vip y custom deben ser
+// siempre idénticos: los dos son "PRO completo", solo cambia si pagan o no)
+const ALL_PRO_FEATURES: Record<FeatureKey, boolean> = {
+  calculator: true,
+  commissions: true,
+  vouchers: true,
+  dashboardMetrics: true,
+  stockAnalytics: true,
+  bulkPriceUpdate: true,
+  editBudgets: true,
+  productVariants: true,
+  workOrders: true,
+  whiteLabel: true,
+  exportData: true,
+  auditHistory: true,
+  customCategories: true,
+  kiosk: true,
+}
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {
   free: { vouchers: true },
-  vip: { vouchers: true },
-  custom: {
-    calculator: true,
-    commissions: true,
-    vouchers: true,
-    dashboardMetrics: true,
-    stockAnalytics: true,
-    bulkPriceUpdate: true,
-    editBudgets: true,
-    productVariants: true,
-    workOrders: true,
-    whiteLabel: true,
-    exportData: true,   
-    auditHistory: true, 
-    customCategories: true,
-    kiosk: true, // 👈 nuevo
-  },
+  vip: ALL_PRO_FEATURES,    // 👈 antes: { vouchers: true } — el bug real
+  custom: ALL_PRO_FEATURES, // 👈 mismo objeto que vip, a propósito
 }
 
 export function hasFeature(
@@ -62,5 +66,5 @@ export function hasFeature(
 }
 
 export function isProPlan(plan: string | null | undefined): boolean {
-  return plan === 'custom'
+  return plan === 'custom' || plan === 'vip' // 👈 antes: solo 'custom'
 }

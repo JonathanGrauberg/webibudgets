@@ -57,7 +57,9 @@ export const authOptions: NextAuthOptions = {
           tenantId: user.tenantId,
           plan: user.tenant?.plan ?? 'free',
           trialEndsAt: user.tenant?.trialEndsAt ?? null,
-          tenantActive: user.tenant?.active ?? false, // 👈 nuevo
+          tenantActive: user.tenant?.active ?? false,
+          // isPlatformAdmin: user.isPlatformAdmin ?? false, // 👈 pendiente — activar cuando se agregue el campo a schema.prisma
+          isNewAccount: false,
         }
       },
     }),
@@ -95,9 +97,9 @@ export const authOptions: NextAuthOptions = {
             data: {
               name: companyName,
               slug,
-              plan: 'starter',
-              maxUsers: resolveMaxUsers('starter'),
-              trialEndsAt: resolveTrialEndsAt('starter'),
+              plan: 'free', // 👈 antes: 'starter' — Free es el plan real de alta gratuita hoy
+              maxUsers: resolveMaxUsers('free'),
+              trialEndsAt: resolveTrialEndsAt('free'),
               active: true,
               primaryColor: '#0F172A',
               secondaryColor: '#334155',
@@ -127,7 +129,10 @@ export const authOptions: NextAuthOptions = {
         user.id = newUser.id
         ;(user as any).role = newUser.role
         ;(user as any).tenantId = newUser.tenantId
-        ;(user as any).plan = newUser.tenant?.plan ?? 'starter'
+        ;(user as any).plan = newUser.tenant?.plan ?? 'free' // 👈 antes: 'starter'
+        ;(user as any).tenantActive = newUser.tenant?.active ?? true
+        ;(user as any).isPlatformAdmin = (newUser as any).isPlatformAdmin ?? false // 👈 nuevo
+        ;(user as any).isNewAccount = true // 👈 nuevo — recién creado ahora mismo
         user.email = emailNormalizado
 
         return true
@@ -160,6 +165,9 @@ export const authOptions: NextAuthOptions = {
       ;(user as any).role = existingUser.role
       ;(user as any).tenantId = existingUser.tenantId
       ;(user as any).plan = existingUser.tenant?.plan ?? 'free'
+      ;(user as any).tenantActive = existingUser.tenant?.active ?? false // 👈 nuevo — antes no se seteaba, caía en el "?? true" del jwt callback
+      ;(user as any).isPlatformAdmin = (existingUser as any).isPlatformAdmin ?? false // 👈 nuevo
+      ;(user as any).isNewAccount = false // 👈 nuevo — login de retorno, no alta nueva
       user.email = emailNormalizado
 
       return true
@@ -172,7 +180,9 @@ export const authOptions: NextAuthOptions = {
         token.tenantId = (user as any).tenantId
         token.plan = (user as any).plan ?? 'free'
         token.trialEndsAt = (user as any).trialEndsAt ?? null
-        token.tenantActive = (user as any).tenantActive ?? true // 👈 nuevo
+        token.tenantActive = (user as any).tenantActive ?? true
+        token.isPlatformAdmin = (user as any).isPlatformAdmin ?? false // 👈 nuevo
+        token.isNewAccount = (user as any).isNewAccount ?? false // 👈 nuevo
       }
       return token
     },
@@ -184,7 +194,9 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).tenantId = token.tenantId
         ;(session.user as any).plan = token.plan
         ;(session.user as any).trialEndsAt = token.trialEndsAt ?? null
-        ;(session.user as any).tenantActive = token.tenantActive // 👈 nuevo
+        ;(session.user as any).tenantActive = token.tenantActive
+        ;(session.user as any).isPlatformAdmin = token.isPlatformAdmin ?? false // 👈 nuevo
+        ;(session.user as any).isNewAccount = token.isNewAccount ?? false // 👈 nuevo
       }
       return session
     },

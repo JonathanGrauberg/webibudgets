@@ -27,13 +27,14 @@ export default function RegisterForm() {
 
     useEffect(() => {
       if (status === 'authenticated' && session?.user) {
-        const userPlan = (session.user as any).plan ?? 'starter'
+        const userPlan = (session.user as any).plan ?? 'free' // 👈 antes: 'starter'
         const trialEndsAt = (session.user as any).trialEndsAt
         const isInActiveTrial = trialEndsAt && new Date(trialEndsAt) > new Date()
 
         if (isInActiveTrial) {
-          router.replace('/dashboard?welcome=1') // ← el modal welcome lo maneja el dashboard
-        } else if (userPlan === 'vip' || userPlan === 'business') {
+          router.replace('/dashboard?welcome=1')
+        } else if (userPlan === 'vip' || userPlan === 'custom' || userPlan === 'free') {
+          // 👈 antes: solo 'vip' || 'business' — cualquier otro caso (incluido Free) caía en "pending"
           router.replace('/dashboard')
         } else {
           router.replace('/dashboard?subscription=pending')
@@ -54,9 +55,12 @@ export default function RegisterForm() {
     return regex.test(pass)
   }
 
+  const [isDuplicate, setIsDuplicate] = useState(false)
+   
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setIsDuplicate(false) // 👈 nuevo — reset en cada intento
 
     const cleanEmail = email.trim().toLowerCase()
 
@@ -82,6 +86,7 @@ export default function RegisterForm() {
       const registerData = await registerRes.json()
 
       if (!registerRes.ok) {
+        if (registerRes.status === 409) setIsDuplicate(true) // 👈 nuevo
         throw new Error(registerData?.error ?? 'Error al crear la cuenta')
       }
 
@@ -168,7 +173,7 @@ export default function RegisterForm() {
 
           <h1 className="mt-5 mb-2 text-sm font-semibold text-foreground">Crear cuenta</h1>
           <p className="mb-6 text-xs text-muted-foreground">
-            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : '7 días gratis, sin tarjeta de crédito'}
+            {planParam !== 'free' ? `Plan ${selectedPlan.label} · ${selectedPlan.price}/mes` : 'Empezá gratis, sin vencimiento'}
           </p>
 
           <button
@@ -193,7 +198,7 @@ export default function RegisterForm() {
 
           {/* 🌟 Renderizado Condicional del Mensaje de Error */}
           {error && (
-            isDuplicateAccountError ? (
+            isDuplicate ? (
               // Cartel Premium / Advertencia amable si la cuenta ya existe
               <div className="mb-5 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-xs text-amber-800 dark:text-amber-400">
                 <span className="font-semibold">La cuenta ya existe en nuestro sistema.</span>

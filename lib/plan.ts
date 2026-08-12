@@ -1,5 +1,4 @@
-// lib/plan.ts — fuente única de verdad para límites, trials e IDs de MercadoPago
-
+// lib/plan.ts
 export type PlanKey = 'free' | 'starter' | 'team' | 'business' | 'vip' | 'custom'
 
 export type PlanLimit = {
@@ -20,20 +19,24 @@ export type PlanLimit = {
 
 export const PLAN_LIMITS: Record<PlanKey, PlanLimit> = {
   free: {
-    label: 'Sin plan',
-    description: 'Tenant sin plan asignado o con acceso bloqueado.',
-    price: 'Gratis',
-    priceARS: 0,
-    maxUsers: 0, // bloqueado
-    maxSellers: 0, // 👈 nuevo
-    maxInstallers: 0, // 👈 nuevo
-    maxBudgetsPerMonth: null,
-    trialDays: 0,
-    mpPlanId: null,
-    isPublic: false,
-    features: [],
-    
-  },
+  label: 'Free',
+  description: 'Plan gratuito con acceso completo a las funciones básicas, sin vencimiento.',
+  price: 'Gratis',
+  priceARS: 0,
+  maxUsers: null,           // 👈 antes: 0 — ilimitado, según definimos al principio de la sesión
+  maxSellers: null,         // 👈 antes: 0
+  maxInstallers: null,      // 👈 antes: 0
+  maxBudgetsPerMonth: null, // ya estaba bien, sin cambios
+  trialDays: 0,
+  mpPlanId: null,
+  isPublic: true,           // 👈 antes: false — tiene que aparecer en /pricing como opción real
+  features: [
+    'Presupuestos ilimitados',
+    'Gestión de clientes y productos',
+    'Tablero Kanban de tareas',
+    'Recibos, remitos y PDF con tu marca',
+  ],
+},
   // 🌟 AGREGAMOS EL NUEVO PLAN VIP AQUÍ
   vip: {
     label: 'VIP / Tester',
@@ -257,15 +260,11 @@ export function isTenantActive(tenant: {
   active: boolean
 }): boolean {
   if (!tenant.active) return false
-  
-  // 🌟 SI ES VIP, TIENE ACCESO DIRECTO SIEMPRE
-  if (tenant.plan === 'vip') return true
 
-  // 🌟 SI ES CUSTOM, TIENE ACCESO DIRECTO SIEMPRE (se gestiona manualmente desde admin)
-  if (tenant.plan === 'custom') return true
+  // vip, custom y free no dependen de ningún trial — activos siempre que tenant.active sea true
+  if (tenant.plan === 'vip' || tenant.plan === 'custom' || tenant.plan === 'free' || !tenant.plan) return true
 
   const config = getPlanConfig(tenant.plan)
-  if (tenant.plan === 'free' || !tenant.plan) return false
   if (config.trialDays === 0) return true
   if (!tenant.trialEndsAt) return false
   return new Date(tenant.trialEndsAt) > new Date()
