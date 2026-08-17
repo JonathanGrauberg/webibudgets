@@ -1,23 +1,21 @@
 "use client";
-
+//components\WhatsNewModal.tsx
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
-  Percent,
-  Coins,
-  Wand2,
   ArrowRight,
   ArrowLeft,
-  Plus,
-  Sparkles,
-  ChevronDown,
-  Search,
+  Monitor,
+  QrCode,
+  Handshake,
+  BarChart3,
+  Check,
 } from "lucide-react";
 
 // 👈 Subí este valor cada vez que agregues una nueva tanda de novedades.
 // Al cambiar, el modal vuelve a mostrarse aunque el usuario ya haya visto una versión anterior.
-const RELEASE_VERSION = "1.2.0";
+const RELEASE_VERSION = "2.0.0";
 const STORAGE_KEY = `budgets_whatsnew_seen_${RELEASE_VERSION}`;
 
 type Slide = {
@@ -30,11 +28,11 @@ type Slide = {
 
 const slides: Slide[] = [
   {
-    eyebrow: "Actualización de precios",
-    title: "Actualizá todo de una",
+    eyebrow: "Modo Kiosco",
+    title: "El taller, siempre a la vista",
     description:
-      "Subí o bajá precios por porcentaje, para todo tu catálogo o solo para una categoría puntual. Elegís el alcance, definís el porcentaje y .budgets recalcula todo en segundos.",
-    icon: <Percent size={22} />,
+      "Una tablet en la pared, con tableros por proyecto como una guía telefónica. El equipo mueve tareas con el dedo, y si algo es urgente, suena una alarma que no se puede ignorar.",
+    icon: <Monitor size={22} />,
     preview: (
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
@@ -43,46 +41,31 @@ const slides: Slide[] = [
           <span className="h-2 w-2 rounded-full bg-neutral-300" />
         </div>
         <div className="p-3.5">
-          <div className="mb-2.5 flex items-center gap-2">
-            <div className="flex flex-1 items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-[10px] text-neutral-400">
-              <Search size={11} />
-              Buscar productos...
-            </div>
+          <div className="mb-2 flex items-center justify-center rounded-lg bg-yellow-400 py-1.5 text-[10px] font-black text-neutral-900">
+            .budgets
           </div>
-          <div className="mb-2.5 flex items-center justify-end gap-1.5">
-            <span className="relative flex items-center gap-1 rounded-lg bg-yellow-400 px-2.5 py-1.5 text-[10px] font-bold text-neutral-900">
-              <Percent size={11} />
-              Actualizar Precios
-              <span className="absolute -top-7 right-0 whitespace-nowrap rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-medium text-white">
-                Modificar precios por porcentaje
+          <div className="flex items-end gap-1">
+            <span className="rounded-t-md bg-neutral-900 px-2.5 py-1.5 text-[9px] font-semibold text-white">
+              Placard Sr. Gómez
+            </span>
+            <span className="rounded-t-md bg-neutral-100 px-2.5 py-1.5 text-[9px] font-medium text-neutral-500">
+              Reunión
+            </span>
+            <span className="rounded-t-md bg-neutral-100 px-2 py-1.5 text-[9px] font-medium text-neutral-500">
+              +
+            </span>
+          </div>
+          <div className="mt-1.5 space-y-1.5 rounded-b-lg rounded-tr-lg border border-neutral-100 bg-neutral-50/60 p-2">
+            <div className="flex items-center justify-between rounded-md border-l-[3px] border-red-500 bg-white px-2 py-1.5 shadow-sm">
+              <span className="text-[9px] font-semibold text-neutral-800">
+                Armar placard — falta bisagras
               </span>
-            </span>
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-neutral-900 text-white">
-              <Plus size={12} />
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between rounded-lg border border-neutral-100 px-2.5 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-neutral-800">
-                  Mantenimiento Web
-                </span>
-                <span className="rounded-full bg-yellow-100 px-1.5 py-0.5 text-[8px] font-semibold text-yellow-700">
-                  Servicios
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-neutral-900">$ 193.568</span>
+              <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[8px] font-bold text-red-600">
+                Urgente
+              </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-neutral-100 px-2.5 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-neutral-800">
-                  Ecommerce web
-                </span>
-                <span className="rounded-full bg-yellow-100 px-1.5 py-0.5 text-[8px] font-semibold text-yellow-700">
-                  Servicios
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-neutral-900">$ 150.000</span>
+            <div className="flex items-center justify-between rounded-md border border-neutral-100 bg-white px-2 py-1.5">
+              <span className="text-[9px] text-neutral-600">Cortar placas de melamina</span>
             </div>
           </div>
         </div>
@@ -90,39 +73,11 @@ const slides: Slide[] = [
     ),
   },
   {
-    eyebrow: "Multi-moneda",
-    title: "Cada cliente, en su moneda",
+    eyebrow: "Órdenes de Trabajo",
+    title: "Del papel al QR, en un toque",
     description:
-      "Configurá la moneda de tu empresa (ARS, USD, CLP, EUR y más) desde branding. Tus presupuestos se generan y se ven en la moneda correcta, sin conversiones manuales.",
-    icon: <Coins size={22} />,
-    preview: (
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
-          <span className="h-2 w-2 rounded-full bg-neutral-300" />
-          <span className="h-2 w-2 rounded-full bg-neutral-300" />
-          <span className="h-2 w-2 rounded-full bg-neutral-300" />
-        </div>
-        <div className="p-3.5">
-          <p className="mb-1.5 text-[10px] font-semibold text-neutral-700">
-            Moneda por defecto
-          </p>
-          <div className="flex items-center justify-between rounded-lg border border-sky-300 px-2.5 py-2 text-[10px] font-medium text-neutral-800 ring-2 ring-sky-100">
-            ARS — Peso Argentino
-            <ChevronDown size={12} className="text-neutral-400" />
-          </div>
-          <p className="mt-1.5 text-[8.5px] leading-snug text-neutral-400">
-            Moneda usada por defecto en nuevos productos y presupuestos.
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    eyebrow: "Productos al instante",
-    title: "Lo hecho a medida, también entra",
-    description:
-      "Con on-the-fly cargás un producto único directo en el presupuesto, sin pasar por tu stock. Ideal para trabajos a medida que vas a facturar una sola vez.",
-    icon: <Wand2 size={22} />,
+      "Armá la orden con checklist para el instalador, dirección con mapa incluido, y un QR que el cliente escanea para ver el estado en vivo — sin llamados de '¿ya terminaron?'.",
+    icon: <QrCode size={22} />,
     preview: (
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
@@ -133,29 +88,104 @@ const slides: Slide[] = [
         <div className="p-3.5">
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-[11px] font-bold text-neutral-800">
-              Productos / Servicios
+              Orden de Trabajo #0032
             </span>
-            <span className="flex items-center gap-1 rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-[9px] font-semibold text-yellow-700">
-              <Sparkles size={10} />
-              Item Libre (On-the-fly)
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-neutral-900 text-white">
+              <QrCode size={12} />
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 px-2.5 py-1.5 text-[10px] text-neutral-400">
-              Seleccionar de la lista base...
-              <ChevronDown size={11} />
+          <div className="space-y-1.5">
+            {["Medir espacio de instalación", "Confirmar materiales en el móvil", "Instalar y nivelar"].map(
+              (t, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-neutral-100 px-2.5 py-1.5"
+                >
+                  <span
+                    className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+                      i < 2 ? "border-emerald-400 bg-emerald-400" : "border-neutral-300"
+                    }`}
+                  >
+                    {i < 2 && <Check size={9} className="text-white" />}
+                  </span>
+                  <span
+                    className={`text-[9.5px] ${
+                      i < 2 ? "text-neutral-400 line-through" : "font-medium text-neutral-700"
+                    }`}
+                  >
+                    {t}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    eyebrow: "Rendiciones",
+    title: "Reparto de ganancias, sin planillas",
+    description:
+      "Definí cómo se divide la ganancia entre vendedores y socios, y .budgets calcula el reparto del período solo — con historial completo para auditar cuando quieras.",
+    icon: <Handshake size={22} />,
+    preview: (
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+        </div>
+        <div className="p-3.5">
+          <p className="mb-2 text-[10px] font-semibold text-neutral-700">Reparto del período</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9.5px] text-neutral-600">Rubén Pérez (vendedor)</span>
+              <span className="text-[10px] font-bold text-neutral-900">$ 84.320</span>
             </div>
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-900 text-white">
-              <Plus size={12} />
-            </span>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full w-[62%] rounded-full bg-yellow-400" />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[9.5px] text-neutral-600">Socio / Taller</span>
+              <span className="text-[10px] font-bold text-neutral-900">$ 51.480</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full w-[38%] rounded-full bg-neutral-900" />
+            </div>
           </div>
-          <div className="mt-2.5 rounded-lg border border-dashed border-neutral-200 p-2">
-            <p className="text-[9px] font-semibold text-neutral-500">
-              Mueble a medida — living
+        </div>
+      </div>
+    ),
+  },
+  {
+    eyebrow: "Dashboard Ejecutivo",
+    title: "Tu negocio, de un vistazo",
+    description:
+      "Ingresos aprobados, pipeline en cotización, ratio de conversión y tus productos más pedidos — todo en un dashboard que se actualiza solo, filtrable por mes, año o histórico.",
+    icon: <BarChart3 size={22} />,
+    preview: (
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+          <span className="h-2 w-2 rounded-full bg-neutral-300" />
+        </div>
+        <div className="space-y-1.5 p-3.5">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2">
+            <p className="text-[8.5px] font-semibold uppercase tracking-wide text-emerald-700">
+              Ingresos aprobados
             </p>
-            <div className="mt-1 flex items-center justify-between">
-              <span className="text-[9px] text-neutral-400">Cantidad: 1</span>
-              <span className="text-[10px] font-bold text-neutral-900">$ 85.000</span>
+            <p className="text-[13px] font-black text-neutral-900">$ 1.527.215</p>
+          </div>
+          <div className="flex gap-1.5">
+            <div className="flex-1 rounded-lg border border-neutral-100 p-2">
+              <p className="text-[8px] font-semibold uppercase text-neutral-400">Pipeline</p>
+              <p className="text-[11px] font-bold text-neutral-900">$ 342.000</p>
+            </div>
+            <div className="flex-1 rounded-lg border border-neutral-100 p-2">
+              <p className="text-[8px] font-semibold uppercase text-neutral-400">Conversión</p>
+              <p className="text-[11px] font-bold text-neutral-900">38%</p>
             </div>
           </div>
         </div>
