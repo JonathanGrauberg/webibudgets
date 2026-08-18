@@ -2,7 +2,7 @@
   "name": ".budgets",
   "short_name": ".budgets",
   "description": "Sistema de gestión, presupuestos y órdenes de trabajo para PyMEs y profesionales.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#fcc107",
