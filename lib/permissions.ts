@@ -16,6 +16,7 @@ export type RouteKey =
   | 'documents'
   | 'commissions'
   | 'tasks' // 👈 nuevo
+  | 'expenses' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
 
@@ -27,6 +28,7 @@ export type EditScope =
   | 'sellers'
   | 'budgets'
   | 'budget_status'
+  | 'expenses' // 👈 nuevo
 
 /** Budget statuses visible to installer (approved + pending workflow). */
 export const INSTALLER_VISIBLE_BUDGET_STATUSES: BudgetStatus[] = [
@@ -49,6 +51,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   documents: ['owner', 'admin', 'seller'],
   commissions: ['owner', 'admin'],
   tasks: ['owner', 'admin', 'seller', 'installer'], // 👈 nuevo — mismo alcance que budgets, sin viewer
+  expenses: ['owner', 'admin'], // 👈 nuevo — datos financieros sensibles (sueldos, alquiler), no para seller/installer
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -59,6 +62,7 @@ const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
   sellers: ['owner', 'admin'],
   budgets: ['owner', 'admin', 'seller'],
   budget_status: ['owner', 'admin', 'seller'],
+  expenses: ['owner', 'admin'], // 👈 nuevo
 }
 
 export function isAppRole(role: string | null | undefined): role is AppRole {
@@ -125,6 +129,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/documents' || pathname.startsWith('/documents/')) return 'documents'
   if (pathname === '/rendiciones' || pathname.startsWith('/rendiciones/')) return 'commissions'
   if (pathname === '/tasks' || pathname.startsWith('/tasks/')) return 'tasks' // 👈 nuevo
+  if (pathname === '/expenses' || pathname.startsWith('/expenses/')) return 'expenses' // 👈 nuevo
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -145,6 +150,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'installers', name: 'Personal', href: '/installers', tooltip: 'Gestionar Personal de trabajo' },
   { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
   { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias' }, // 👈 Removido requiresFeature
+  { route: 'expenses', name: 'Gastos', href: '/expenses', tooltip: 'Gastos generales y de trabajos puntuales' }, // 👈 nuevo
   { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' },
 ]
 

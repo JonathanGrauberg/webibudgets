@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { BudgetStatus } from '@prisma/client'
+import type { BudgetStatus } from '@prisma/client' // 👈 nuevo — el enum real que genera Prisma
 
 type BudgetForRendicion = {
   id: string
@@ -17,7 +17,6 @@ type BudgetForRendicion = {
   }[]
 }
 
-// 🌟 Mismos criterios que ya usa app/(dashboard)/documents/page.tsx
 const NO_PAYMENT_STATUSES = new Set<BudgetStatus>(['draft', 'rejected', 'expired']) // 👈 antes: Set<string>
 const INACTIVE_RECEIPT_STATUSES = new Set(['cancelled', 'anulado', 'voided', 'void', 'annulled'])
 
@@ -46,16 +45,8 @@ function computeBudgetMetrics(budget: BudgetForRendicion) {
 }
 
 export async function generateRendicionData(tenantId: string, periodStart: Date, periodEnd: Date) {
-  // 🌟 "Saldado en el período" = el recibo que terminó de cubrir el total
-  // del presupuesto se emitió dentro de este rango. Un mismo trabajo nunca
-  // debería aparecer en dos rendiciones distintas — solo en la del período
-  // donde efectivamente se completó el cobro (aunque haya tenido pagos
-  // parciales anteriores en otros períodos).
-  //
-  // ⚠️ Usa `createdAt` del recibo como fecha de emisión — si tu sistema
-  // maneja fechas de emisión distintas (recibos con fecha retroactiva vía
-  // un campo `issueDate`), avisame y cambiamos el filtro para usar ese
-  // campo en su lugar.
+  // 🌟 "Saldado en el período" = el recibo que terminó de cubrir el total del
+  // presupuesto se emitió dentro de este rango.
   const receiptsInPeriod = await prisma.receipt.findMany({
     where: {
       budgetId: { not: null },
@@ -79,6 +70,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       totalFacturado: 0,
       totalCosto: 0,
       totalGanancia: 0,
+      totalGastosGenerales: 0, // 👈 nuevo
       margenPromedio: 0,
       anyMissingCost: false,
       sellerShares: [],
@@ -92,13 +84,10 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       client: { select: { name: true, company: true } },
       seller: { select: { name: true, lastName: true } },
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-      receipts: { select: { amount: true, status: true } }, // 👈 nuevo — TODOS los recibos del presupuesto, no solo los del período, para calcular el cobrado real
+      receipts: { select: { amount: true, status: true } },
     },
   }) as unknown as (BudgetForRendicion & { receipts: { amount: number; status: string | null }[] })[]
 
-  // 🌟 De los candidatos (tuvieron un recibo activo en este período), nos
-  // quedamos solo con los que HOY están efectivamente saldados de punta a
-  // punta — mismo cálculo exacto que PaymentStatusBadge en documents/page.tsx
   const budgets = candidateBudgets.filter((b) => {
     const collected = b.receipts
       .filter((r) => isReceiptActive(r.status))
@@ -106,19 +95,47 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
     return collected >= b.total && b.total > 0
   })
 
+  // 🌟 nuevo — Gastos del período. Separamos los asociados a un trabajo puntual
+  // (restan de LA GANANCIA DE ESE TRABAJO, no de otro) de los generales del negocio
+  // (restan del total del período — nadie puede "adjudicarle" el alquiler a un
+  // presupuesto específico, así que no tocan la ganancia de ninguna fila individual).
+  const budgetIds = budgets.map((b) => b.id)
+  const [budgetExpenses, generalExpenses] = await Promise.all([
+    budgetIds.length > 0
+      ? prisma.expense.findMany({
+          where: { tenantId, budgetId: { in: budgetIds } },
+          select: { budgetId: true, amount: true },
+        })
+      : Promise.resolve([]),
+    prisma.expense.findMany({
+      where: { tenantId, budgetId: null, date: { gte: periodStart, lte: periodEnd } },
+      select: { amount: true },
+    }),
+  ])
+
+  const expensesByBudget = new Map<string, number>()
+  for (const e of budgetExpenses) {
+    if (!e.budgetId) continue
+    expensesByBudget.set(e.budgetId, (expensesByBudget.get(e.budgetId) ?? 0) + e.amount)
+  }
+  const totalGastosGenerales = generalExpenses.reduce((acc, e) => acc + e.amount, 0)
+
   const activeSellers = await prisma.seller.findMany({
     where: { tenantId, active: true },
     select: { id: true, name: true, lastName: true },
   })
 
-  // Totales generales
   let totalFacturado = 0
   let totalCosto = 0
   let totalGanancia = 0
   let anyMissingCost = false
 
   const budgetRows = budgets.map((b) => {
-    const { cost, ganancia, margen, hasMissingCost } = computeBudgetMetrics(b)
+    const { cost, ganancia: gananciaBruta, margen: margenBruto, hasMissingCost } = computeBudgetMetrics(b)
+    const gastosAsociados = expensesByBudget.get(b.id) ?? 0 // 👈 nuevo
+    const ganancia = gananciaBruta - gastosAsociados // 👈 nuevo — la ganancia real de ESTE trabajo, ya con sus gastos puntuales descontados
+    const margen = b.total > 0 ? (ganancia / b.total) * 100 : margenBruto
+
     totalFacturado += b.total
     totalCosto += cost
     totalGanancia += ganancia
@@ -130,19 +147,20 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       vendedorName: b.seller ? `${b.seller.name} ${b.seller.lastName}` : 'Sin asignar',
       budgetNumber: b.budgetNumber ?? 0,
       fecha: b.createdAt,
-      estado: b.status, // 👈 sigue viajando — ahora es solo informativo ("Estado del trabajo" en la UI), no el criterio de selección
+      estado: b.status,
       total: b.total,
       costo: cost,
       ganancia,
       margen,
-      saldado: true, // 👈 nuevo — siempre true acá, porque ya filtramos arriba. Se guarda igual para que el tipo compartido con el frontend sea consistente.
+      gastosAsociados, // 👈 nuevo
       sellerId: b.sellerId,
     }
   })
 
+  totalGanancia -= totalGastosGenerales // 👈 nuevo — los gastos generales bajan el total del período, no ninguna fila puntual
+
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
-  // Performance por vendedor (solo informativo — quién generó qué)
   const perfBySeller = new Map<string, { count: number; facturado: number; ganancia: number }>()
   for (const row of budgetRows) {
     if (!row.sellerId) continue
@@ -153,7 +171,6 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
     perfBySeller.set(row.sellerId, acc)
   }
 
-  // Reparto por defecto: partes iguales entre vendedores activos
   const equalShare = activeSellers.length > 0 ? 100 / activeSellers.length : 0
 
   const sellerShares = activeSellers.map((s) => {
@@ -176,6 +193,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
     totalFacturado,
     totalCosto,
     totalGanancia,
+    totalGastosGenerales, // 👈 nuevo
     margenPromedio,
     anyMissingCost,
     sellerShares,

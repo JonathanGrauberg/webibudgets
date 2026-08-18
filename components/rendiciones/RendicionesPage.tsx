@@ -40,7 +40,8 @@ export interface RendicionBudgetRow {
   costo: number;
   ganancia: number;
   margen: number;
-  saldado: boolean; // 👈 nuevo — true si la suma de recibos activos cubre el total. Este es el criterio real de esta tabla ahora.
+  saldado: boolean; // 👈 true si la suma de recibos activos cubre el total. Este es el criterio real de esta tabla ahora.
+  gastosAsociados: number; // 👈 nuevo — gastos puntuales de este trabajo (ej: viáticos), ya descontados de "ganancia"
 }
 
 export interface AsignacionConfirmada {
@@ -68,6 +69,7 @@ export interface RendicionData {
   totalFacturado: number;
   totalCosto: number;
   totalGanancia: number;
+  totalGastosGenerales: number; // 👈 nuevo — gastos generales del período, ya descontados de totalGanancia
   margenPromedio: number;
   sellers: RendicionSellerRow[];
   budgets: RendicionBudgetRow[]; // 👈 ahora representa trabajos SALDADOS, no solo "completados"
@@ -427,10 +429,11 @@ export default function RendicionesPage({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <KpiCard label="Trabajos saldados" value={String(data.presupuestosCompletados)} sublabel="En el período" />
         <KpiCard label="Total facturado" value={formatCurrency(data.totalFacturado, currency)} sublabel="Cobrado en el período, sin importar reparto" />
-        <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo" valueClassName="text-emerald-600" />
+        <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo - gastos" valueClassName="text-emerald-600" />
+        <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
         <KpiCard label="Margen promedio" value={formatPercent(data.margenPromedio)} sublabel="Sobre lo facturado" />
       </div>
 
@@ -635,7 +638,17 @@ export default function RendicionesPage({
                       <TableCell className="text-slate-600">#{String(b.budgetNumber).padStart(6, "0")}</TableCell>
                       <TableCell className="text-slate-600">{formatDate(b.fecha)}</TableCell>
                       <TableCell className="text-right text-slate-700">{formatCurrency(b.total, currency)}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600">{formatCurrency(b.ganancia, currency)}</TableCell>
+                      <TableCell className="text-right font-medium text-emerald-600">
+                        {formatCurrency(b.ganancia, currency)}
+                        {b.gastosAsociados > 0 && (
+                          <span
+                            className="ml-1 cursor-help text-xs text-amber-600"
+                            title={`Ya incluye -${formatCurrency(b.gastosAsociados, currency)} en gastos asociados a este trabajo`}
+                          >
+                            *
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-center">
                         <WorkStatusBadge estado={b.estado} />
                       </TableCell>

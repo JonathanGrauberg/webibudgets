@@ -104,6 +104,7 @@ export async function POST(request: Request) {
           totalFacturado: computed.totalFacturado,
           totalCosto: computed.totalCosto,
           totalGanancia: computed.totalGanancia,
+          totalGastosGenerales: computed.totalGastosGenerales, // 👈 nuevo
           margenPromedio: computed.margenPromedio,
         },
       })
