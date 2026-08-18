@@ -1,0 +1,16 @@
+{
+  "name": ".budgets Kiosco",
+  "short_name": "Kiosco",
+  "description": "Pantalla táctil para la pared del taller — tableros por proyecto, siempre a la vista.",
+  "start_url": "/kiosco",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon-kiosco-192-square.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-kiosco-512-square.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-kiosco-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-kiosco-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

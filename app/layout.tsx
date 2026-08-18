@@ -15,7 +15,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: '.budgets | Software de Gestión, Presupuestos y Órdenes de Trabajo',
   description:
-    'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, control de stock, clientes y repartija de ganancias.',
+    'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.',
   generator: 'Webi',
 
   alternates: {
@@ -27,12 +27,14 @@ export const metadata: Metadata = {
     follow: true,
   },
 
+  manifest: '/manifest.json', // 👈 nuevo — conecta la PWA general
+
   icons: {
     icon: [
       { url: '/favico.ico', media: '(prefers-color-scheme: light)' },
       { url: '/favico.ico', media: '(prefers-color-scheme: dark)' },
     ],
-    apple: '/favico.ico',
+    apple: '/icon-general-192-square.png', // 👈 antes: '/favico.ico' — ahora el ícono cuadrado real para iOS
   },
 
   verification: {
@@ -42,7 +44,8 @@ export const metadata: Metadata = {
   openGraph: {
     title: '.budgets | Presupuestos, Órdenes de Trabajo y Gestión Integral',
     description:
-      'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.', // 👈 agregado "modo Kiosco para tablet de taller"    url: 'https://budgets.webistudio.net',
+      'Comenzá gratis. Cotizaciones por m², control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
+    url: 'https://budgets.webistudio.net',
     siteName: '.budgets',
     images: [
       {
@@ -85,7 +88,6 @@ const jsonLd = {
     'name': 'Webi Studio',
     'url': 'https://webistudio.net'
   },
-  // Modelo PLG (Freemium: Plan Free y Plan Pro)
   'offers': {
     '@type': 'AggregateOffer',
     'priceCurrency': 'ARS',
@@ -108,17 +110,17 @@ const jsonLd = {
     ]
   },
   'featureList': [
-  'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
-  'Generación de Órdenes de Trabajo con código QR y geolocalización',
-  'Tablero Kanban de tareas operativo e integrado a presupuestos',
-  'Modo Kiosco: pantalla táctil para pared del taller con tableros por proyecto y prioridades visuales', // 👈 nuevo
-  'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
-  'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
-  'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
-  'CRM de Clientes y Proveedores con historial financiero unificado',
-  'Exportación rápida de presupuestos y comprobantes en PDF profesional',
-  'Dashboard con métricas clave de facturación y rentabilidad'
-]
+    'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
+    'Generación de Órdenes de Trabajo con código QR y geolocalización',
+    'Tablero Kanban de tareas operativo e integrado a presupuestos',
+    'Modo Kiosco: pantalla táctil para pared del taller con tableros por proyecto y prioridades visuales',
+    'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
+    'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
+    'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
+    'CRM de Clientes y Proveedores con historial financiero unificado',
+    'Exportación rápida de presupuestos y comprobantes en PDF profesional',
+    'Dashboard con métricas clave de facturación y rentabilidad'
+  ]
 }
 
 export default function RootLayout({

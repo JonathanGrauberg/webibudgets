@@ -398,6 +398,7 @@ function MobileTopBar({
           <button
             type="button"
             title={displayName}
+            suppressHydrationWarning
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/90 transition-colors hover:bg-white/20"
           >
             <User className="h-4 w-4" />
