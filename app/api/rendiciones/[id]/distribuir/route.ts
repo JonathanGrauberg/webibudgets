@@ -13,8 +13,8 @@ export async function POST(
     const { id: rendicionId } = await params
     const { budgetId, distribuciones } = await request.json()
 
-    if (!budgetId) {
-      return NextResponse.json({ error: 'Falta el ID del presupuesto' }, { status: 400 })
+    if (!budgetId || !Array.isArray(distribuciones)) {
+      return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
     }
 
     // 🔒 1. Verificación de Plan PRO en servidor
@@ -41,25 +41,31 @@ export async function POST(
       return NextResponse.json({ error: 'La rendición ya se encuentra cerrada' }, { status: 400 })
     }
 
-    // 3. Ejecutamos todo en una transacción segura
+    // 3. Guardamos el reparto de ESTE presupuesto puntual — reemplaza, no acumula
     await prisma.$transaction(async (tx) => {
 
-      // 3a. Resolvemos el Seller.id de cada usuario del payload (igual que antes:
-      // si un Admin/Owner todavía no tiene perfil de vendedor, se crea al vuelo)
-      const resueltos: { sellerId: string; porcentaje: number; monto: number }[] = []
+      // 🌟 Borramos cualquier reparto previo de este presupuesto en esta rendición.
+      // Así, si volvés a guardar (ej: cambiaste de 50/50 a 100/0), la fila vieja
+      // desaparece en vez de quedar sumada a la nueva.
+      await tx.rendicionAsignacion.deleteMany({
+        where: { rendicionId, budgetId },
+      })
 
       for (const dist of distribuciones) {
+        if (!dist.porcentaje || dist.porcentaje <= 0) continue // 👈 0% no se guarda, no aporta nada
+
+        // 🌟 Buscamos si el User tiene un Seller ID vinculado en la base de datos
         const userWithSeller = await tx.user.findUnique({
           where: { id: dist.userId },
           include: { seller: true }
         })
 
-        if (!userWithSeller) continue
+        if (!userWithSeller) continue;
 
-        let targetSellerId: string
+        let targetSellerId: string;
 
         if (userWithSeller.seller) {
-          targetSellerId = userWithSeller.seller.id
+          targetSellerId = userWithSeller.seller.id;
         } else {
           const newSeller = await tx.seller.create({
             data: {
@@ -70,98 +76,19 @@ export async function POST(
               active: true
             }
           })
-          targetSellerId = newSeller.id
+          targetSellerId = newSeller.id;
         }
 
-        resueltos.push({
-          sellerId: targetSellerId,
-          porcentaje: dist.porcentaje,
-          monto: dist.monto
-        })
-      }
-
-      // 3b. 👈 EL FIX: reemplazamos por completo el reparto de ESTE presupuesto
-      // puntual — borramos lo viejo y creamos lo nuevo, en vez de sumar encima.
-      await tx.rendicionAsignacion.deleteMany({
-        where: { rendicionId, budgetId }
-      })
-
-      if (resueltos.length > 0) {
-        await tx.rendicionAsignacion.createMany({
-          data: resueltos.map((r) => ({
+        // 🌟 Ahora sí: una fila por (rendición, presupuesto, vendedor) — nunca se
+        // acumula con otro presupuesto, cada uno vive en su propia fila.
+        await tx.rendicionAsignacion.create({
+          data: {
             rendicionId,
             budgetId,
-            sellerId: r.sellerId,
-            percentage: r.porcentaje,
-            monto: r.monto,
-          }))
-        })
-      }
-
-      // 3c. Recalculamos el acumulado por vendedor (RendicionSellerShare) desde
-      // cero, sumando TODAS sus asignaciones reales en esta rendición — nunca
-      // incrementando sobre un valor guardado previamente.
-      const sellerIdsAfectados = new Set(resueltos.map((r) => r.sellerId))
-
-      // Incluimos también a quienes tenían reparto en este presupuesto y quedaron
-      // afuera del nuevo payload (pasaron a 0% y el frontend no los manda).
-      const asignacionesVigentes = await tx.rendicionAsignacion.findMany({
-        where: { rendicionId }
-      })
-      asignacionesVigentes.forEach((a) => sellerIdsAfectados.add(a.sellerId))
-
-      const rendicionActual = await tx.rendicion.findUnique({
-        where: { id: rendicionId },
-        select: { totalGanancia: true }
-      })
-
-      for (const sellerId of sellerIdsAfectados) {
-        const asignacionesDelVendedor = asignacionesVigentes.filter(
-          (a) => a.sellerId === sellerId
-        )
-
-        const gananciaTotal = asignacionesDelVendedor.reduce((acc, a) => acc + a.monto, 0)
-        const presupuestosDistintos = new Set(
-          asignacionesDelVendedor.map((a) => a.budgetId)
-        ).size
-
-        const budgetsDelVendedor = await tx.budget.findMany({
-          where: { id: { in: asignacionesDelVendedor.map((a) => a.budgetId) } },
-          select: { id: true, total: true }
-        })
-        const totalPorBudget = new Map(budgetsDelVendedor.map((b) => [b.id, b.total]))
-        const totalFacturado = asignacionesDelVendedor.reduce((acc, a) => {
-          const total = totalPorBudget.get(a.budgetId) ?? 0
-          return acc + total * (a.percentage / 100)
-        }, 0)
-
-        const porcentajeSobreRendicion =
-          rendicionActual && rendicionActual.totalGanancia > 0
-            ? (gananciaTotal / rendicionActual.totalGanancia) * 100
-            : 0
-
-        await tx.rendicionSellerShare.upsert({
-          where: { rendicionId_sellerId: { rendicionId, sellerId } },
-          update: {
-            gananciaAPagar: gananciaTotal,
-            ganancia: gananciaTotal,
-            percentage: porcentajeSobreRendicion,
-            presupuestosCompletados: presupuestosDistintos,
-            totalFacturado,
-            margenPromedio: totalFacturado > 0 ? (gananciaTotal / totalFacturado) * 100 : 100,
-            isDefault: false,
+            sellerId: targetSellerId,
+            percentage: dist.porcentaje,
+            monto: dist.monto,
           },
-          create: {
-            rendicionId,
-            sellerId,
-            presupuestosCompletados: presupuestosDistintos,
-            totalFacturado,
-            ganancia: gananciaTotal,
-            margenPromedio: totalFacturado > 0 ? (gananciaTotal / totalFacturado) * 100 : 100,
-            percentage: porcentajeSobreRendicion,
-            gananciaAPagar: gananciaTotal,
-            isDefault: false,
-          }
         })
       }
     })

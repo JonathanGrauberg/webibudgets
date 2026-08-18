@@ -232,7 +232,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               <Input
                 type="number"
                 min={0}
-                className="pl-6 text-right"
+                className="w-28 pl-6 text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 placeholder="Opcional"
                 value={item.cost ?? ''}
                 onChange={(e) => handleFieldChange('cost', e.target.value === '' ? null : Number(e.target.value))}

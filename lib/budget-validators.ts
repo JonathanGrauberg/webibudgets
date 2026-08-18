@@ -94,6 +94,7 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
     discount: item.discount,
     productServiceId: item.productServiceId,
     customName: item.customName,
+    cost: item.cost, // 👈 nuevo — esto era lo que faltaba de verdad
     widthCm: item.widthCm,
     heightCm: item.heightCm,
     depthCm: item.depthCm,

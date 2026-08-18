@@ -63,9 +63,12 @@ function computeBudgetCostMetrics(budget: Budget) {
   let hasMissingCost = false
 
   for (const item of budget.items ?? []) {
-    const productCost = (item as any).productService?.cost
-    if (productCost != null) {
-      cost += productCost * item.quantity
+    // 👇 antes: solo (item as any).productService?.cost
+    // Ahora: prioriza el costo propio del ítem (el que cargaste a mano en los on-the-fly),
+    // y si no tiene, recién ahí cae al costo del producto de catálogo vinculado.
+    const itemCost = (item as any).cost ?? (item as any).productService?.cost
+    if (itemCost != null) {
+      cost += itemCost * item.quantity
     } else {
       hasMissingCost = true
     }

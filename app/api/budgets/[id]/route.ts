@@ -209,8 +209,7 @@ export async function PATCH(request: Request, { params }: Params) {
               subtotal: item.subtotal,
               discount: item.discount,
               customName: item.customName,
-              cost: pId ? productCostMap.get(pId) ?? null : null, // 👈 Ahora sí funciona perfectamente
-              widthCm: item.widthCm,
+              cost: pId ? (productCostMap.get(pId) ?? null) : (item.cost ?? null), // 👈 antes: null a secas para ítems libres              widthCm: item.widthCm,
               heightCm: item.heightCm,
               depthCm: item.depthCm,
               direct: item.direct,
