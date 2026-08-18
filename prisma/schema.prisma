@@ -881,6 +881,8 @@ model Rendicion {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  asignaciones RendicionAsignacion[]
+
   @@index([tenantId])
   @@index([tenantId, periodStart, periodEnd])
 }
@@ -922,6 +924,21 @@ model RendicionBudget {
 
   @@unique([rendicionId, budgetId])
   @@index([budgetId])
+}
+
+model RendicionAsignacion {
+  id           String   @id @default(uuid())
+  rendicionId  String
+  budgetId     String
+  sellerId     String
+  percentage   Float
+  monto        Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rendicion    Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+
+  @@unique([rendicionId, budgetId, sellerId]) // 👈 clave — permite "reemplazar" en vez de "sumar"
 }
 
 /*VARIANTES DE PRODUCTOS ---------------------------- */

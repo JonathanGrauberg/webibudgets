@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/table'
 import {
   Loader2, Eye, Plus, FileText, Pencil, Search, CheckCircle2, Wallet,
-  Percent, TrendingUp, PackageMinus, Handshake, ChevronDown, Check,
+  Percent, TrendingUp, PackageMinus, Handshake, ChevronDown, Check, StickyNote,
 } from 'lucide-react'
 import type { Budget, BudgetStatus } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -148,6 +148,39 @@ function MetricDropdown<T extends string>({
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+// 👇 nuevo — ícono con popover para ver la nota completa sin ensuciar la tabla
+// ─────────────────────────────────────────────────────────────
+function NotesPreview({ notes }: { notes?: string | null }) {
+  const [open, setOpen] = useState(false)
+
+  if (!notes || !notes.trim()) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-muted-foreground transition hover:text-foreground"
+        title="Ver nota"
+      >
+        <StickyNote className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-64 whitespace-pre-wrap rounded-lg border border-border bg-card p-3 text-left text-xs leading-relaxed text-card-foreground shadow-lg">
+            {notes}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function BudgetsPage() {
 
   const { canEdit, filterBudgets } = usePermissions()
@@ -162,7 +195,7 @@ export default function BudgetsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')
 
-  // 👇 nuevo — alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
+  // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
   const [presupuestosScope, setPresupuestosScope] = useState<'all' | 'active' | 'inactive'>('all')
   const [financeScope, setFinanceScope] = useState<BudgetStatus | 'all'>('approved') // 👈 default: solo aprobados, no todo lo cotizado
 
@@ -193,7 +226,7 @@ export default function BudgetsPage() {
 
   const canViewFinancials = canEdit('budgets')
 
-  // 👇 nuevo — conteo de "presupuestos" según el alcance elegido en su propio dropdown
+  // 👇 conteo de "presupuestos" según el alcance elegido en su propio dropdown
   const presupuestosSummary = useMemo(() => {
     const activeCount = budgets.filter((b) => b.active !== false).length
     const inactiveCount = budgets.length - activeCount
@@ -202,7 +235,7 @@ export default function BudgetsPage() {
     return { shown, activeCount, inactiveCount, total: budgets.length }
   }, [budgets, presupuestosScope])
 
-  // 👇 nuevo — costo/ganancia/margen recalculados según el estado elegido (default: solo Aprobados)
+  // 👇 costo/ganancia/margen recalculados según el estado elegido (default: solo Aprobados)
   const financeBudgets = useMemo(() => {
     if (financeScope === 'all') return budgets
     return budgets.filter((b) => b.status === financeScope)
@@ -288,7 +321,7 @@ export default function BudgetsPage() {
         {budgets.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
 
-            {/* 👇 nuevo — dropdown: total / activos / inactivos */}
+            {/* dropdown: total / activos / inactivos */}
             <MetricDropdown
               icon={FileText}
               value={String(presupuestosSummary.shown)}
@@ -322,7 +355,7 @@ export default function BudgetsPage() {
             {canViewFinancials && (
               <>
                 <div className="hidden h-3 w-px bg-border sm:block" />
-                {/* 👇 nuevo — un solo dropdown controla costo + ganancia + margen a la vez */}
+                {/* un solo dropdown controla costo + ganancia + margen a la vez */}
                 <MetricDropdown
                   icon={PackageMinus}
                   value={formatCurrency(financeSummary.totalCost)}
@@ -466,6 +499,16 @@ export default function BudgetsPage() {
                         </span>
                       </div>
 
+                      {/* 👇 nuevo — nota del presupuesto, solo si tiene algo cargado */}
+                      {b.notes && b.notes.trim() && (
+                        <div className="rounded-md bg-muted/40 p-2.5 text-xs">
+                          <p className="mb-1 flex items-center gap-1.5 font-medium text-card-foreground">
+                            <StickyNote className="h-3.5 w-3.5" /> Notas
+                          </p>
+                          <p className="text-muted-foreground">{b.notes}</p>
+                        </div>
+                      )}
+
                       {canViewFinancials && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Margen</span>
@@ -519,6 +562,7 @@ export default function BudgetsPage() {
                         <TableHead className="text-muted-foreground">N°</TableHead>
                         <TableHead>Fecha</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead>Notas</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         {canViewFinancials && (
                           <>
@@ -552,6 +596,10 @@ export default function BudgetsPage() {
                               <Badge className={STATUS_COLORS[b.status]}>
                                 {STATUS_LABELS[b.status]}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {/* 👇 nuevo */}
+                              <NotesPreview notes={b.notes} />
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               {formatCurrency(b.total)}

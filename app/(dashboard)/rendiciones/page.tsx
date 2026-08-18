@@ -3,6 +3,7 @@
 
 import { useState, useCallback } from 'react'
 import useSWR from 'swr'
+import { useSession } from 'next-auth/react' // 👈 nuevo
 
 import RendicionesPage, {
   type RendicionData,
@@ -68,22 +69,18 @@ function exportToCsv(data: RendicionData) {
 const EMPTY_USERS_ARRAY: any[] = []
 
 export default function RendicionesRoute() {
+  const { data: session } = useSession() // 👈 nuevo
+  const currentUserId = (session?.user as any)?.id as string | undefined // 👈 nuevo
+
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [periodStart, setPeriodStart] = useState(firstDayOfMonth())
   const [periodEnd, setPeriodEnd] = useState(today())
   const [isGenerating, setIsGenerating] = useState(false)
 
-  /*
-   * EXACTAMENTE igual que Products:
-   * obtenemos el tenant completo desde el backend.
-   */
   const { data: tenant } = useSWR('/api/tenants', fetcher, {
     revalidateOnFocus: false,
   })
 
-  /*
-   * Una única fuente de verdad.
-   */
   const hasCommissions = hasFeature(tenant, 'commissions')
   const hasExportData = hasFeature(tenant, 'exportData')
   const hasAuditHistory = hasFeature(tenant, 'auditHistory')
@@ -189,6 +186,7 @@ export default function RendicionesRoute() {
       <RendicionesPage
         data={data}
         tenantUsers={data.tenantUsers || EMPTY_USERS_ARRAY}
+        currentUserId={currentUserId}
         onDateRangeChange={() => setCurrentId(null)}
         onUpdatePercentage={handleRefresh}
         onResetPercentage={handleRefresh}

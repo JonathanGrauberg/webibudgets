@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import type { BudgetStatus } from '@prisma/client'
 
 type BudgetForRendicion = {
   id: string
@@ -14,6 +15,15 @@ type BudgetForRendicion = {
     cost: number | null
     productService: { cost: number | null } | null
   }[]
+}
+
+// 🌟 Mismos criterios que ya usa app/(dashboard)/documents/page.tsx
+const NO_PAYMENT_STATUSES = new Set<BudgetStatus>(['draft', 'rejected', 'expired']) // 👈 antes: Set<string>
+const INACTIVE_RECEIPT_STATUSES = new Set(['cancelled', 'anulado', 'voided', 'void', 'annulled'])
+
+function isReceiptActive(status?: string | null) {
+  if (!status) return true
+  return !INACTIVE_RECEIPT_STATUSES.has(status)
 }
 
 function computeBudgetMetrics(budget: BudgetForRendicion) {
@@ -36,28 +46,65 @@ function computeBudgetMetrics(budget: BudgetForRendicion) {
 }
 
 export async function generateRendicionData(tenantId: string, periodStart: Date, periodEnd: Date) {
-  // 🌟 "Completado en el período" = pasó a estado 'completed' dentro del rango,
-  // no simplemente updatedAt — evita falsos positivos por ediciones posteriores.
-  const completions = await prisma.budgetStatusHistory.findMany({
+  // 🌟 "Saldado en el período" = el recibo que terminó de cubrir el total
+  // del presupuesto se emitió dentro de este rango. Un mismo trabajo nunca
+  // debería aparecer en dos rendiciones distintas — solo en la del período
+  // donde efectivamente se completó el cobro (aunque haya tenido pagos
+  // parciales anteriores en otros períodos).
+  //
+  // ⚠️ Usa `createdAt` del recibo como fecha de emisión — si tu sistema
+  // maneja fechas de emisión distintas (recibos con fecha retroactiva vía
+  // un campo `issueDate`), avisame y cambiamos el filtro para usar ese
+  // campo en su lugar.
+  const receiptsInPeriod = await prisma.receipt.findMany({
     where: {
-      to: 'completed',
-      changedAt: { gte: periodStart, lte: periodEnd },
-      budget: { tenantId },
+      budgetId: { not: null },
+      createdAt: { gte: periodStart, lte: periodEnd },
+      budget: { tenantId, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
     },
-    select: { budgetId: true },
-    distinct: ['budgetId'],
+    select: { budgetId: true, status: true },
   })
 
-  const budgetIds = completions.map((c) => c.budgetId)
+  const candidateBudgetIds = Array.from(
+    new Set(
+      receiptsInPeriod
+        .filter((r) => r.budgetId && isReceiptActive(r.status))
+        .map((r) => r.budgetId as string)
+    )
+  )
 
-  const budgets = await prisma.budget.findMany({
-    where: { id: { in: budgetIds }, tenantId },
+  if (candidateBudgetIds.length === 0) {
+    return {
+      presupuestosCompletados: 0,
+      totalFacturado: 0,
+      totalCosto: 0,
+      totalGanancia: 0,
+      margenPromedio: 0,
+      anyMissingCost: false,
+      sellerShares: [],
+      budgetRows: [],
+    }
+  }
+
+  const candidateBudgets = await prisma.budget.findMany({
+    where: { id: { in: candidateBudgetIds }, tenantId },
     include: {
       client: { select: { name: true, company: true } },
       seller: { select: { name: true, lastName: true } },
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
+      receipts: { select: { amount: true, status: true } }, // 👈 nuevo — TODOS los recibos del presupuesto, no solo los del período, para calcular el cobrado real
     },
-  }) as unknown as BudgetForRendicion[]
+  }) as unknown as (BudgetForRendicion & { receipts: { amount: number; status: string | null }[] })[]
+
+  // 🌟 De los candidatos (tuvieron un recibo activo en este período), nos
+  // quedamos solo con los que HOY están efectivamente saldados de punta a
+  // punta — mismo cálculo exacto que PaymentStatusBadge en documents/page.tsx
+  const budgets = candidateBudgets.filter((b) => {
+    const collected = b.receipts
+      .filter((r) => isReceiptActive(r.status))
+      .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+    return collected >= b.total && b.total > 0
+  })
 
   const activeSellers = await prisma.seller.findMany({
     where: { tenantId, active: true },
@@ -83,11 +130,12 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       vendedorName: b.seller ? `${b.seller.name} ${b.seller.lastName}` : 'Sin asignar',
       budgetNumber: b.budgetNumber ?? 0,
       fecha: b.createdAt,
-      estado: b.status,
+      estado: b.status, // 👈 sigue viajando — ahora es solo informativo ("Estado del trabajo" en la UI), no el criterio de selección
       total: b.total,
       costo: cost,
       ganancia,
       margen,
+      saldado: true, // 👈 nuevo — siempre true acá, porque ya filtramos arriba. Se guarda igual para que el tipo compartido con el frontend sea consistente.
       sellerId: b.sellerId,
     }
   })

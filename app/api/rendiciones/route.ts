@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plan: true, features: true }, // 👈 agregado plan
+      select: { plan: true, features: true },
     })
 
     const periodStart = new Date(data.periodStart)
@@ -45,6 +45,53 @@ export async function POST(request: Request) {
       }
     }
 
+    // 🔎 👈 EL FIX: buscamos si ya existe una rendición para este tenant y este
+    // rango EXACTO de fechas, en vez de crear una fila nueva cada vez que se
+    // entra a la pantalla — así el reparto ya guardado (RendicionAsignacion /
+    // RendicionSellerShare) sigue apuntando al mismo id y no "desaparece".
+    const existente = await prisma.rendicion.findFirst({
+      where: { tenantId, periodStart, periodEnd },
+    })
+
+    if (existente) {
+      // Una rendición cerrada es un snapshot congelado — se devuelve tal cual,
+      // nunca se recalcula ni se le tocan los presupuestos vinculados.
+      if (existente.status === 'closed') {
+        return NextResponse.json({ id: existente.id }, { status: 200 })
+      }
+
+      // Sigue en borrador: refrescamos los totales cacheados y enlazamos
+      // presupuestos nuevos que hayan quedado saldados desde la última vez —
+      // pero jamás tocamos el reparto ya guardado por el usuario.
+      const computed = await generateRendicionData(tenantId, periodStart, periodEnd)
+
+      await prisma.$transaction(async (tx) => {
+        await tx.rendicion.update({
+          where: { id: existente.id },
+          data: {
+            presupuestosCompletados: computed.presupuestosCompletados,
+            totalFacturado: computed.totalFacturado,
+            totalCosto: computed.totalCosto,
+            totalGanancia: computed.totalGanancia,
+            margenPromedio: computed.margenPromedio,
+          },
+        })
+
+        if (computed.budgetRows.length > 0) {
+          await tx.rendicionBudget.createMany({
+            data: computed.budgetRows.map((b) => ({
+              rendicionId: existente.id,
+              budgetId: b.budgetId,
+            })),
+            skipDuplicates: true, // 👈 clave — no falla si el presupuesto ya estaba vinculado
+          })
+        }
+      })
+
+      return NextResponse.json({ id: existente.id }, { status: 200 })
+    }
+
+    // No existía ninguna para este período: la creamos por primera vez, igual que antes.
     const computed = await generateRendicionData(tenantId, periodStart, periodEnd)
 
     const rendicion = await prisma.$transaction(async (tx) => {

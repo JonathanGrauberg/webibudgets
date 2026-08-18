@@ -4,6 +4,15 @@ import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 import { hasFeature } from '@/lib/features'
 
+// 🌟 Mismo criterio que documents/page.tsx y lib/rendicion-engine.ts —
+// importante que los tres coincidan siempre en qué es "saldado".
+const INACTIVE_RECEIPT_STATUSES = new Set(['cancelled', 'anulado', 'voided', 'void', 'annulled'])
+
+function isReceiptActive(status?: string | null) {
+  if (!status) return true
+  return !INACTIVE_RECEIPT_STATUSES.has(status)
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const tenantId = await getTenantIdFromRequest(request)
   const { id } = await params
@@ -12,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     where: { id: tenantId },
     select: { plan: true, features: true },
   })
-  const canSeeDistribution = !!tenant && hasFeature(tenant, 'commissions') // 👈 nuevo
+  const canSeeDistribution = !!tenant && hasFeature(tenant, 'commissions')
 
   // 1. Buscamos la rendición con sus relaciones esenciales
   const rendicion = await prisma.rendicion.findFirst({
@@ -25,6 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               client: { select: { name: true, company: true } },
               seller: { select: { name: true, lastName: true, userId: true } },
               items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
+              receipts: { select: { amount: true, status: true } }, // 👈 nuevo — para recalcular "saldado" en vivo
             },
           },
         },
@@ -49,9 +59,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }))
 
   // 3. Procesamos TODOS los presupuestos vinculados a la rendición, calculando su
-  // costo real y ganancia neta. `estado` acá es el estado ACTUAL y en vivo del
-  // presupuesto (viene de la relación `budget`, no de un valor guardado en el momento
-  // de generar la rendición).
+  // costo real, ganancia neta, y si HOY siguen saldados (recalculado en vivo a
+  // partir de sus recibos activos — no de un valor guardado en el momento de
+  // generar la rendición). `estado` acá sigue siendo el estado del TRABAJO
+  // (draft/sent/approved/completed), ahora puramente informativo.
   const budgetRowsAll = rendicion.budgets.map(({ budget: b }) => {
     let cost = 0
     for (const item of b.items) {
@@ -60,6 +71,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
     const ganancia = b.total - cost
     const margen = b.total > 0 ? (ganancia / b.total) * 100 : 0
+
+    const collected = b.receipts
+      .filter((r) => isReceiptActive(r.status))
+      .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+    const saldado = collected >= b.total && b.total > 0
 
     return {
       id: b.id,
@@ -72,49 +88,60 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       costo: cost,
       ganancia,
       margen,
+      saldado, // 👈 nuevo
     }
   })
 
-  // 🌟 Un presupuesto pudo haber estado "Completado" cuando se generó la rendición y
-  // luego volver a un estado anterior (ej: faltó terminar algo, no se cobró todavía).
-  // Separamos ambos casos: solo los que siguen "completed" HOY entran en la tabla
-  // principal y en los totales de la rendición; el resto se expone aparte, sin afectar
-  // lo ya calculado o repartido.
-  const budgetRows = budgetRowsAll.filter((b) => b.estado === 'completed')
-  const budgetRowsNoLongerCompleted = budgetRowsAll.filter((b) => b.estado !== 'completed')
+  // 🌟 Un presupuesto pudo haber estado "Saldado" cuando se generó la rendición y
+  // luego dejar de estarlo (ej: se anuló un recibo). Separamos ambos casos: solo
+  // los que siguen saldados HOY entran en la tabla principal y en los totales de
+  // la rendición; el resto se expone aparte, sin afectar lo ya calculado o repartido.
+  const budgetRows = budgetRowsAll.filter((b) => b.saldado) // 👈 antes: b.estado === 'completed'
+  const budgetRowsNoLongerCompleted = budgetRowsAll.filter((b) => !b.saldado) // 👈 antes: b.estado !== 'completed'
 
   const totalFacturado = budgetRows.reduce((acc, b) => acc + b.total, 0)
   const totalCosto = budgetRows.reduce((acc, b) => acc + b.costo, 0)
   const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0)
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
-  // 4. 🌟 Recuperamos todas las distribuciones guardadas para esta rendición en la BD.
-  // Nota: para el panel de distribución y el historial de ganancias ya repartidas
-  // usamos `budgetRowsAll` (todos los presupuestos de la rendición), no solo los que
-  // siguen completados hoy — si ya se repartió y/o pagó esa plata, no debe
-  // desaparecer solo porque el estado del presupuesto cambió después.
-  const sharesFromDb = await prisma.rendicionSellerShare.findMany({
+  // 4. 🌟 Traemos las asignaciones REALES guardadas, una fila por presupuesto +
+  // vendedor (ya no un solo % por vendedor aplicado a toda la rendición). Esta es
+  // ahora la única fuente de verdad para "quién se lleva qué, de qué trabajo".
+  // Usamos `budgetRowsAll` (todos los presupuestos de la rendición) para no perder
+  // reparto ya guardado si un presupuesto dejó de estar saldado después.
+  const asignacionesFromDb = await prisma.rendicionAsignacion.findMany({
     where: { rendicionId: id },
-    include: { seller: { select: { userId: true, name: true, lastName: true } } }
   })
 
-  // 5. 🌟 Re-calcular el Panel Izquierdo basado puramente en lo Asignado/Distribuido
+  const sellerIds = Array.from(new Set(asignacionesFromDb.map((a) => a.sellerId)))
+  const sellersInfo = sellerIds.length > 0
+    ? await prisma.seller.findMany({
+        where: { id: { in: sellerIds } },
+        select: { id: true, name: true, lastName: true, userId: true },
+      })
+    : []
+  const sellersById = new Map(sellersInfo.map((s) => [s.id, s]))
+  const budgetsById = new Map(budgetRowsAll.map((b) => [b.id, b]))
+
+  // 5. 🌟 Re-calcular el Panel Izquierdo sumando directamente cada asignación real
+  // (cada una ya trae su propio % y monto para ESE presupuesto puntual).
   const acumuladoUsuarios: Record<string, { name: string; presupuestos: Set<string>; facturado: number; ganancia: number }> = {}
 
   tenantUsers.forEach(u => {
     acumuladoUsuarios[u.id] = { name: u.name, presupuestos: new Set(), facturado: 0, ganancia: 0 }
   })
 
-  sharesFromDb.forEach(share => {
-    const userId = share.seller.userId
-    if (userId && acumuladoUsuarios[userId]) {
-      acumuladoUsuarios[userId].ganancia += share.gananciaAPagar
+  asignacionesFromDb.forEach((a) => {
+    const seller = sellersById.get(a.sellerId)
+    const userId = seller?.userId
+    if (!userId || !acumuladoUsuarios[userId]) return
 
-      budgetRowsAll.forEach(b => {
-        const recordProporcional = (b.total * (share.percentage / 100))
-        acumuladoUsuarios[userId].facturado += recordProporcional
-        acumuladoUsuarios[userId].presupuestos.add(b.id)
-      })
+    acumuladoUsuarios[userId].ganancia += a.monto
+    acumuladoUsuarios[userId].presupuestos.add(a.budgetId)
+
+    const budget = budgetsById.get(a.budgetId)
+    if (budget) {
+      acumuladoUsuarios[userId].facturado += budget.total * (a.percentage / 100)
     }
   })
 
@@ -128,17 +155,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     margenPromedio: data.facturado > 0 ? (data.ganancia / data.facturado) * 100 : 0
   })).sort((a, b) => b.ganancia - a.ganancia)
 
-  // 6. Mapeamos las asignaciones confirmadas estructuradas para el Frontend
-  const asignacionesGuardadas = sharesFromDb.flatMap(share => {
-    return budgetRowsAll.map(b => ({
-      budgetId: b.id,
-      budgetNumber: String(b.budgetNumber).padStart(6, "0"),
-      vendedorId: share.seller.userId || '',
-      vendedorName: `${share.seller.name} ${share.seller.lastName}`,
-      role: tenantUsers.find(u => u.id === share.seller.userId)?.role || 'seller',
-      porcentaje: share.percentage,
-      gananciaAsignada: b.ganancia * (share.percentage / 100)
-    }))
+  // 6. Mapeamos las asignaciones confirmadas para el Frontend — ahora una fila
+  // real por presupuesto + vendedor, tal cual quedó guardado.
+  const asignacionesGuardadas = asignacionesFromDb.map((a) => {
+    const seller = sellersById.get(a.sellerId)
+    const budget = budgetsById.get(a.budgetId)
+
+    return {
+      budgetId: a.budgetId,
+      budgetNumber: budget ? String(budget.budgetNumber).padStart(6, "0") : '',
+      vendedorId: seller?.userId || '',
+      vendedorName: seller ? `${seller.name} ${seller.lastName}` : 'Desconocido',
+      role: tenantUsers.find(u => u.id === seller?.userId)?.role || 'seller',
+      porcentaje: a.percentage,
+      gananciaAsignada: a.monto,
+    }
   })
 
   return NextResponse.json({
@@ -152,8 +183,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     totalGanancia,
     margenPromedio,
     sellers: canSeeDistribution ? sellersRows : [],
-    budgets: budgetRows,                                              // 👈 solo los que siguen "completed" hoy
-    budgetsNoLongerCompleted: budgetRowsNoLongerCompleted,             // 👈 nuevo — los que se cayeron de "completado"
+    budgets: budgetRows,                                              // 👈 solo los que siguen saldados hoy
+    budgetsNoLongerCompleted: budgetRowsNoLongerCompleted,             // 👈 los que se cayeron de "saldado"
     tenantUsers: canSeeDistribution ? tenantUsers : [],
     asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [],
     currency: 'ARS',
