@@ -1,5 +1,5 @@
 'use client'
-
+//components\documents\create-receipt-modal.tsx
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
@@ -17,9 +17,9 @@ import {
 interface CreateReceiptModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  budgetId?: string        // 👈 antes: obligatorio
-  budgetTotal?: number     // 👈 antes: obligatorio
-  budgetNumber?: number    // 👈 antes: obligatorio
+  budgetId?: string
+  budgetTotal?: number
+  budgetNumber?: number
   onCreated: () => void
 }
 
@@ -42,19 +42,28 @@ export function CreateReceiptModal({
   open, onOpenChange, budgetId, budgetTotal, budgetNumber, onCreated,
 }: CreateReceiptModalProps) {
   const { data: session } = useSession()
-  const isStandalone = !budgetId // 👈 nuevo
+  const isStandalone = !budgetId
 
-  const { data: clients = [] } = useSWR(isStandalone && open ? '/api/clients' : null, fetcher) // 👈 nuevo
+  const { data: clients = [] } = useSWR(isStandalone && open ? '/api/clients' : null, fetcher)
 
-  const [clientId, setClientId] = useState('') // 👈 nuevo
+  const [clientId, setClientId] = useState('')
   const [amount, setAmount] = useState(budgetTotal ? String(budgetTotal) : '')
   const [paymentMethod, setPaymentMethod] = useState('efectivo')
   const [paymentReference, setPaymentReference] = useState('')
   const [issuePlace, setIssuePlace] = useState('')
   const [pendingBalance, setPendingBalance] = useState('')
-  const [concept, setConcept] = useState('') // 👈 nuevo — solo relevante en standalone
+  const [concept, setConcept] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // 👇 nuevo — sugerencia de saldo pendiente = total del presupuesto - lo que se está cobrando ahora.
+  // Solo aplica si hay un budgetTotal real (no en recibos standalone, que no tienen un "total" de referencia).
+  // Nunca pisa lo que el usuario ya escribió — es puramente un placeholder.
+  const parsedAmount = Number(amount)
+  const suggestedPendingBalance =
+    budgetTotal !== undefined && amount !== '' && !Number.isNaN(parsedAmount)
+      ? Math.max(0, budgetTotal - parsedAmount)
+      : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +91,12 @@ export function CreateReceiptModal({
             paymentMethod,
             paymentReference: paymentReference || null,
             issuePlace: issuePlace || null,
-            pendingBalance: pendingBalance !== '' ? Number(pendingBalance) : null,
+            // 👇 nuevo — si el usuario no tocó el campo, usamos la sugerencia calculada
+            // en vez de mandar null (antes: solo lo que había escrito a mano)
+            pendingBalance:
+              pendingBalance !== ''
+                ? Number(pendingBalance)
+                : suggestedPendingBalance,
             notes: notes || null,
             registeredByUserId: (session?.user as any)?.id ?? null,
           }
@@ -162,7 +176,23 @@ export function CreateReceiptModal({
             </div>
             <div className="space-y-2">
               <Label>Saldo pendiente (opcional)</Label>
-              <Input type="number" min={0} step="any" value={pendingBalance} onChange={(e) => setPendingBalance(e.target.value)} placeholder="Si es pago parcial" />
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                value={pendingBalance}
+                onChange={(e) => setPendingBalance(e.target.value)}
+                placeholder={
+                  suggestedPendingBalance !== null
+                    ? String(suggestedPendingBalance)
+                    : 'Si es pago parcial'
+                }
+              />
+              {suggestedPendingBalance !== null && pendingBalance === '' && (
+                <p className="text-xs text-muted-foreground">
+                  Sugerido: total del presupuesto menos este importe. Escribí otro valor si corresponde.
+                </p>
+              )}
             </div>
           </div>
 
