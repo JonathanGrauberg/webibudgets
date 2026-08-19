@@ -2,9 +2,14 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  manifest: '/kiosco-manifest.json', // 👈 nuevo — pisa el manifest general, solo acá adentro
+  manifest: '/kiosco-manifest.json',
   icons: {
-    apple: '/icon-kiosco-192-square.png', // 👈 nuevo
+    apple: '/icon-kiosco-192-square.png',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Kiosco', // 👈 nuevo — nombre distinto, para que iOS lo trate como identidad separada
+    statusBarStyle: 'black-translucent',
   },
 }
 
