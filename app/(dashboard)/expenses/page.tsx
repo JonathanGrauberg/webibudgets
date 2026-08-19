@@ -163,58 +163,105 @@ export default function ExpensesPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="w-full overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead>Asociado a</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      {canManage && <TableHead className="text-right">Acciones</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.map((e) => (
-                      <TableRow key={e.id} className="hover:bg-muted/40">
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
-                        <TableCell className="font-medium">{e.description}</TableCell>
-                        <TableCell>
-                          {e.category ? <Badge variant="secondary">{e.category.name}</Badge> : <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell>
-                          {e.budget ? (
-                            <Badge variant="outline" className="gap-1">
-                              <Briefcase className="h-3 w-3" />
-                              #{String(e.budget.budgetNumber).padStart(6, '0')} — {e.budget.client?.company || e.budget.client?.name}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">General</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
-                        {canManage && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" onClick={() => { setEditingExpense(e); setModalOpen(true) }}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(e.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
+          <>
+            {/* MOBILE: cards */}
+            <div className="space-y-3 md:hidden">
+              {expenses.map((e) => (
+                <Card key={e.id}>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-card-foreground">{e.description}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(e.date)}</p>
+                      </div>
+                      <span className="shrink-0 font-semibold text-card-foreground">{formatCurrency(e.amount)}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {e.category ? (
+                        <Badge variant="secondary">{e.category.name}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sin categoría</span>
+                      )}
+                      {e.budget ? (
+                        <Badge variant="outline" className="gap-1">
+                          <Briefcase className="h-3 w-3" />
+                          #{String(e.budget.budgetNumber).padStart(6, '0')} — {e.budget.client?.company || e.budget.client?.name}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">General</Badge>
+                      )}
+                    </div>
+
+                    {canManage && (
+                      <div className="flex gap-2 border-t border-border pt-3">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingExpense(e); setModalOpen(true) }}>
+                          <Pencil className="mr-2 h-3.5 w-3.5" /> Editar
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1 text-destructive hover:text-destructive" onClick={() => handleDelete(e.id)}>
+                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Eliminar
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* DESKTOP/TABLET: tabla */}
+            <Card className="hidden md:block">
+              <CardContent className="p-0">
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Asociado a</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        {canManage && <TableHead className="text-right">Acciones</TableHead>}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {expenses.map((e) => (
+                        <TableRow key={e.id} className="hover:bg-muted/40">
+                          <TableCell className="text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
+                          <TableCell className="font-medium">{e.description}</TableCell>
+                          <TableCell>
+                            {e.category ? <Badge variant="secondary">{e.category.name}</Badge> : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            {e.budget ? (
+                              <Badge variant="outline" className="gap-1">
+                                <Briefcase className="h-3 w-3" />
+                                #{String(e.budget.budgetNumber).padStart(6, '0')} — {e.budget.client?.company || e.budget.client?.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">General</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
+                          {canManage && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => { setEditingExpense(e); setModalOpen(true) }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(e.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 
