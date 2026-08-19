@@ -1,4 +1,5 @@
 {
+  "id": "/kiosco",
   "name": ".budgets Kiosco",
   "short_name": "Kiosco",
   "description": "Pantalla táctil para la pared del taller — tableros por proyecto, siempre a la vista.",

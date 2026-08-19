@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": ".budgets",
   "short_name": ".budgets",
   "description": "Sistema de gestión, presupuestos y órdenes de trabajo para PyMEs y profesionales.",
