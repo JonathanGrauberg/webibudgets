@@ -6,6 +6,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
 import { Inter } from 'next/font/google'
+import { PwaRegister } from '@/components/pwa-register' // 👈 nuevo
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -142,6 +143,7 @@ export default function RootLayout({
           {children}
           <Toaster />          
         </Providers>
+        <PwaRegister /> {/* 👈 nuevo — registra el Service Worker apenas carga cualquier página */}
         <Analytics />
       </body>
     </html>
