@@ -79,7 +79,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .reduce((acc, r) => acc + Number(r.amount || 0), 0)
     const saldado = collected >= b.total && b.total > 0
 
-    // 👇 nuevo — gastos asociados a este presupuesto puntual, en vivo (no un snapshot viejo)
     const gastosAsociados = b.expenses.reduce((acc, e) => acc + e.amount, 0)
     const ganancia = gananciaBruta - gastosAsociados
     const margen = b.total > 0 ? (ganancia / b.total) * 100 : 0
@@ -103,8 +102,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const budgetRows = budgetRowsAll.filter((b) => b.saldado)
   const budgetRowsNoLongerCompleted = budgetRowsAll.filter((b) => !b.saldado)
 
-  // 👇 nuevo — gastos generales del período (no asociados a ningún presupuesto puntual),
-  // recalculados en vivo con el mismo rango de fechas de esta rendición.
   const generalExpenses = await prisma.expense.findMany({
     where: {
       tenantId,
@@ -120,10 +117,30 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0) - totalGastosGenerales
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
-  const sharesFromDb = await prisma.rendicionSellerShare.findMany({
+  // 👇 RESTAURADO — el reparto real, guardado por presupuesto puntual en RendicionAsignacion.
+  // Esto es lo que se había perdido en la versión anterior (leía de la tabla vieja RendicionSellerShare).
+  const asignacionesDb = await prisma.rendicionAsignacion.findMany({
     where: { rendicionId: id },
-    include: { seller: { select: { userId: true, name: true, lastName: true } } }
   })
+
+  const budgetById = new Map(budgetRowsAll.map((b) => [b.id, b]))
+
+  const asignacionesGuardadas = asignacionesDb
+    .map((a) => {
+      const u = userBySellerId.get(a.sellerId)
+      const b = budgetById.get(a.budgetId)
+      if (!u || !b) return null
+      return {
+        budgetId: a.budgetId,
+        budgetNumber: String(b.budgetNumber).padStart(6, '0'),
+        vendedorId: u.id,
+        vendedorName: u.name,
+        role: u.role,
+        porcentaje: a.percentage,
+        gananciaAsignada: a.monto,
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
 
   const acumuladoUsuarios: Record<string, { name: string; presupuestos: Set<string>; facturado: number; ganancia: number }> = {}
 
@@ -131,17 +148,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     acumuladoUsuarios[u.id] = { name: u.name, presupuestos: new Set(), facturado: 0, ganancia: 0 }
   })
 
-  sharesFromDb.forEach(share => {
-    const userId = share.seller.userId
-    if (userId && acumuladoUsuarios[userId]) {
-      acumuladoUsuarios[userId].ganancia += share.gananciaAPagar
-
-      budgetRowsAll.forEach(b => {
-        const recordProporcional = (b.total * (share.percentage / 100))
-        acumuladoUsuarios[userId].facturado += recordProporcional
-        acumuladoUsuarios[userId].presupuestos.add(b.id)
-      })
-    }
+  asignacionesGuardadas.forEach((a) => {
+    const acc = acumuladoUsuarios[a.vendedorId]
+    const b = budgetById.get(a.budgetId)
+    if (!acc || !b) return
+    acc.ganancia += a.gananciaAsignada
+    acc.facturado += b.total * (a.porcentaje / 100)
+    acc.presupuestos.add(a.budgetId)
   })
 
   const sellersRows = Object.entries(acumuladoUsuarios).map(([userId, data]) => ({
@@ -153,18 +166,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ganancia: data.ganancia,
     margenPromedio: data.facturado > 0 ? (data.ganancia / data.facturado) * 100 : 0
   })).sort((a, b) => b.ganancia - a.ganancia)
-
-  const asignacionesGuardadas = sharesFromDb.flatMap(share => {
-    return budgetRowsAll.map(b => ({
-      budgetId: b.id,
-      budgetNumber: String(b.budgetNumber).padStart(6, "0"),
-      vendedorId: share.seller.userId || '',
-      vendedorName: `${share.seller.name} ${share.seller.lastName}`,
-      role: tenantUsers.find(u => u.id === share.seller.userId)?.role || 'seller',
-      porcentaje: share.percentage,
-      gananciaAsignada: b.ganancia * (share.percentage / 100)
-    }))
-  })
 
   return NextResponse.json({
     id: rendicion.id,
@@ -184,7 +185,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [],
     currency: 'ARS',
   })
-
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
