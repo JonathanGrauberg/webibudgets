@@ -234,10 +234,12 @@ function MobileActionsMenu({
 function DocumentRow({
   budget,
   onReceiptCreated,
+  alreadyCollected,
   isMobile = false,
 }: {
   budget: Budget
   onReceiptCreated: () => void
+  alreadyCollected: number
   isMobile?: boolean
 }) {
   const [receiptModalOpen, setReceiptModalOpen] = useState(false)
@@ -287,6 +289,7 @@ function DocumentRow({
         onOpenChange={setReceiptModalOpen}
         budgetId={budget.id}
         budgetTotal={budget.total}
+        alreadyCollected={alreadyCollected}  // 👈 nuevo
         budgetNumber={budget.budgetNumber ?? 0}
         onCreated={onReceiptCreated}
       />
@@ -389,11 +392,6 @@ export default function DocumentsPage() {
   const getCollectedAmount = (budgetId: string | number) => {
     return collectedMap[String(budgetId)] || 0
   }
-
-  // LOGS DE VERIFICACIÓN EN CONSOLA
-  console.log('📌 [DocumentsPage] Recibos cargados desde la API:', receipts)
-  console.log('📌 [DocumentsPage] Mapa de cobrados generado:', collectedMap)
-  console.log('📌 [DocumentsPage] Presupuestos cargados:', budgets)
 
   // Filtrado de búsquedas
   const filteredBudgets = budgets.filter((b) => {
@@ -578,6 +576,7 @@ export default function DocumentsPage() {
                       <DocumentRow
                         budget={b}
                         onReceiptCreated={handleDocumentChange}
+                        alreadyCollected={collected} // 👈 nuevo
                         isMobile
                       />
                     </div>
@@ -703,6 +702,7 @@ export default function DocumentsPage() {
                           <DocumentRow
                             budget={b}
                             onReceiptCreated={handleDocumentChange}
+                            alreadyCollected={collected} // 👈 nuevo
                           />
                         </TableCell>
                       </TableRow>

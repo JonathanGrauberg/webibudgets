@@ -1,5 +1,5 @@
 'use client'
-//components\documents\create-receipt-modal.tsx
+
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
@@ -19,6 +19,7 @@ interface CreateReceiptModalProps {
   onOpenChange: (open: boolean) => void
   budgetId?: string
   budgetTotal?: number
+  alreadyCollected?: number // 👈 nuevo — cuánto ya se cobró con recibos anteriores de este presupuesto
   budgetNumber?: number
   onCreated: () => void
 }
@@ -39,7 +40,7 @@ async function fetcher(url: string) {
 }
 
 export function CreateReceiptModal({
-  open, onOpenChange, budgetId, budgetTotal, budgetNumber, onCreated,
+  open, onOpenChange, budgetId, budgetTotal, alreadyCollected, budgetNumber, onCreated,
 }: CreateReceiptModalProps) {
   const { data: session } = useSession()
   const isStandalone = !budgetId
@@ -62,7 +63,7 @@ export function CreateReceiptModal({
   const parsedAmount = Number(amount)
   const suggestedPendingBalance =
     budgetTotal !== undefined && amount !== '' && !Number.isNaN(parsedAmount)
-      ? Math.max(0, budgetTotal - parsedAmount)
+      ? Math.max(0, budgetTotal - (alreadyCollected ?? 0) - parsedAmount)
       : null
 
   const handleSubmit = async (e: React.FormEvent) => {

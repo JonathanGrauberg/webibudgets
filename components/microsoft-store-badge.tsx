@@ -38,7 +38,7 @@ export function MicrosoftStoreBadge({ size = 'large', className }: MicrosoftStor
     badge.setAttribute('productid', STORE_PRODUCT_ID)
     badge.setAttribute('productname', '.budgets')
     badge.setAttribute('window-mode', 'direct')
-    badge.setAttribute('theme', 'dark')
+    badge.setAttribute('theme', 'auto')
     badge.setAttribute('size', size)
     badge.setAttribute('language', 'es-es')
     badge.setAttribute('animation', 'on')
