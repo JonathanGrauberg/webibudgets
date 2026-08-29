@@ -3,6 +3,7 @@ import { NextResponse, NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { resolveMaxUsers, resolveTrialEndsAt } from '@/lib/plan'
+import { issueAndSendVerificationEmail } from '@/lib/email-verification'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const { tenant } = await prisma.$transaction(async (tx) => {
+    const { tenant, user } = await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           name: companyName,
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      await tx.user.create({
+      const user = await tx.user.create({
         data: {
           name: companyName,
           email, // Se guarda impecable en minúsculas
@@ -100,10 +101,17 @@ export async function POST(req: NextRequest) {
           tenantId: tenant.id,
           active: true,
         },
+        select: { id: true },
       })
 
-      return { tenant }
+      return { tenant, user }
     })
+
+    // 👇 nuevo — verificación de email. No bloquea el alta: si Resend falla
+    // por lo que sea, la cuenta ya quedó creada igual (issueAndSendVerificationEmail
+    // nunca tira). El usuario puede loguearse ya mismo; lo único que queda
+    // atado a verificar es crear presupuestos y pasar a PRO.
+    await issueAndSendVerificationEmail(user.id, email, process.env.NEXTAUTH_URL || req.nextUrl.origin)
 
     return NextResponse.json({
       ok: true,

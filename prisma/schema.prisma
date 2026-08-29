@@ -224,9 +224,12 @@ model User {
   seller    Seller?
   installer Installer?
 
-  receipts Receipt[] 
+  receipts Receipt[]
   deliveryNotes DeliveryNote[] // 👈 nuevo
   workOrderHelperOf WorkOrderHelper[] @relation("WorkOrderHelpers") // 👈 nuevo
+
+  passwordResetTokens PasswordResetToken[] // 👈 nuevo — recuperación de contraseña
+  emailVerificationTokens EmailVerificationToken[] // 👈 nuevo — verificación de email
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -240,6 +243,54 @@ model User {
 
 
   @@index([tenantId])
+}
+
+/* =========================
+   RECUPERACIÓN DE CONTRASEÑA
+========================= */
+
+// 👇 nuevo — "olvidé mi contraseña". Se guarda el HASH del token (sha256),
+// nunca el token en texto plano — mismo principio que la columna
+// User.password, aunque acá el algoritmo es distinto a propósito: el
+// token ya nace con 256 bits de entropía (crypto.randomBytes), así que no
+// hace falta (ni conviene) el costo de bcrypt — sha256 alcanza y sobra
+// para algo que no se puede fuerza-bruta por diccionario como sí una
+// contraseña humana. Un solo uso: se marca `usedAt` al resetear y ahí
+// mismo se invalidan los demás tokens vigentes del usuario.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt]) // 👈 para el límite de pedidos por hora
+}
+
+// 👇 nuevo — verificación de email al registrarse. Mismo patrón exacto que
+// PasswordResetToken (hash sha256, vencimiento, un solo uso) — reusa la
+// misma infraestructura de envío (lib/email.ts) y el mismo criterio de
+// límite de reenvíos por hora.
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt]) // 👈 para el límite de reenvíos por hora
 }
 
 /* =========================

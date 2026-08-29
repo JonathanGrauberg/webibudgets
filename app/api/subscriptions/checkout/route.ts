@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Intervalo inválido' }, { status: 400 })
     }
 
+    // 📧 A propósito NO se chequea acá si el email está verificado —
+    // decisión explícita: trabar el pago justo cuando alguien se registra
+    // con intención de pagar PRO significa que nadie podría completar la
+    // compra en el mismo paso del registro (no da tiempo a verificar el
+    // email en el medio). El gate de verificación vive solo en la creación
+    // de presupuestos (ver app/api/budgets/route.ts). Como salvaguarda
+    // liviana, el registro con intención PRO muestra un aviso pidiendo
+    // confirmar que el email esté bien escrito antes de pagar (ver
+    // RegisterForm.tsx), ya que ahí se manda el comprobante de pago.
+
     let mpPlanId = interval === 'monthly'
       ? process.env.MP_PLAN_PRO_MONTHLY
       : process.env.MP_PLAN_PRO_ANNUAL

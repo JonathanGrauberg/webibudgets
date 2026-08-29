@@ -7,6 +7,7 @@ import { getTenantBranding, TENANT_HEADER } from '@/lib/tenant'
 import { effectiveBranding } from '@/lib/branding'
 import { DashboardContentWrapper } from '@/components/dashboard-content-wrapper'
 import { ModalPagoPendiente } from '@/components/modal-pago-pendiente'
+import { EmailVerificationBanner } from '@/components/email-verification-banner'
 import { DynamicIslandHeader } from '@/components/dynamic-island-header' // 👈 Componente de la Solapa flotante
 
 export default async function DashboardLayout({
@@ -63,6 +64,7 @@ export default async function DashboardLayout({
             <div className="flex-1 h-full rounded-none lg:rounded-[28px] border border-neutral-200/80 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col">
               <DashboardContentWrapper>
                 <ModalPagoPendiente />
+                <EmailVerificationBanner />
                 {children}
               </DashboardContentWrapper>
             </div>

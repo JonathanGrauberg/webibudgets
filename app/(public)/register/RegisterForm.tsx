@@ -349,6 +349,14 @@ export default function RegisterForm() {
               </div>
             </div>
 
+            {/* 👇 nuevo — con intención PRO, el comprobante de pago va a este email */}
+            {isProIntent && (
+              <p className="text-[11px] text-muted-foreground">
+                Te vamos a mandar el comprobante de pago a este email — confirmá que esté bien
+                escrito antes de continuar.
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={isSubmitting || isGoogleLoading}

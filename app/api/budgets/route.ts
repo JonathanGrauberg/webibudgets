@@ -1,5 +1,6 @@
-// app\api\budgets\route.ts 
+// app\api\budgets\route.ts
 import { NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'
 import {
@@ -59,6 +60,31 @@ export async function POST(request: Request) {
     }
     if (!Array.isArray(data?.items) || data.items.length === 0) {
       return NextResponse.json({ error: 'items are required' }, { status: 400 })
+    }
+
+    // ===================================================
+    // 📧 EMAIL VERIFICADO — no se puede crear presupuestos hasta confirmar
+    // el email de la cuenta. Se chequea siempre fresco contra la base (no
+    // contra el JWT, que no se refresca hasta el próximo login) — así el
+    // bloqueo se levanta al toque apenas la persona verifica.
+    // ===================================================
+    const authToken = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET })
+    const requestingUserId = authToken?.id as string | undefined
+
+    if (requestingUserId) {
+      const requestingUser = await prisma.user.findUnique({
+        where: { id: requestingUserId },
+        select: { emailVerified: true },
+      })
+      if (requestingUser && !requestingUser.emailVerified) {
+        return NextResponse.json(
+          {
+            error: 'email_not_verified',
+            message: 'Confirmá tu email para poder crear presupuestos. Revisá el cartel en la parte de arriba.',
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // ===================================================
