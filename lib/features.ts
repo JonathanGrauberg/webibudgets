@@ -14,6 +14,7 @@ export type FeatureKey =
   | "auditHistory"
   | "customCategories"
   | "kiosk"
+  | "pdfTemplates" // 👈 nuevo — elegir plantilla de diseño para el PDF de presupuesto
 
 // 👇 nuevo — evita repetir las 14 claves dos veces (vip y custom deben ser
 // siempre idénticos: los dos son "PRO completo", solo cambia si pagan o no)
@@ -32,6 +33,7 @@ const ALL_PRO_FEATURES: Record<FeatureKey, boolean> = {
   auditHistory: true,
   customCategories: true,
   kiosk: true,
+  pdfTemplates: true, // 👈 nuevo
 }
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {

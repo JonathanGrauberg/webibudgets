@@ -168,6 +168,8 @@ export async function getTenantBranding(tenantId: string) {
       showFooterBranding: true,
       conditionsPdfUrl: true,  // 👈 nuevo — esto es lo que faltaba
       conditionsPdfName: true, // 👈 nuevo
+      pdfTemplate: true,       // 👈 nuevo — selector de plantilla PDF
+      pdfTemplateDark: true,   // 👈 nuevo — toggle claro/oscuro de "directa"
       features: true,
     },
   })

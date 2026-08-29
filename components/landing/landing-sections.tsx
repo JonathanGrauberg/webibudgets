@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react' // 👈 nuevo
+import { useSearchParams } from 'next/navigation' // 👈 nuevo — para leer el código de revendedor de la URL
 import { faqs } from './landing-data' // 👈 ya no usamos "plans"
 
 import { ProductosBanner } from '../productos-banner'
@@ -102,12 +103,16 @@ export function LandingSections({
 }: LandingSectionsProps) { 
   const [isAnnual, setIsAnnual] = useState(false)
   const { data: session } = useSession() // 👈 nuevo
+  const searchParams = useSearchParams()
+  const referralCode = searchParams.get('code') // 👈 nuevo — el link que comparte un revendedor viene con ?code=ALGO
 
   // 👇 nuevo — si ya hay sesión, "Quiero PRO" va directo al checkout automático;
-  // si no hay sesión, va a /register con la intención de PRO marcada en la URL
+  // si no hay sesión, va a /register con la intención de PRO marcada en la URL.
+  // En los dos casos, si vino un código de revendedor en la URL, lo arrastramos.
+  const codeQuery = referralCode ? `&code=${encodeURIComponent(referralCode)}` : ''
   const proHref = session
-    ? `/dashboard?subscription=start&interval=${isAnnual ? 'annual' : 'monthly'}`
-    : `/register?plan=pro&interval=${isAnnual ? 'annual' : 'monthly'}`
+    ? `/dashboard?subscription=start&interval=${isAnnual ? 'annual' : 'monthly'}${codeQuery}`
+    : `/register?plan=pro&interval=${isAnnual ? 'annual' : 'monthly'}${codeQuery}`
 
   return (
     <main className="overflow-x-hidden bg-background text-foreground">

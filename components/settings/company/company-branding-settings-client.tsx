@@ -71,6 +71,8 @@ type PdfSettings = {
   showFooterBranding: boolean
   conditionsPdfUrl: string | null
   conditionsPdfName: string | null
+  pdfTemplate: string // 👈 nuevo — "clasico" | "contraste" | "cantonera" | "directa"
+  pdfTemplateDark: boolean // 👈 nuevo — toggle claro/oscuro, solo lo usa "directa"
 }
 
 type TeamMember = {
@@ -102,6 +104,8 @@ type PersistedState = {
   showFooterBranding: boolean
   conditionsPdfUrl: string | null
   conditionsPdfName: string | null
+  pdfTemplate: string // 👈 nuevo
+  pdfTemplateDark: boolean // 👈 nuevo
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -130,6 +134,8 @@ function buildPersistedState(
     showFooterBranding: pdfSettings.showFooterBranding,
     conditionsPdfUrl: pdfSettings.conditionsPdfUrl,
     conditionsPdfName: pdfSettings.conditionsPdfName,
+    pdfTemplate: pdfSettings.pdfTemplate, // 👈 nuevo
+    pdfTemplateDark: pdfSettings.pdfTemplateDark, // 👈 nuevo
   }
 }
 
@@ -153,6 +159,8 @@ function serializeBranding(
     showPageNumbers: pdfSettings.showPageNumbers,
     showWebsiteInPdf: pdfSettings.showWebsiteInPdf,
     showFooterBranding: pdfSettings.showFooterBranding,
+    pdfTemplate: pdfSettings.pdfTemplate, // 👈 nuevo
+    pdfTemplateDark: pdfSettings.pdfTemplateDark, // 👈 nuevo
   })
 }
 
@@ -228,6 +236,13 @@ export default function CompanyBrandingSettingsClient({
   )
   const [upgradeOpen, setUpgradeOpen] = useState(false)
 
+  // 👇 nuevo — selector de plantilla de PDF (feature PRO, mismo patrón que whiteLabel)
+  const hasPdfTemplates = hasFeature(
+    { plan: tenantPlanData?.plan, features: tenantPlanData?.features },
+    'pdfTemplates'
+  )
+  const [pdfTemplateUpgradeOpen, setPdfTemplateUpgradeOpen] = useState(false)
+
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
 
@@ -275,6 +290,8 @@ export default function CompanyBrandingSettingsClient({
   const [showFooterBranding, setShowFooterBranding] = useState<boolean>((initialBranding as any)?.showFooterBranding ?? false)
   const [conditionsPdfUrl, setConditionsPdfUrl] = useState<string | null>((initialBranding as any)?.conditionsPdfUrl ?? null)
   const [conditionsPdfName, setConditionsPdfName] = useState<string | null>((initialBranding as any)?.conditionsPdfName ?? null)
+  const [pdfTemplate, setPdfTemplate] = useState<string>((initialBranding as any)?.pdfTemplate ?? 'clasico') // 👈 nuevo
+  const [pdfTemplateDark, setPdfTemplateDark] = useState<boolean>((initialBranding as any)?.pdfTemplateDark ?? false) // 👈 nuevo
 
   // 👇 nuevo — helper para no repetir el mismo objeto 6 veces a lo largo del archivo
   const currentPdfSettings = useCallback((): PdfSettings => ({
@@ -285,7 +302,9 @@ export default function CompanyBrandingSettingsClient({
     showFooterBranding,
     conditionsPdfUrl,
     conditionsPdfName,
-  }), [watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding, conditionsPdfUrl, conditionsPdfName])
+    pdfTemplate, // 👈 nuevo
+    pdfTemplateDark, // 👈 nuevo
+  }), [watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding, conditionsPdfUrl, conditionsPdfName, pdfTemplate, pdfTemplateDark])
 
   const [colorSystem, setColorSystem] = useState<ColorSystem>({
     primary: effective.primaryColor ?? '#0ea5e9',
@@ -305,6 +324,8 @@ export default function CompanyBrandingSettingsClient({
         showFooterBranding: (initialBranding as any)?.showFooterBranding ?? false,
         conditionsPdfUrl: (initialBranding as any)?.conditionsPdfUrl ?? null, // 👈 faltaba
         conditionsPdfName: (initialBranding as any)?.conditionsPdfName ?? null, // 👈 faltaba
+        pdfTemplate: (initialBranding as any)?.pdfTemplate ?? 'clasico', // 👈 nuevo
+        pdfTemplateDark: (initialBranding as any)?.pdfTemplateDark ?? false, // 👈 nuevo
       }
     )
   )
@@ -367,6 +388,8 @@ export default function CompanyBrandingSettingsClient({
         showFooterBranding: (initialBranding as any).showFooterBranding ?? false,
         conditionsPdfUrl: (initialBranding as any).conditionsPdfUrl ?? null, // 👈 faltaba
         conditionsPdfName: (initialBranding as any).conditionsPdfName ?? null, // 👈 faltaba
+        pdfTemplate: (initialBranding as any).pdfTemplate ?? 'clasico', // 👈 nuevo
+        pdfTemplateDark: (initialBranding as any).pdfTemplateDark ?? false, // 👈 nuevo
       }
     )
 
@@ -389,6 +412,8 @@ export default function CompanyBrandingSettingsClient({
       setShowFooterBranding((initialBranding as any).showFooterBranding ?? false)
       setConditionsPdfUrl((initialBranding as any).conditionsPdfUrl ?? null) // 👈 faltaba
       setConditionsPdfName((initialBranding as any).conditionsPdfName ?? null) // 👈 faltaba
+      setPdfTemplate((initialBranding as any).pdfTemplate ?? 'clasico') // 👈 nuevo
+      setPdfTemplateDark((initialBranding as any).pdfTemplateDark ?? false) // 👈 nuevo
       setSavedBrandingSnapshot(incomingBrandingSerialized)
       lastSeenBrandingPropsRef.current = incomingBrandingSerialized
     }
@@ -494,6 +519,8 @@ export default function CompanyBrandingSettingsClient({
                 showFooterBranding: currentPayload.showFooterBranding,
                 conditionsPdfUrl: currentPayload.conditionsPdfUrl, // 👈 faltaba
                 conditionsPdfName: currentPayload.conditionsPdfName, // 👈 faltaba
+                pdfTemplate: currentPayload.pdfTemplate, // 👈 nuevo
+                pdfTemplateDark: currentPayload.pdfTemplateDark, // 👈 nuevo
               }
             )
           )
@@ -547,6 +574,7 @@ export default function CompanyBrandingSettingsClient({
     brandingAssets, colorSystem, brandingChanged, companyInfo, persistBranding,
     watermarkOpacity, logoSize, showPageNumbers, showWebsiteInPdf, showFooterBranding,
     conditionsPdfUrl, conditionsPdfName, currentPdfSettings, // 👈 faltaban en el array de deps
+    pdfTemplate, pdfTemplateDark, // 👈 nuevo
   ])
 
   useEffect(() => {
@@ -957,6 +985,75 @@ export default function CompanyBrandingSettingsClient({
 
                 <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                   <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Plantilla de PDF</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Elegí el diseño de tus presupuestos exportados</p>
+                  </div>
+                  <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        { id: 'clasico', label: 'Clásico', description: 'El diseño de siempre, con tu logo y colores.', pro: false },
+                        { id: 'cantonera', label: 'Cantonera', description: 'Un acento fino y minimalista, sin bloques de color.', pro: true },
+                        { id: 'contraste', label: 'Contraste', description: 'Bloques de color con tu trío de marca completo.', pro: true },
+                        { id: 'directa', label: 'Directa', description: 'Tipografía grande y tabla numerada, con tu acento en detalles.', pro: true },
+                      ] as const
+                    ).map((opt) => {
+                      const locked = opt.pro && !hasPdfTemplates
+                      const selected = pdfTemplate === opt.id
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            if (locked) {
+                              setPdfTemplateUpgradeOpen(true)
+                              return
+                            }
+                            setPdfTemplate(opt.id)
+                          }}
+                          className={`text-left rounded-lg border p-3 transition-colors ${
+                            selected
+                              ? 'border-slate-900 dark:border-slate-100 ring-1 ring-slate-900 dark:ring-slate-100'
+                              : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                          } ${locked ? 'opacity-70' : ''}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">{opt.label}</span>
+                            {locked && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                            {selected && !locked && <Check className="h-3.5 w-3.5 text-slate-900 dark:text-slate-50 shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1">{opt.description}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* 👇 nuevo — toggle fondo claro/oscuro, solo aplica a "directa" */}
+                  {pdfTemplate === 'directa' && (
+                    <div className="px-5 pb-4">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <div
+                          className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
+                            pdfTemplateDark ? '' : 'bg-slate-200 dark:bg-slate-700'
+                          }`}
+                          style={pdfTemplateDark ? { backgroundColor: colorSystem.primary } : {}}
+                          onClick={() => setPdfTemplateDark(!pdfTemplateDark)}
+                        >
+                          <div
+                            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                              pdfTemplateDark ? 'left-4' : 'left-0.5'
+                            }`}
+                          />
+                        </div>
+                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors select-none">
+                          Fondo oscuro
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
                     <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Configuración de PDF</h2>
                     <p className="text-xs text-slate-400 mt-0.5">Ajustes aplicados a documentos exportados</p>
                   </div>
@@ -1072,6 +1169,8 @@ export default function CompanyBrandingSettingsClient({
                       showPageNumbers={showPageNumbers}
                       showWebsiteInPdf={showWebsiteInPdf}
                       showFooterBranding={showFooterBranding}
+                      template={pdfTemplate}
+                      templateDark={pdfTemplateDark}
                     />
                   </div>
                 </div>
@@ -1163,6 +1262,7 @@ export default function CompanyBrandingSettingsClient({
         </AnimatePresence>
       </div>
       <UpgradeModal feature="whiteLabel" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+      <UpgradeModal feature="pdfTemplates" open={pdfTemplateUpgradeOpen} onOpenChange={setPdfTemplateUpgradeOpen} />
     </div>
   )
 }

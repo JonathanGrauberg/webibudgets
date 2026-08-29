@@ -29,10 +29,11 @@ export function ModalPagoPendiente() {
     // 👇 nuevo — checkout automático: viene de la landing (ya logueado) o de Google con intención de pagar
     if (subParam === 'start') {
       const interval = searchParams.get('interval') === 'annual' ? 'annual' : 'monthly'
+      const code = searchParams.get('code') || undefined // 👈 nuevo — si vino un código de revendedor, lo arrastramos
       fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ interval }),
+        body: JSON.stringify({ interval, code }),
       })
         .then((res) => res.json())
         .then((data) => {

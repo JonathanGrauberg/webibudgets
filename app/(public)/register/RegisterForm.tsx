@@ -1,6 +1,6 @@
 'use client'
 //app\(public)\register\RegisterForm.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -16,7 +16,6 @@ export default function RegisterForm() {
   // Ahora: un intent simple, desacoplado del sistema de planes internos.
   const isProIntent = searchParams.get('plan') === 'pro'
   const intervalParam = (searchParams.get('interval') === 'annual' ? 'annual' : 'monthly') as 'monthly' | 'annual'
-  const proPriceLabel = intervalParam === 'annual' ? '$36.000/mes (facturado $432.000/año)' : '$40.000/mes'
 
   const [companyName, setCompanyName] = useState('')
   const [email, setEmail] = useState('')
@@ -27,6 +26,50 @@ export default function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'redirecting'>('form')
   const [isDuplicate, setIsDuplicate] = useState(false) // 👈 movido acá — antes estaba después de un return condicional, rompiendo el orden de hooks
+
+  // 👇 nuevo — código de descuento de revendedor, mismo patrón que ya funciona en UpgradeToProDialog
+  const [code, setCode] = useState(searchParams.get('code') ?? '') // pre-cargado si vino en la URL, editable igual
+  const [codeStatus, setCodeStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
+  const [discountPercent, setDiscountPercent] = useState<number | null>(null)
+  const codeRequestId = useRef(0) // 👈 nuevo — evita que una respuesta vieja pise a una más nueva (condición de carrera al tipear rápido)
+
+  const checkCode = async (value: string) => {
+    const requestId = ++codeRequestId.current
+    if (!value.trim()) { setCodeStatus('idle'); setDiscountPercent(null); return }
+    setCodeStatus('checking')
+    try {
+      const res = await fetch(`/api/resellers/validate-code?code=${encodeURIComponent(value.trim())}`)
+      const data = await res.json()
+      if (requestId !== codeRequestId.current) return // 👈 nuevo — ya hay una petición más nueva en curso, ignoramos esta respuesta
+      if (data.valid) {
+        setCodeStatus('valid')
+        setDiscountPercent(data.discountPercent)
+      } else {
+        setCodeStatus('invalid')
+        setDiscountPercent(null)
+      }
+    } catch {
+      if (requestId !== codeRequestId.current) return
+      setCodeStatus('invalid')
+    }
+  }
+
+  // 👇 nuevo — si vino un código en la URL (link de un revendedor), lo validamos apenas carga la página
+  useEffect(() => {
+    const urlCode = searchParams.get('code')
+    if (urlCode) checkCode(urlCode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 👇 nuevo — el precio mostrado ahora sí refleja el descuento validado, en vez de un texto fijo
+  const basePrice = intervalParam === 'annual' ? 36000 : 40000
+  const finalPrice = codeStatus === 'valid' && discountPercent ? Math.round(basePrice * (1 - discountPercent / 100)) : basePrice
+  const proPriceLabel =
+    codeStatus === 'valid' && discountPercent
+      ? `$${finalPrice.toLocaleString('es-AR')}/mes (${discountPercent}% off)${intervalParam === 'annual' ? ` — facturado $${(finalPrice * 12).toLocaleString('es-AR')}/año` : ''}`
+      : intervalParam === 'annual'
+        ? '$36.000/mes (facturado $432.000/año)'
+        : '$40.000/mes'
 
     useEffect(() => {
       if (status === 'authenticated' && session?.user) {
@@ -115,7 +158,10 @@ export default function RegisterForm() {
         const checkoutRes = await fetch('/api/subscriptions/checkout', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ interval: intervalParam }), // 👈 antes: { plan: planParam, tenantId } — no coincidía con lo que espera el endpoint real
+          body: JSON.stringify({
+            interval: intervalParam,
+            code: codeStatus === 'valid' ? code.trim() : undefined, // 👈 nuevo
+          }),
         })
 
         const checkoutData = await checkoutRes.json()
@@ -140,9 +186,11 @@ export default function RegisterForm() {
 
   const handleGoogleRegister = async () => {
     setIsGoogleLoading(true)
-    // 👇 nuevo — si venía con intención de pagar, el callback dispara el checkout automático en /dashboard
+    // 👇 nuevo — si venía con intención de pagar, el callback dispara el checkout automático en /dashboard.
+    // Si había un código válido (propio o de la URL), lo arrastramos también — ModalPagoPendiente lo recoge del lado del dashboard.
+    const codeQuery = isProIntent && codeStatus === 'valid' ? `&code=${encodeURIComponent(code.trim())}` : ''
     const callbackUrl = isProIntent
-      ? `/dashboard?subscription=start&interval=${intervalParam}`
+      ? `/dashboard?subscription=start&interval=${intervalParam}${codeQuery}`
       : '/dashboard?welcome=1'
     try {
       await signIn('google', { callbackUrl })
@@ -183,6 +231,25 @@ export default function RegisterForm() {
           <p className="mb-6 text-xs text-muted-foreground">
             {isProIntent ? `Plan PRO · ${proPriceLabel}` : 'Empezá gratis, sin vencimiento'}
           </p>
+
+          {/* 👇 nuevo — código de descuento, solo si vino con intención de pagar */}
+          {isProIntent && (
+            <div className="mb-5 space-y-1.5">
+              <input
+                placeholder="¿Tenés un código de descuento?"
+                value={code}
+                onChange={(e) => { setCode(e.target.value); checkCode(e.target.value) }}
+                disabled={isSubmitting || isGoogleLoading}
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm uppercase text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
+              />
+              {codeStatus === 'valid' && (
+                <p className="text-xs font-medium text-emerald-600">✓ Código aplicado: {discountPercent}% off</p>
+              )}
+              {codeStatus === 'invalid' && (
+                <p className="text-xs text-destructive">Código inválido</p>
+              )}
+            </div>
+          )}
 
           <button
             type="button"

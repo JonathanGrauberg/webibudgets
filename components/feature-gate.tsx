@@ -52,6 +52,10 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: str
     title: 'Crear nuevas categorías',
     description: 'Creá las categorías que más se acomoden a tu empresa. Disponible en el plan PRO.',
   },
+  pdfTemplates: {
+    title: 'Plantillas de PDF',
+    description: 'Elegí entre distintos diseños para tus presupuestos en PDF, además del clásico. Disponible en el plan PRO.',
+  },
 }
 
 export function UpgradeModal({ feature, open, onOpenChange }: {

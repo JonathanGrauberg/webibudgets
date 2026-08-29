@@ -4,7 +4,7 @@ export const maxDuration = 60
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
-import { budgetPdfTemplate } from "@/lib/pdf/template"
+import { renderBudgetPdf } from "@/lib/pdf/render-budget-pdf"
 import { generatePdf } from "@/lib/pdf/generator"
 import { PDFDocument } from 'pdf-lib' // 👈 nuevo import
 
@@ -109,15 +109,19 @@ export async function GET(
           address: budget.tenant.address ?? undefined,
           website: budget.tenant.website ?? undefined,
           primaryColor: (budget.tenant as any).primaryColor ?? undefined,
+          secondaryColor: (budget.tenant as any).secondaryColor ?? undefined, // 👈 nuevo — lo usa la plantilla "contraste"
+          accentColor: (budget.tenant as any).accentColor ?? undefined,       // 👈 nuevo
           watermarkOpacity: (budget.tenant as any).watermarkOpacity ?? undefined,
           logoSize: (budget.tenant as any).logoSize ?? undefined, // 👈 nuevo
           showPageNumbers: (budget.tenant as any).showPageNumbers ?? undefined,
           showWebsiteInPdf: (budget.tenant as any).showWebsiteInPdf ?? undefined,
           showFooterBranding: (budget.tenant as any).showFooterBranding ?? undefined,
+          pdfTemplate: (budget.tenant as any).pdfTemplate ?? undefined, // 👈 nuevo — elige la plantilla en renderBudgetPdf
+          pdfTemplateDark: (budget.tenant as any).pdfTemplateDark ?? undefined, // 👈 nuevo — toggle claro/oscuro de "directa"
         }
       : undefined
 
-    const html = budgetPdfTemplate(budget, {
+    const html = renderBudgetPdf(budget, {
       logoDataUri,
       ...(watermarkDataUri && { watermarkDataUri }),
       isTrial,

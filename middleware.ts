@@ -12,6 +12,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth',
   '/api/webhooks',
   '/api/cron', // cron interno
+  '/api/resellers/validate-code', // 👈 nuevo — necesita ser consultable sin sesión, ya que ahora también se usa antes de registrarse
 ]
 
 const PROTECTED_PREFIXES = [

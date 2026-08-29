@@ -42,6 +42,8 @@ export async function GET(request: Request) {
       serviceProductIds: true,
       conditionsPdfUrl: true,  // 👈 nuevo
       conditionsPdfName: true, // 👈 nuevo
+      pdfTemplate: true,       // 👈 nuevo — selector de plantilla PDF
+      pdfTemplateDark: true,   // 👈 nuevo — toggle claro/oscuro de "directa"
 
       features: true,
     }
@@ -103,6 +105,8 @@ export async function PUT(request: NextRequest) {
     'showFooterBranding',
     'conditionsPdfUrl',  // 👈 nuevo
     'conditionsPdfName', // 👈 nuevo
+    'pdfTemplate',       // 👈 nuevo — selector de plantilla PDF
+    'pdfTemplateDark',   // 👈 nuevo — toggle claro/oscuro de "directa"
     'plan',
     'maxUsers',
   ]
