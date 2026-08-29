@@ -1,6 +1,11 @@
 //app\page.tsx
-import {LandingPage} from '@/components/landing/landing-page'
+import { Suspense } from 'react' // 👈 nuevo
+import { LandingPage } from '@/components/landing/landing-page'
 
 export default function Page() {
-  return <LandingPage />
+  return (
+    <Suspense fallback={null}>
+      <LandingPage />
+    </Suspense>
+  )
 }
