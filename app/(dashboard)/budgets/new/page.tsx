@@ -38,6 +38,7 @@ import { BudgetItemCalculator } from '@/components/budget/budget-item-calculator
 import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
 import { ProductPicker } from '@/components/budget/product-picker'
+import { EmailVerificationReminderModal } from '@/components/email-verification-reminder-modal'
 import { ClientPicker } from '@/components/budget/client-picker' // 👈 nuevo
 
 
@@ -475,11 +476,16 @@ export default function NewBudgetPage() {
   const { data: sellers   = [] } = useSWR<Seller[]>('/api/sellers', fetcher)
   const { data: installers = [] } = useSWR<Installer[]>('/api/installers', fetcher)
   const { data: branding }        = useSWR('/api/tenants', fetcher)
+  const { data: verificationStatus } = useSWR<{ email: string; emailVerified: boolean }>(
+    '/api/auth/verification-status',
+    fetcher
+  )
 
   const companyName       = branding?.name || 'la empresa'
   const calculatorEnabled = hasFeature({ plan: branding?.plan, features: branding?.features }, 'calculator')
 
   const [isSubmitting, setIsSubmitting]     = useState(false)
+  const [showEmailReminder, setShowEmailReminder] = useState(false)
   const [clientId, setClientId]             = useState('')
   const [notes, setNotes]                   = useState('')
   const [items, setItems]                   = useState<BudgetItemInput[]>([])
@@ -773,6 +779,12 @@ export default function NewBudgetPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!clientId || items.length === 0 || hasInvalidQuantities || hasEmptyCustomNames) return
+
+    // Recordatorio no bloqueante: si el email no está confirmado avisamos,
+    // pero el presupuesto se crea igual (ver handleSubmit más abajo).
+    if (verificationStatus && !verificationStatus.emailVerified) {
+      setShowEmailReminder(true)
+    }
 
     setIsSubmitting(true)
     try {
@@ -1351,6 +1363,12 @@ export default function NewBudgetPage() {
           </div>
         </form>
       </div>
+
+      <EmailVerificationReminderModal
+        open={showEmailReminder}
+        onOpenChange={setShowEmailReminder}
+        currentEmail={verificationStatus?.email ?? ''}
+      />
     </TooltipProvider>
   )
 }
