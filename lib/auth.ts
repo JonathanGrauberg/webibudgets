@@ -15,6 +15,7 @@ type AuthUser = {
   tenantActive: boolean
   trialEndsAt: string | null
   plan: string // 👈 1. Agregamos el tipo acá
+  isSystemOwner: boolean
 }
 
 export const authOptions: NextAuthOptions = {
@@ -46,8 +47,8 @@ export const authOptions: NextAuthOptions = {
         // Bloquear si el usuario está inactivo
         if (!user.active) return null
 
-        // Owners del sistema (plan business) siempre pueden entrar
-        const isSystemOwner = user.role === 'owner' && user.tenant?.plan === 'business'
+        // Acceso total: nunca se bloquea por tenant inactivo o trial vencido
+        const isSystemOwner = user.isSystemOwner ?? false
 
         if (!isSystemOwner) {
           // Bloquear si el tenant está inactivo
@@ -67,7 +68,8 @@ export const authOptions: NextAuthOptions = {
           trialEndsAt: user.tenant?.trialEndsAt
             ? user.tenant.trialEndsAt.toISOString()
             : null,
-          plan: user.tenant?.plan || 'starter', // 👈 2. Lo inyectamos en el objeto que retorna el login
+          plan: user.tenant?.plan || 'free', // 👈 2. Lo inyectamos en el objeto que retorna el login
+          isSystemOwner,
         }
       },
     }),
@@ -85,6 +87,7 @@ export const authOptions: NextAuthOptions = {
     token.tenantActive = user.tenantActive
     token.trialEndsAt = user.trialEndsAt
     token.plan = user.plan
+    token.isSystemOwner = user.isSystemOwner ?? false
     token.planCheckedAt = Date.now() // 👈 nuevo
   } else if (token.tenantId) {
     // Requests posteriores — revalidar contra la DB cada 5 minutos,
@@ -101,7 +104,7 @@ export const authOptions: NextAuthOptions = {
       if (tenant) {
         token.tenantActive = tenant.active
         token.trialEndsAt = tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null
-        token.plan = tenant.plan || 'starter'
+        token.plan = tenant.plan || 'free'
       }
       token.planCheckedAt = Date.now()
     }
@@ -119,6 +122,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).tenantActive = token.tenantActive
         ;(session.user as any).trialEndsAt = token.trialEndsAt
         ;(session.user as any).plan = token.plan // 👈 4. Lo exponemos en la sesión final del cliente
+        ;(session.user as any).isSystemOwner = token.isSystemOwner ?? false
       }
       return session
     },

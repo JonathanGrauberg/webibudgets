@@ -10,6 +10,7 @@ const navLinks = [
   { href: '/admin/tenants', label: 'Tenants' },
   { href: '/admin/resellers', label: 'Revendedores' }, // 👈 nuevo
   { href: '/admin/create-tenant', label: 'Nuevo tenant' },
+  { href: '/admin/owners', label: 'Owners' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

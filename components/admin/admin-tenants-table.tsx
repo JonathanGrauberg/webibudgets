@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
-import { Crown, Gem, Trash2, Search, X } from 'lucide-react'
+import { Crown, Gem, Trash2, Search, X, Info } from 'lucide-react'
 import TenantFeaturesForm from '@/components/admin/tenant-features-form'
 
 interface TenantRow {
@@ -17,6 +17,34 @@ interface TenantRow {
   features: Record<string, boolean> | null
   userCount: number
   budgetCount: number
+  signupCountry: string | null
+  signupReferrer: string | null
+  signupUserAgent: string | null
+  lastLoginAt: string | null
+  lastBudgetAt: string | null
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'Nunca'
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Recién'
+  if (mins < 60) return `Hace ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `Hace ${hours} h`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `Hace ${days} d`
+  return new Date(iso).toLocaleDateString('es-AR')
+}
+
+// Referer suele venir como URL completa — mostramos solo el origen (ej. "google.com")
+function referrerLabel(referrer: string | null): string {
+  if (!referrer) return 'Directo / desconocido'
+  try {
+    return new URL(referrer).hostname.replace(/^www\./, '')
+  } catch {
+    return referrer
+  }
 }
 
 interface EditState {
@@ -39,6 +67,7 @@ function maxUsersDisplay(n: number | null, plan: string | null) {
 export default function AdminTenantsTable({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [confirmHardDeleteId, setConfirmHardDeleteId] = useState<string | null>(null)
@@ -183,6 +212,41 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
   }
 
   if (!mounted) return null
+
+  // ── Panel de detalle: metadata de alta + actividad, soporte/seguridad ──
+  function TenantDetailPanel({ tenant }: { tenant: TenantRow }) {
+    return (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">País de alta</p>
+          <p className="text-slate-700 dark:text-slate-300">{tenant.signupCountry || 'Desconocido'}</p>
+        </div>
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Cómo llegó</p>
+          <p className="text-slate-700 dark:text-slate-300">{referrerLabel(tenant.signupReferrer)}</p>
+        </div>
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Último login</p>
+          <p className="text-slate-700 dark:text-slate-300">{timeAgo(tenant.lastLoginAt)}</p>
+        </div>
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Último presupuesto</p>
+          <p className="text-slate-700 dark:text-slate-300">{timeAgo(tenant.lastBudgetAt)}</p>
+        </div>
+        <div className="col-span-2 sm:col-span-1">
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Navegador/dispositivo al registrarse</p>
+          <p className="truncate text-slate-500 dark:text-slate-400" title={tenant.signupUserAgent || ''}>
+            {tenant.signupUserAgent || 'Desconocido'}
+          </p>
+        </div>
+        {(!tenant.signupCountry && !tenant.signupReferrer && !tenant.signupUserAgent) && (
+          <p className="col-span-2 sm:col-span-3 text-xs text-amber-600">
+            Sin datos de alta — esta cuenta se creó antes de que empezáramos a registrar esto.
+          </p>
+        )}
+      </div>
+    )
+  }
 
   // ── EditFields: campos compartidos entre la card mobile (compact) y la fila desktop (<td> reales) ──
   function EditFields({ compact = false }: { compact?: boolean }) {
@@ -407,6 +471,12 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                     </div>
                   )}
 
+                  {!isEditing && expandedId === tenant.id && (
+                    <div className="mb-4">
+                      <TenantDetailPanel tenant={tenant} />
+                    </div>
+                  )}
+
                   {isEditing ? (
                     <div className="flex gap-2">
                       <button onClick={saveEdit} disabled={isSaving} className="flex-1 rounded-full bg-black px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
@@ -438,6 +508,13 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                     </div>
                   ) : (
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => setExpandedId((prev) => (prev === tenant.id ? null : tenant.id))}
+                        className="rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                        title="Ver detalles de alta y actividad"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
                       <button onClick={() => startEdit(tenant)} className="flex-1 rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
                         Editar
                       </button>
@@ -565,6 +642,17 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                             </div>
                           ) : (
                             <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => setExpandedId((prev) => (prev === tenant.id ? null : tenant.id))}
+                                className={`rounded-full border px-2 py-1.5 transition ${
+                                  expandedId === tenant.id
+                                    ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900'
+                                    : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                                }`}
+                                title="Ver detalles de alta y actividad"
+                              >
+                                <Info className="w-4 h-4" />
+                              </button>
                               <button onClick={() => startEdit(tenant)} className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50">
                                 Editar
                               </button>
@@ -588,6 +676,15 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                           )}
                         </td>
                       </tr>
+
+                      {/* Fila extra: detalle de alta/actividad — toggle con el botón Info */}
+                      {!isEditing && expandedId === tenant.id && (
+                        <tr key={`${tenant.id}-detail`}>
+                          <td colSpan={9} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                            <TenantDetailPanel tenant={tenant} />
+                          </td>
+                        </tr>
+                      )}
 
                       {/* Fila extra: módulos Custom, solo mientras se edita un tenant con plan "custom" */}
                       {isEditing && edit && edit.plan === 'custom' && (

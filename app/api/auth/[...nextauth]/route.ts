@@ -49,6 +49,8 @@ export const authOptions: NextAuthOptions = {
         if (!isValid) throw new Error('Credenciales incorrectas')
         if (!user.active) throw new Error('Tu cuenta está desactivada')
 
+        prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {})
+
         return {
           id: user.id,
           name: user.name,
@@ -59,6 +61,7 @@ export const authOptions: NextAuthOptions = {
           trialEndsAt: user.tenant?.trialEndsAt ?? null,
           tenantActive: user.tenant?.active ?? false,
           // isPlatformAdmin: user.isPlatformAdmin ?? false, // 👈 pendiente — activar cuando se agregue el campo a schema.prisma
+          isSystemOwner: user.isSystemOwner ?? false,
           isNewAccount: false,
         }
       },
@@ -118,6 +121,7 @@ export const authOptions: NextAuthOptions = {
               role: 'admin',
               tenantId: newTenant.id,
               active: true,
+              lastLoginAt: new Date(),
             },
             include: { tenant: true },
           })
@@ -132,6 +136,7 @@ export const authOptions: NextAuthOptions = {
         ;(user as any).plan = newUser.tenant?.plan ?? 'free' // 👈 antes: 'starter'
         ;(user as any).tenantActive = newUser.tenant?.active ?? true
         ;(user as any).isPlatformAdmin = (newUser as any).isPlatformAdmin ?? false // 👈 nuevo
+        ;(user as any).isSystemOwner = newUser.isSystemOwner ?? false
         ;(user as any).isNewAccount = true // 👈 nuevo — recién creado ahora mismo
         user.email = emailNormalizado
 
@@ -167,8 +172,11 @@ export const authOptions: NextAuthOptions = {
       ;(user as any).plan = existingUser.tenant?.plan ?? 'free'
       ;(user as any).tenantActive = existingUser.tenant?.active ?? false // 👈 nuevo — antes no se seteaba, caía en el "?? true" del jwt callback
       ;(user as any).isPlatformAdmin = (existingUser as any).isPlatformAdmin ?? false // 👈 nuevo
+      ;(user as any).isSystemOwner = existingUser.isSystemOwner ?? false
       ;(user as any).isNewAccount = false // 👈 nuevo — login de retorno, no alta nueva
       user.email = emailNormalizado
+
+      prisma.user.update({ where: { id: existingUser.id }, data: { lastLoginAt: new Date() } }).catch(() => {})
 
       return true
     },
@@ -182,6 +190,7 @@ export const authOptions: NextAuthOptions = {
         token.trialEndsAt = (user as any).trialEndsAt ?? null
         token.tenantActive = (user as any).tenantActive ?? true
         token.isPlatformAdmin = (user as any).isPlatformAdmin ?? false // 👈 nuevo
+        token.isSystemOwner = (user as any).isSystemOwner ?? false
         token.isNewAccount = (user as any).isNewAccount ?? false // 👈 nuevo
       }
       return token
@@ -196,6 +205,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).trialEndsAt = token.trialEndsAt ?? null
         ;(session.user as any).tenantActive = token.tenantActive
         ;(session.user as any).isPlatformAdmin = token.isPlatformAdmin ?? false // 👈 nuevo
+        ;(session.user as any).isSystemOwner = token.isSystemOwner ?? false
         ;(session.user as any).isNewAccount = token.isNewAccount ?? false // 👈 nuevo
       }
       return session

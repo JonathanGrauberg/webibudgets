@@ -72,6 +72,13 @@ export async function POST(req: NextRequest) {
     const slug = await uniqueSlug(generateSlug(companyName))
     const hashedPassword = await bcrypt.hash(password, 10)
 
+    // 👇 metadata de alta — de dónde vino este tenant, para soporte/seguridad.
+    // x-vercel-ip-country lo agrega automáticamente el borde de Vercel, sin
+    // pedirle nada a nadie ni depender de un servicio externo de geo-IP.
+    const signupCountry = req.headers.get('x-vercel-ip-country') || null
+    const signupReferrer = req.headers.get('referer') || null
+    const signupUserAgent = req.headers.get('user-agent') || null
+
     const { tenant, user } = await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
@@ -81,6 +88,9 @@ export async function POST(req: NextRequest) {
           maxUsers: resolveMaxUsers(plan),
           trialEndsAt: resolveTrialEndsAt(plan),
           active: true,
+          signupCountry,
+          signupReferrer,
+          signupUserAgent,
           ...DEFAULT_BRANDING,
         },
         select: {
@@ -100,6 +110,7 @@ export async function POST(req: NextRequest) {
           role: 'admin',
           tenantId: tenant.id,
           active: true,
+          lastLoginAt: new Date(),
         },
         select: { id: true },
       })

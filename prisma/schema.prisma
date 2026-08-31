@@ -154,7 +154,13 @@ model Tenant {
   proBillingInterval String? // 👈 nuevo — "monthly" | "annual", solo informativo/UI
 
   active Boolean @default(true)
-  
+
+  // 👇 metadata de alta — de dónde vino el tenant, para soporte/seguridad.
+  // Solo se completa en tenants nuevos a partir de acá, no retroactivo.
+  signupCountry  String? // desde el header x-vercel-ip-country
+  signupReferrer String? // header Referer al registrarse
+  signupUserAgent String?
+
   budgetSequence Int @default(1)
 
   rendiciones    Rendicion[]
@@ -217,7 +223,12 @@ model User {
 
   role      UserRole @default(viewer)
   active    Boolean @default(true)
-  hasSeenOnboarding Boolean @default(false)   
+  hasSeenOnboarding Boolean @default(false)
+
+  // 👇 acceso total del sistema, desacoplado del plan del tenant (antes se
+  // usaba tenant.plan === 'business' como parche — ver lib/auth.ts)
+  isSystemOwner Boolean @default(false)
+  lastLoginAt   DateTime?
 
   accounts  Account[]
   sessions  Session[]

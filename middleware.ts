@@ -75,7 +75,10 @@ export async function middleware(req: NextRequest) {
     const tenantActive = token.tenantActive as boolean | undefined
     const plan = token.plan as string | null | undefined // 👈 nuevo
     const trialEndsAt = token.trialEndsAt as string | null | undefined
-    const isSystemOwner = isOwnerRole(role) && isAdminRoute(pathname)
+    // 👇 acceso total real: antes solo aplicaba dentro de /admin (isAdminRoute),
+    // así que un owner del sistema igual quedaba bloqueado en /dashboard,
+    // /budgets, etc. si su tenant estaba inactivo o con trial vencido.
+    const isSystemOwner = !!token.isSystemOwner
 
     // 👇 reemplaza el cálculo manual — usa la misma fuente de verdad que el resto del sistema
     const trialExpiredNow = isTrialExpired(plan ?? null, trialEndsAt)

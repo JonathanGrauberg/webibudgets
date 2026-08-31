@@ -19,12 +19,28 @@ export default async function AdminTenantsPage() {
       active: true,
       createdAt: true,
       features: true,
+      // 👇 metadata de alta — soporte/seguridad, ver prisma/schema.prisma
+      signupCountry: true,
+      signupReferrer: true,
+      signupUserAgent: true,
       // 👇 nuevo — conteos reales, sin traer las filas completas de usuarios/presupuestos
       _count: {
         select: {
           users: true,
           budgets: true,
         },
+      },
+      // 👇 último login de cualquier usuario del tenant, y último presupuesto creado —
+      // solo traemos 1 fila ordenada, no la lista completa
+      users: {
+        select: { lastLoginAt: true },
+        orderBy: { lastLoginAt: 'desc' },
+        take: 1,
+      },
+      budgets: {
+        select: { createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
       },
     },
   })
@@ -40,6 +56,8 @@ export default async function AdminTenantsPage() {
     features: t.features as Record<string, boolean> | null,
     userCount: t._count.users, // 👈 nuevo — aplanamos el _count.users a un campo simple
     budgetCount: t._count.budgets, // 👈 nuevo
+    lastLoginAt: t.users[0]?.lastLoginAt ? t.users[0].lastLoginAt.toISOString() : null,
+    lastBudgetAt: t.budgets[0]?.createdAt ? t.budgets[0].createdAt.toISOString() : null,
   }))
 
   return (
