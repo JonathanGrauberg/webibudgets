@@ -39,6 +39,7 @@ import { detectUnitType } from '@/lib/units'
 import { Label } from '@/components/ui/label'
 import { ProductPicker } from '@/components/budget/product-picker'
 import { EmailVerificationReminderModal } from '@/components/email-verification-reminder-modal'
+import { toast } from 'sonner'
 import { ClientPicker } from '@/components/budget/client-picker' // 👈 nuevo
 
 
@@ -828,11 +829,15 @@ export default function NewBudgetPage() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to create budget')
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.message || payload?.error || 'No se pudo crear el presupuesto')
+      }
       const budget = await res.json()
       router.push(`/budgets/${budget.id}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      toast.error(err?.message || 'No se pudo crear el presupuesto. Probá de nuevo.')
     } finally {
       setIsSubmitting(false)
     }

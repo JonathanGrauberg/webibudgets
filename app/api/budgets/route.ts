@@ -22,6 +22,7 @@ import {
   validateBudgetSeller,
 } from '@/lib/budget-validators'
 import { DEFAULT_CURRENCY } from '@/lib/currencies'
+import { resolveMaxBudgetsForTenant } from '@/lib/plan'
 
 export async function GET(request: Request) {
   try {
@@ -63,15 +64,17 @@ export async function POST(request: Request) {
 
     // ===================================================
     // 🚨 CONTROL DE LÍMITE DE PRESUPUESTOS MENSUALES
+    // Usa el sistema de planes real (lib/plan.ts) en vez de un hardcode a
+    // 'starter' — ese plan ya no se asigna a nadie, y con esto Free/VIP/
+    // Custom quedan sin tope (maxBudgetsPerMonth: null) como corresponde.
     // ===================================================
     const tenantData = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plan: true, currency: true }
+      select: { plan: true, currency: true, trialEndsAt: true },
     })
-    const currentPlan = tenantData?.plan || 'starter'
+    const maxMonthlyBudgets = resolveMaxBudgetsForTenant(tenantData?.plan ?? 'free', tenantData?.trialEndsAt)
 
-    if (currentPlan === 'starter') {
-      const maxMonthlyBudgets = 30
+    if (maxMonthlyBudgets !== null) {
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
 
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
 
       if (monthlyBudgetsCount >= maxMonthlyBudgets) {
         return NextResponse.json(
-          { error: 'plan_limit_reached', message: 'Alcanzaste el límite de 30 presupuestos mensuales para el plan Starter.' },
+          { error: 'plan_limit_reached', message: `Alcanzaste el límite de ${maxMonthlyBudgets} presupuestos mensuales para tu plan.` },
           { status: 403 }
         )
       }
@@ -172,87 +175,94 @@ export async function POST(request: Request) {
 
     const budgetNumber = tenant.budgetSequence
 
-    await prisma.tenant.update({
-      where: { id: tenantId },
-      data: {
-        budgetSequence: { increment: 1 },
-      },
-    })
-
     // 🌟 Mapa de costo por producto para snapshotear en cada ítem (Mudado aquí adentro)
     const productCostMap = new Map(products.map((p) => [p.id, p.cost ?? null]))
 
     // ===============================================
     // 💾 CREACIÓN DEL PRESUPUESTO EN BASE DE DATOS
+    // El incremento de budgetSequence y la creación del Budget van en la
+    // misma transacción — si el create falla (item inválido, etc.), el
+    // incremento se revierte con él. Antes eran dos queries sueltas: un
+    // create fallido dejaba el número de secuencia avanzado sin que
+    // existiera el presupuesto correspondiente.
     // ===============================================
-    const budget = await prisma.budget.create({
-      data: {
-        tenant: { connect: { id: tenantId } },
-        status: 'draft',
-        budgetNumber,
-        currency: budgetCurrency,
-        notes: typeof data.notes === 'string' ? data.notes : '',
-        installationResponsible: data.installationResponsible ?? null,
-        installerReference: data.installerReference ?? null,
-        details: Array.isArray(data.details) ? data.details : [],
-        attachConditionsPdf: data.attachConditionsPdf !== false, // 👈 nuevo — default true si no viene explícito en false
-        subtotal: calculation.subtotal,
-        discount: calculation.discountAmount,
-        tax: calculation.taxAmount,
-        shippingCost: calculation.shippingCost,
-        total: calculation.total,
-        paymentTerms: data.paymentTerms ?? null,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        client: { connect: { id: data.clientId } },
-        ...(sellerId ? { seller: { connect: { id: sellerId } } } : {}),
-        ...(installerId ? { installer: { connect: { id: installerId } } } : {}),
-
-        // 🌟 MAPEO INTELIGENTE DE ÍTEMS CON FOTO DE COSTO
-        items: {
-          create: normalizedItems.map((item: any) => {
-            const isCustom = !item.productServiceId || item.isCustom || item.customName;
-            
-            return {
-              quantity: Number(item.quantity), 
-              unitPrice: Number(item.unitPrice),
-              subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
-              discount: Number(item.discount ?? 0),
-              customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
-              cost: !isCustom
-                ? productCostMap.get(item.productServiceId) ?? null
-                : (item.cost !== undefined && item.cost !== null ? Number(item.cost) : null), // 👈 antes: null fijo              widthCm: item.widthCm ?? null,
-              heightCm: item.heightCm ?? null,
-              depthCm: item.depthCm ?? null,
-              direct: item.direct ?? null,
-              hours: item.hours ?? null,
-              calculatedM2: item.calculatedM2 ?? null,
-              ...(item.productVariantId
-                ? {
-                    productVariant: {
-                      connect: { id: item.productVariantId },
-                    },
-                  }
-                : {}),
-              ...(!isCustom ? {
-                productService: {
-                  connect: { id: item.productServiceId }
-                }
-              } : {})
-            }
-          }),
+    const [, budget] = await prisma.$transaction([
+      prisma.tenant.update({
+        where: { id: tenantId },
+        data: {
+          budgetSequence: { increment: 1 },
         },
-      },
-      include: {
-        client: true,
-        seller: true,
-        installer: true,
-        items: {
-          include: {
-            productService: true,
+      }),
+      prisma.budget.create({
+        data: {
+          tenant: { connect: { id: tenantId } },
+          status: 'draft',
+          budgetNumber,
+          currency: budgetCurrency,
+          notes: typeof data.notes === 'string' ? data.notes : '',
+          installationResponsible: data.installationResponsible ?? null,
+          installerReference: data.installerReference ?? null,
+          details: Array.isArray(data.details) ? data.details : [],
+          attachConditionsPdf: data.attachConditionsPdf !== false, // 👈 nuevo — default true si no viene explícito en false
+          subtotal: calculation.subtotal,
+          discount: calculation.discountAmount,
+          tax: calculation.taxAmount,
+          shippingCost: calculation.shippingCost,
+          total: calculation.total,
+          paymentTerms: data.paymentTerms ?? null,
+          validUntil: data.validUntil ? new Date(data.validUntil) : null,
+          client: { connect: { id: data.clientId } },
+          ...(sellerId ? { seller: { connect: { id: sellerId } } } : {}),
+          ...(installerId ? { installer: { connect: { id: installerId } } } : {}),
+
+          // 🌟 MAPEO INTELIGENTE DE ÍTEMS CON FOTO DE COSTO
+          items: {
+            create: normalizedItems.map((item: any) => {
+              const isCustom = !item.productServiceId || item.isCustom || item.customName;
+
+              return {
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice),
+                subtotal: Number(item.subtotal || (item.quantity * item.unitPrice)),
+                discount: Number(item.discount ?? 0),
+                customName: isCustom ? (item.customName || item.name || 'Ítem personalizado') : null,
+                cost: !isCustom
+                  ? productCostMap.get(item.productServiceId) ?? null
+                  : (item.cost !== undefined && item.cost !== null ? Number(item.cost) : null), // 👈 antes: null fijo
+                widthCm: item.widthCm ?? null,
+                heightCm: item.heightCm ?? null,
+                depthCm: item.depthCm ?? null,
+                direct: item.direct ?? null,
+                hours: item.hours ?? null,
+                calculatedM2: item.calculatedM2 ?? null,
+                ...(item.productVariantId
+                  ? {
+                      productVariant: {
+                        connect: { id: item.productVariantId },
+                      },
+                    }
+                  : {}),
+                ...(!isCustom ? {
+                  productService: {
+                    connect: { id: item.productServiceId }
+                  }
+                } : {})
+              }
+            }),
           },
         },
-      },
-    })
+        include: {
+          client: true,
+          seller: true,
+          installer: true,
+          items: {
+            include: {
+              productService: true,
+            },
+          },
+        },
+      }),
+    ])
 
     // El return final del POST ahora sí devuelve todo lo estructurado correctamente
     return NextResponse.json(
