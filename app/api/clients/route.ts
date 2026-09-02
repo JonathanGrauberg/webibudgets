@@ -44,9 +44,9 @@ export async function POST(request: Request) {
     : null // 👈 nuevo
 
 
-    if (!name || !phone) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'Missing required fields', missing: ['name', 'phone'] },
+        { error: 'Missing required fields', missing: ['name'] },
         { status: 400 }
       )
     }

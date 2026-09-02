@@ -301,7 +301,10 @@ export default function ClientsPage() {
                 </DialogHeader>
 
                 <ClientForm
+                  key={editingClient?.id ?? 'new'}
                   client={editingClient}
+                  existingClients={clients}
+                  onSelectExisting={(c) => setEditingClient(c)}
                   onSuccess={handleFormSuccess}
                   onCancel={() => setIsDialogOpen(false)}
                 />

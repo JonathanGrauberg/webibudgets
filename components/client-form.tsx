@@ -1,7 +1,7 @@
 //components\client-form.tsx
 'use client'
  
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,11 +25,15 @@ import { WhatsappPhoneInput } from '@/components/whatsapp-phone-input'
 
 interface ClientFormProps {
   client?: Client | null
+  existingClients?: Client[]
+  onSelectExisting?: (client: Client) => void
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
+const onlyDigits = (s: string) => s.replace(/\D/g, '')
+
+export function ClientForm({ client, existingClients = [], onSelectExisting, onSuccess, onCancel }: ClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -64,9 +68,44 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   whatsappNumber: (client as any)?.whatsappNumber || '', // 👈 nuevo
 })
 
+  // 👇 Prioridad 1 — coincidencias en vivo contra los clientes ya cargados
+  // (sin pegarle a la API), para avisar de posibles duplicados mientras
+  // se escribe nombre/empresa/teléfono/dirección.
+  const possibleDuplicates = useMemo(() => {
+    const name = formData.name.trim().toLowerCase()
+    const company = formData.company.trim().toLowerCase()
+    const phone = onlyDigits(formData.phone)
+    const address = formData.address.trim().toLowerCase()
+
+    if (!name && !company && !phone && !address) return []
+
+    return existingClients.filter((c) => {
+      if (client && c.id === client.id) return false // no compararse contra sí mismo al editar
+
+      const cName = (c.name || '').toLowerCase()
+      const cCompany = (c.company || '').toLowerCase()
+      const cPhone = onlyDigits(c.phone || '')
+      const cAddress = (c.address || '').toLowerCase()
+
+      return (
+        (name.length >= 3 && cName.includes(name)) ||
+        (company.length >= 3 && cCompany.includes(company)) ||
+        (phone.length >= 6 && cPhone === phone) ||
+        (address.length >= 5 && cAddress === address)
+      )
+    })
+  }, [formData.name, formData.company, formData.phone, formData.address, existingClients, client])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.phone.trim()) {
+      const proceed = confirm(
+        '¿Seguro que querés continuar sin teléfono? Es importante para poder contactar al cliente más adelante.'
+      )
+      if (!proceed) return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -120,6 +159,31 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   return (
     <TooltipProvider>
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 👇 Posibles duplicados — se actualiza en vivo mientras se escribe */}
+        {possibleDuplicates.length > 0 && (
+          <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+            <p className="text-xs font-medium text-amber-800">
+              ⚠️ Ya existe{possibleDuplicates.length > 1 ? 'n' : ''} un cliente parecido — tocalo si es el mismo:
+            </p>
+            <div className="space-y-1.5">
+              {possibleDuplicates.slice(0, 5).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onSelectExisting?.(c)}
+                  className="flex w-full items-center justify-between rounded border border-amber-200 bg-white px-2.5 py-1.5 text-left text-xs hover:bg-amber-100"
+                  disabled={!onSelectExisting}
+                >
+                  <span className="font-medium text-foreground">
+                    {c.name}{c.company ? ` · ${c.company}` : ''}
+                  </span>
+                  <span className="text-muted-foreground">{c.phone || 'sin teléfono'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Datos básicos */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -207,13 +271,12 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Teléfono *</Label>
+            <Label>Teléfono</Label>
             <Input
               value={formData.phone}
               onChange={(e) =>
                 setFormData({ ...formData, phone: e.target.value })
               }
-              required
             />
           </div>
           

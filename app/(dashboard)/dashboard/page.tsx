@@ -34,6 +34,7 @@ import { hasFeature } from '@/lib/features'
 import { StatusDonut } from '@/components/dashboard/status-donut'
 import { RevenueBarChart } from '@/components/dashboard/revenue-bar-chart'
 import { TopRequestedProducts } from '@/components/dashboard/top-requested-products'
+import { TopClients } from '@/components/dashboard/top-clients'
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
 import { useMemo } from 'react'
 
@@ -70,6 +71,13 @@ interface DashboardResponse {
     unit: string
     category: string
     requestCount: number
+  }[]
+  topClients: {
+    clientId: string
+    name: string
+    company: string | null
+    totalRevenue: number
+    budgetCount: number
   }[]
 }
 
@@ -500,21 +508,39 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                     </Card>
                   </div>
 
-                  {/* Más Solicitados */}
-                  <Card className="rounded-xl shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Productos y Servicios Más Requeridos</CardTitle>
-                      <CardDescription className="text-xs">
-                        Frecuencia de aparición en cotizaciones
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <TopRequestedProducts
-                        products={data.topRequestedProducts ?? []}
-                        accentColor={branding?.primaryColor}
-                      />
-                    </CardContent>
-                  </Card>
+                  {/* Más Solicitados + Top Clientes */}
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <Card className="rounded-xl shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold">Productos y Servicios Más Requeridos</CardTitle>
+                        <CardDescription className="text-xs">
+                          Frecuencia de aparición en cotizaciones
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <TopRequestedProducts
+                          products={data.topRequestedProducts ?? []}
+                          accentColor={branding?.primaryColor}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <Card className="rounded-xl shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold">Top 5 Clientes</CardTitle>
+                        <CardDescription className="text-xs">
+                          Por facturación en presupuestos aprobados y completados
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <TopClients
+                          clients={data.topClients ?? []}
+                          accentColor={branding?.primaryColor}
+                          currency={currency}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
                 </>
               )}
             </TabsContent>

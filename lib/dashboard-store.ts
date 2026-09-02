@@ -147,6 +147,49 @@ export async function getBudgetStatusStats(tenantId: string): Promise<BudgetStat
   }))
 }
 
+export interface TopClient {
+  clientId: string
+  name: string
+  company: string | null
+  totalRevenue: number // suma de total en presupuestos Aprobados + Completados
+  budgetCount: number
+}
+
+// "Mejor cliente" = el que más facturación generó en presupuestos ya
+// cerrados (Aprobados + Completados) — mismo criterio que el filtro por
+// defecto de la página de Presupuestos, no cantidad de presupuestos.
+export async function getTopClients(tenantId: string, limit = 5): Promise<TopClient[]> {
+  const grouped = await prisma.budget.groupBy({
+    by: ['clientId'],
+    where: { tenantId, status: { in: ['approved', 'completed'] } },
+    _sum: { total: true },
+    _count: { clientId: true },
+    orderBy: { _sum: { total: 'desc' } },
+    take: limit,
+  })
+
+  const clientIds = grouped.map((g) => g.clientId)
+  const clients = await prisma.client.findMany({
+    where: { id: { in: clientIds } },
+    select: { id: true, name: true, company: true },
+  })
+  const clientMap = new Map(clients.map((c) => [c.id, c]))
+
+  return grouped
+    .map((g) => {
+      const client = clientMap.get(g.clientId)
+      if (!client) return null
+      return {
+        clientId: client.id,
+        name: client.name,
+        company: client.company,
+        totalRevenue: g._sum.total ?? 0,
+        budgetCount: g._count.clientId,
+      }
+    })
+    .filter((x): x is TopClient => x !== null)
+}
+
 export interface TopRequestedProduct {
   productServiceId: string
   name: string

@@ -6,6 +6,7 @@ import {
   getMonthlyRevenue,
   getBudgetStatusStats,
   getTopRequestedProducts, // 👈 nuevo
+  getTopClients,
 } from '@/lib/dashboard-store'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
     const revenue = await getMonthlyRevenue(tenantId)
     const statusStats = await getBudgetStatusStats(tenantId)
     const topRequestedProducts = await getTopRequestedProducts(tenantId, 6)
+    const topClients = await getTopClients(tenantId, 5)
 
     return NextResponse.json({
       stats,
@@ -33,6 +35,7 @@ export async function GET(request: Request) {
       revenue,
       statusStats,
       topRequestedProducts,
+      topClients,
     })
   } catch (error) {
     console.error('Dashboard API error:', error)
