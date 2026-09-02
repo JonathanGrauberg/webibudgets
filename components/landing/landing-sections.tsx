@@ -496,8 +496,8 @@ export function LandingSections({
               <p className="text-sm text-muted-foreground">Sistemas de gestión para tu negocio.</p>
             </div>
             {[
-              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing']] },
-              { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#']] },
+              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Manual de uso', '/manual']] },
+              { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#'], ['Revendedores', '/manual#revendedores'], ['Trabajá con nosotros', '/manual#revendedores']] },
               { title: 'Legal', links: [['Privacidad', '/privacidad'], ['Términos', '/terminos']] },
             ].map((col) => (
               <div key={col.title}>

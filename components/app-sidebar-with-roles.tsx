@@ -26,6 +26,7 @@ import {
   User,
   MoreHorizontal,
   KanbanSquare,
+  HelpCircle,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import {
@@ -56,6 +57,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/documents': Receipt,
   '/rendiciones': PiggyBank,
   '/tasks': KanbanSquare, // 👈 nuevo
+  '/help': HelpCircle, // 👈 nuevo
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {

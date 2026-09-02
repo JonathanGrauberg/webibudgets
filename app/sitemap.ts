@@ -11,46 +11,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 1.0,
     },
-    // Modelo de precios / PLG
+    // Manual de uso — contenido real y completo, buen candidato a indexar
     {
-      url: `${baseUrl}/precios`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    // Subpáginas de características (Features principales)
-    {
-      url: `${baseUrl}/ordenes-de-trabajo`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/cotizador-superficie-m2`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/rendimientos`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/tablero-kanban`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/control-de-stock`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/gestion-de-clientes`,
+      url: `${baseUrl}/manual`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,

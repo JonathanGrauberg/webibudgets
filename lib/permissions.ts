@@ -19,6 +19,7 @@ export type RouteKey =
   | 'expenses' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
+  | 'help'
 
 export type EditScope =
   | 'clients'
@@ -52,6 +53,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   commissions: ['owner', 'admin'],
   tasks: ['owner', 'admin', 'seller', 'installer'], // 👈 nuevo — mismo alcance que budgets, sin viewer
   expenses: ['owner', 'admin'], // 👈 nuevo — datos financieros sensibles (sueldos, alquiler), no para seller/installer
+  help: ['owner', 'admin', 'seller', 'installer', 'viewer'], // 👈 nuevo — el manual lo ve cualquiera
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -136,6 +138,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/settings/team' || pathname.startsWith('/settings/team/')) {
     return 'settings_team'
   }
+  if (pathname === '/help' || pathname.startsWith('/help/')) return 'help' // 👈 nuevo
   return null
 }
 
@@ -152,6 +155,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias' }, // 👈 Removido requiresFeature
   { route: 'expenses', name: 'Gastos', href: '/expenses', tooltip: 'Gastos generales y de trabajos puntuales' }, // 👈 nuevo
   { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' },
+  { route: 'help', name: 'Ayuda', href: '/help', tooltip: 'Manual de uso del sistema' }, // 👈 nuevo
 ]
 
 export const SETTINGS_ROUTES: { route: RouteKey; name: string; href: string; tooltip: string }[] = [
