@@ -1,8 +1,15 @@
 // app/(public)/manual/page.tsx
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { HelpManual } from '@/components/help/help-manual'
+
+export const metadata: Metadata = {
+  title: 'Manual de uso | .budgets',
+  description:
+    'Guía completa de .budgets: presupuestos, clientes, stock, órdenes de trabajo, rendiciones, calculadora por m²/m³/horas y todo lo que hace el sistema, explicado simple.',
+}
 
 export default async function ManualPage() {
   const session = await getServerSession(authOptions).catch(() => null)
