@@ -195,7 +195,10 @@ export default function BudgetsPage() {
 
   // buscador + filtro de estado (para la tabla)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  // 👇 default: al entrar mostramos solo Aprobados + Completados (lo que
+  // realmente se usa después en Rendiciones), no todo el ruido de borradores
+  // y presupuestos enviados/rechazados/vencidos.
+  const [statusFilter, setStatusFilter] = useState<string>('approved_completed')
   const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')
 
   // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
@@ -217,7 +220,12 @@ export default function BudgetsPage() {
         clientName.includes(searchQuery.toLowerCase()) ||
         budgetNum.includes(searchQuery)
 
-      const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'approved_completed'
+          ? b.status === 'approved' || b.status === 'completed'
+          : b.status === statusFilter
 
       const isActive = b.active !== false
       const matchesActive =
@@ -409,6 +417,7 @@ export default function BudgetsPage() {
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="approved_completed">Aprobados y completados</SelectItem>
                 <SelectItem value="all">Todos los estados</SelectItem>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
