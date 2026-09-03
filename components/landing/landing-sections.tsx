@@ -6,6 +6,7 @@ import {
   Users, Package, Palette, Share2, HelpCircle,
   ChevronDown, LayoutGrid, UserCheck,
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
+  Instagram, Facebook,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react' // 👈 nuevo
@@ -494,6 +495,26 @@ export function LandingSections({
                 <span className="font-bold text-foreground">Webi Studio</span>
               </div>
               <p className="text-sm text-muted-foreground">Sistemas de gestión para tu negocio.</p>
+              <div className="mt-4 flex items-center gap-3">
+                <a
+                  href="https://www.instagram.com/budgets.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram de .budgets"
+                  className="text-muted-foreground transition hover:text-foreground"
+                >
+                  <Instagram className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://www.facebook.com/budgetsporwebistudio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook de .budgets"
+                  className="text-muted-foreground transition hover:text-foreground"
+                >
+                  <Facebook className="h-4 w-4" />
+                </a>
+              </div>
             </div>
             {[
               { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Manual de uso', '/manual']] },
