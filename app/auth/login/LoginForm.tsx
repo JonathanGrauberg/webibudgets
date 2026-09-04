@@ -189,7 +189,7 @@ export default function LoginForm() {
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           ¿No tenés cuenta?{' '}
-          <Link href="/auth/register" className="font-medium text-foreground underline underline-offset-2">
+          <Link href="/register" className="font-medium text-foreground underline underline-offset-2">
             Registrate gratis
           </Link>
         </p>
