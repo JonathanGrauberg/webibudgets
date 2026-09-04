@@ -101,6 +101,7 @@ export function buildBudgetItemCreatePayload(items: NormalizedBudgetItem[]) {
     direct: item.direct,
     hours: item.hours,
     calculatedM2: item.calculatedM2,
+    pieces: item.pieces,
   }))
 }
 

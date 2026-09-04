@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import {
@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Search } from 'lucide-react'
+import { STATUS_LABELS } from '@/lib/types'
 
 interface CreateReceiptModalProps {
   open: boolean
@@ -46,6 +48,24 @@ export function CreateReceiptModal({
   const isStandalone = !budgetId
 
   const { data: clients = [] } = useSWR(isStandalone && open ? '/api/clients' : null, fetcher)
+  // 👇 nuevo — para "recibo sin presupuesto": buscar entre TODOS los
+  // presupuestos ya cargados (cualquier estado, incluidos borrador/enviado/
+  // rechazado/vencido que Documentos no muestra) y traer sus datos como
+  // atajo. No los vincula formalmente — sigue siendo un recibo standalone.
+  const { data: allBudgets = [] } = useSWR(isStandalone && open ? '/api/budgets' : null, fetcher)
+  const [budgetSearch, setBudgetSearch] = useState('')
+
+  const budgetMatches = useMemo(() => {
+    const term = budgetSearch.trim().toLowerCase()
+    if (!term) return []
+    return allBudgets
+      .filter((b: any) => {
+        const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
+        const num = String(b.budgetNumber ?? '')
+        return clientName.includes(term) || num.includes(term)
+      })
+      .slice(0, 6)
+  }, [budgetSearch, allBudgets])
 
   const [clientId, setClientId] = useState('')
   const [amount, setAmount] = useState(budgetTotal ? String(budgetTotal) : '')
@@ -65,6 +85,13 @@ export function CreateReceiptModal({
     budgetTotal !== undefined && amount !== '' && !Number.isNaN(parsedAmount)
       ? Math.max(0, budgetTotal - (alreadyCollected ?? 0) - parsedAmount)
       : null
+
+  function applyBudget(b: any) {
+    setClientId(b.clientId ?? b.client?.id ?? '')
+    setAmount(b.total ? String(b.total) : '')
+    setConcept(`Presupuesto #${String(b.budgetNumber ?? 0).padStart(6, '0')}`)
+    setBudgetSearch('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -131,6 +158,42 @@ export function CreateReceiptModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isStandalone && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-muted-foreground">
+                <Search className="h-3.5 w-3.5" /> ¿Ya existe un presupuesto para esto?
+              </Label>
+              <Input
+                placeholder="Buscar por cliente o N° de presupuesto..."
+                value={budgetSearch}
+                onChange={(e) => setBudgetSearch(e.target.value)}
+              />
+              {budgetMatches.length > 0 && (
+                <div className="rounded-md border bg-card">
+                  {budgetMatches.map((b: any) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => applyBudget(b)}
+                      className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted"
+                    >
+                      <span>
+                        <span className="font-medium text-foreground">
+                          {b.client?.company || b.client?.name || 'Sin cliente'}
+                        </span>{' '}
+                        · #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                      </span>
+                      <span className="text-muted-foreground">{STATUS_LABELS[b.status as keyof typeof STATUS_LABELS] ?? b.status}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Si lo elegís, completamos cliente e importe con esos datos — igual queda como recibo sin presupuesto, no lo vincula.
+              </p>
+            </div>
+          )}
+
           {isStandalone && (
             <div className="space-y-2">
               <Label>Cliente *</Label>

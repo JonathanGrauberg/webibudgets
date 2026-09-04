@@ -58,6 +58,7 @@ type BudgetItemInput = {
   depthCm:  number | null
   direct:   number | null
   hours:    number | null
+  pieces:   number | null
 }
 
 type Seller = {
@@ -264,6 +265,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               depthCm={item.depthCm ?? null}
               direct={item.direct ?? null}
               hours={item.hours}
+              pieces={item.pieces}
               onChange={(field, value) => handleFieldChange(field, value)}
               onQuantityChange={handleQuantityChange}
             />
@@ -441,6 +443,7 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
             depthCm={item.depthCm ?? null}
             direct={item.direct ?? null}
             hours={item.hours}
+            pieces={item.pieces}
             onChange={(field, value) => handleFieldChange(field, value)}
             onQuantityChange={handleQuantityChange}
           />
@@ -579,6 +582,7 @@ export default function EditBudgetPage() {
         depthCm: it.depthCm ?? null,
         direct: it.direct ?? null,
         hours: it.hours ?? null,
+        pieces: it.pieces ?? null,
       }))
     )
 
@@ -694,6 +698,7 @@ export default function EditBudgetPage() {
           depthCm: null,
           direct: null,
           hours: null,
+          pieces: null,
         },
       ]
     })
@@ -720,6 +725,7 @@ export default function EditBudgetPage() {
         depthCm:          null,
         direct:           null,
         hours:            null,
+        pieces:           null,
       },
     ])
   }, [])
@@ -834,6 +840,7 @@ export default function EditBudgetPage() {
             depthCm:          i.depthCm  ?? null,
             direct:           i.direct   ?? null,
             hours:            i.hours    ?? null,
+            pieces:           i.pieces   ?? null,
           })),
         }),
       })

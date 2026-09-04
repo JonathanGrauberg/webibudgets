@@ -200,6 +200,7 @@ export async function POST(request: Request) {
           budgetNumber,
           currency: budgetCurrency,
           notes: typeof data.notes === 'string' ? data.notes : '',
+          internalNotes: typeof data.internalNotes === 'string' && data.internalNotes.trim() ? data.internalNotes.trim() : null,
           installationResponsible: data.installationResponsible ?? null,
           installerReference: data.installerReference ?? null,
           details: Array.isArray(data.details) ? data.details : [],
@@ -235,6 +236,7 @@ export async function POST(request: Request) {
                 direct: item.direct ?? null,
                 hours: item.hours ?? null,
                 calculatedM2: item.calculatedM2 ?? null,
+                pieces: item.pieces ?? null,
                 ...(item.productVariantId
                   ? {
                       productVariant: {

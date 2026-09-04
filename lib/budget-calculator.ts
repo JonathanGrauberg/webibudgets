@@ -12,6 +12,7 @@ export type BudgetRequestItem = {
   depthCm?: number | null
   direct?: number | null
   hours?: number | null
+  pieces?: number | null
 }
 
 export type NormalizedBudgetItem = {
@@ -29,6 +30,7 @@ export type NormalizedBudgetItem = {
   direct: number | null
   hours: number | null
   calculatedM2: number | null
+  pieces: number | null
 }
 
 export type BudgetCalculationInput = {
@@ -84,6 +86,7 @@ export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
       const depthCm = parseOptionalNumber(item?.depthCm)
       const direct = parseOptionalNumber(item?.direct)
       const hours = parseOptionalNumber(item?.hours)
+      const pieces = parseOptionalNumber(item?.pieces)
       const calculatedM2 = computeCalculatedM2(widthCm, heightCm)
 
       return {
@@ -101,6 +104,7 @@ export function normalizeBudgetItems(items: unknown[]): NormalizedBudgetItem[] {
         direct,
         hours,
         calculatedM2,
+        pieces,
       }
     })
     .filter((item) => item.quantity > 0 && (item.isCustom ? !!item.customName : !!item.productServiceId))

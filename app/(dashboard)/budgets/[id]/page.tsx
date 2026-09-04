@@ -730,6 +730,18 @@ const handleGeneratePDF = async () => {
                     <p className="whitespace-pre-wrap break-words">{budget.notes}</p>
                   </div>
                 )}
+
+                {(budget as any).internalNotes?.trim() && (
+                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-400">
+                      Nota interna
+                      <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">
+                        No se imprime
+                      </span>
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm">{(budget as any).internalNotes}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

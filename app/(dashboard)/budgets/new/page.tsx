@@ -63,6 +63,7 @@ type BudgetItemInput = {
   depthCm:  number | null
   direct:   number | null
   hours:    number | null
+  pieces:   number | null
 }
 
 type Seller = {
@@ -276,6 +277,7 @@ const BudgetItemRow = React.memo(function BudgetItemRow({
               depthCm={item.depthCm ?? null}
               direct={item.direct ?? null}
               hours={item.hours}
+              pieces={item.pieces}
               onChange={(field, value) => handleFieldChange(field, value)}
               onQuantityChange={handleQuantityChange}
             />
@@ -457,6 +459,7 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
             depthCm={item.depthCm ?? null}
             direct={item.direct ?? null}
             hours={item.hours}
+            pieces={item.pieces}
             onChange={(field, value) => handleFieldChange(field, value)}
             onQuantityChange={handleQuantityChange}
           />
@@ -489,6 +492,7 @@ export default function NewBudgetPage() {
   const [showEmailReminder, setShowEmailReminder] = useState(false)
   const [clientId, setClientId]             = useState('')
   const [notes, setNotes]                   = useState('')
+  const [internalNotes, setInternalNotes]   = useState('') // 👈 nuevo — solo para el equipo, nunca va al PDF
   const [items, setItems]                   = useState<BudgetItemInput[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [expandedCalcIds, setExpandedCalcIds]     = useState<Set<string>>(new Set())
@@ -674,6 +678,7 @@ export default function NewBudgetPage() {
           depthCm: null,
           direct: null,
           hours: null,
+          pieces: null,
         },
       ]
     })
@@ -700,6 +705,7 @@ export default function NewBudgetPage() {
         depthCm:          null,
         direct:           null,
         hours:            null,
+        pieces:           null,
       },
     ])
   }, [])
@@ -796,6 +802,7 @@ export default function NewBudgetPage() {
           clientId,
           currency,
           notes,
+          internalNotes,
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
           installerReference,
@@ -824,6 +831,7 @@ export default function NewBudgetPage() {
             depthCm:          i.depthCm  ?? null,
             direct:           i.direct   ?? null,
             hours:            i.hours    ?? null,
+            pieces:           i.pieces   ?? null,
           })),
           total,
         }),
@@ -1167,6 +1175,25 @@ export default function NewBudgetPage() {
                       />
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* NOTAS INTERNAS — nunca se imprimen, solo las ve el equipo */}
+              <Card className="border-amber-300 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    Notas internas
+                    <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">
+                      No se imprime
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={internalNotes}
+                    onChange={(e) => setInternalNotes(e.target.value)}
+                    placeholder="Ej: recordar pedirle seña antes de comprar el material. Solo lo ve tu equipo, nunca aparece en el PDF del cliente."
+                  />
                 </CardContent>
               </Card>
             </div>

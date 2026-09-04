@@ -476,6 +476,9 @@ model Budget {
 
   notes     String @default("")
 
+  // Notas internas del equipo — nunca se imprimen en el PDF que ve el cliente
+  internalNotes String?
+
   active    Boolean @default(true)
 
   // Vendedor
@@ -629,6 +632,12 @@ model BudgetItem {
   calculatedM2     Float?
   depthCm          Float?
   direct           Float?
+
+  // Cantidad de piezas idénticas con la misma medida (ej: 10 ventanas de
+  // 1.5m x 1.5m) — la "quantity" real sigue siendo el total (piezas ×
+  // cantidad calculada por pieza), esto es solo para poder mostrar el
+  // desglose en el PDF en vez de una cantidad total sin explicación.
+  pieces           Int? @default(1)
 }
 
 /* =========================

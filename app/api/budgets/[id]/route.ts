@@ -164,6 +164,10 @@ export async function PATCH(request: Request, { params }: Params) {
         updateData.notes = data.notes
       }
 
+      if (data.internalNotes !== undefined) {
+        updateData.internalNotes = typeof data.internalNotes === 'string' && data.internalNotes.trim() ? data.internalNotes.trim() : null
+      }
+
       if (data.paymentTerms !== undefined) {
         updateData.paymentTerms = data.paymentTerms ?? null
       }
@@ -215,6 +219,7 @@ export async function PATCH(request: Request, { params }: Params) {
               direct: item.direct,
               hours: item.hours,
               calculatedM2: item.calculatedM2,
+              pieces: item.pieces,
             }
           }),
         }),

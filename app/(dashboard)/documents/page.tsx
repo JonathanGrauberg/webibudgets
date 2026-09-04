@@ -8,6 +8,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -331,6 +338,10 @@ function DocumentRow({
 
 export default function DocumentsPage() {
   const [search, setSearch] = useState('')
+  // 👇 default: solo Aprobados + Completados — son los únicos que se
+  // gestionan con recibos/OT (a un rechazado o borrador no se le hace
+  // recibo). Los demás igual se pueden buscar desde acá con el filtro.
+  const [statusFilter, setStatusFilter] = useState<string>('approved_completed')
   const [standaloneReceiptOpen, setStandaloneReceiptOpen] = useState(false) // 👈 nuevo
   const [showVoidedReceipts, setShowVoidedReceipts] = useState(false) //👈 nuevo
   const { filterBudgets } = usePermissions()
@@ -398,7 +409,16 @@ export default function DocumentsPage() {
     const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
     const budgetNum = String(b.budgetNumber ?? 0)
     const term = search.toLowerCase()
-    return clientName.includes(term) || budgetNum.includes(term)
+    const matchesSearch = clientName.includes(term) || budgetNum.includes(term)
+
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'approved_completed'
+        ? b.status === 'approved' || b.status === 'completed'
+        : b.status === statusFilter
+
+    return matchesSearch && matchesStatus
   })
 
   // KPIs
@@ -515,8 +535,8 @@ export default function DocumentsPage() {
           </Card>
         </div>
 
-        {/* Buscador */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Buscador + filtro de estado */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -526,6 +546,21 @@ export default function DocumentsPage() {
               className="pl-9 h-9 text-sm bg-white"
             />
           </div>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[220px] h-9 text-sm bg-white">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="approved_completed">Aprobados y completados</SelectItem>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {isLoadingBudgets || isLoadingReceipts ? (

@@ -258,7 +258,10 @@ export function budgetPdfTemplateCantonera(
                 direct: unitType === 'time' ? (item.hours ?? null) : (item.direct ?? null),
               })
               if (calcResult.isComplete && calcResult.label) {
-                calcBreakdown = calcResult.label
+                const pieces = Number(item.pieces) || 1
+                calcBreakdown = pieces > 1
+                  ? `${pieces} × ${calcResult.label} = ${item.quantity} ${conceptUnit}`
+                  : calcResult.label
               }
             }
 

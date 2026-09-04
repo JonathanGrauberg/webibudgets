@@ -26,8 +26,9 @@ interface BudgetItemCalculatorProps {
   depthCm: number | null
   direct: number | null
   hours: number | null
+  pieces: number | null
   onChange: (
-    field: 'widthCm' | 'heightCm' | 'depthCm' | 'direct' | 'hours',
+    field: 'widthCm' | 'heightCm' | 'depthCm' | 'direct' | 'hours' | 'pieces',
     value: number | null
   ) => void
   onQuantityChange: (quantity: number) => void
@@ -87,10 +88,12 @@ export function BudgetItemCalculator({
   depthCm,
   direct,
   hours,
+  pieces,
   onChange,
   onQuantityChange,
 }: BudgetItemCalculatorProps) {
   const unitType = detectUnitType(unit)
+  const piecesCount = pieces && pieces > 0 ? pieces : 1
   const [showRange, setShowRange] = useState(false)
   const [fromTime, setFromTime] = useState('')
   const [toTime, setToTime] = useState('')
@@ -105,21 +108,24 @@ export function BudgetItemCalculator({
   }
 
   const result = computeQuantity(unit, inputs)
+  // Cantidad final = lo calculado por pieza × cuántas piezas idénticas son
+  // (ej: 10 ventanas de 2.25 m² c/u = 22.5 m² totales)
+  const totalQuantity = result.isComplete ? Math.round(result.quantity * piecesCount * 10000) / 10000 : null
 
   // ✅ useEffect + useRef: propaga la cantidad SOLO cuando cambia,
   // nunca durante el render — elimina el loop infinito
   const prevQty = useRef<number | null>(null)
   useEffect(() => {
-    if (!result.isComplete) return
-    if (prevQty.current === result.quantity) return
-    prevQty.current = result.quantity
-    onQuantityChange(result.quantity)
+    if (totalQuantity === null) return
+    if (prevQty.current === totalQuantity) return
+    prevQty.current = totalQuantity
+    onQuantityChange(totalQuantity)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result.isComplete, result.quantity])
+  }, [totalQuantity])
   // onQuantityChange se omite intencionalmente: viene estabilizado
   // con useCallback desde el padre (BudgetItemRow)
 
-  const subtotalEstimado = result.isComplete ? result.quantity * unitPrice : null
+  const subtotalEstimado = totalQuantity !== null ? totalQuantity * unitPrice : null
 
   if (unitType === 'unit') return null
 
@@ -129,6 +135,13 @@ export function BudgetItemCalculator({
         <Icon className="h-3 w-3" />
         {TYPE_LABELS[unitType]} · {unitDef.symbol}
       </div>
+
+      <NumInput
+        label="Cantidad de piezas iguales"
+        value={pieces}
+        placeholder="1"
+        onChange={(v) => onChange('pieces', v)}
+      />
 
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${getColCount(unitType)}, 1fr)` }}>
         {unitType === 'area' && (
@@ -231,13 +244,23 @@ export function BudgetItemCalculator({
       {result.isComplete && (
         <div className="rounded-md bg-foreground/5 px-3 py-2 text-xs space-y-0.5">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Cantidad calculada</span>
+            <span className="text-muted-foreground">
+              {piecesCount > 1 ? `Cantidad calculada (× ${piecesCount})` : 'Cantidad calculada'}
+            </span>
             <span className="font-semibold text-foreground">
               {unitType === 'time'
                 ? formatHoursAsClock(result.quantity)
                 : result.label || `${result.quantity} ${unitDef.symbol}`}
             </span>
           </div>
+          {piecesCount > 1 && totalQuantity !== null && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Total ({piecesCount} piezas)</span>
+              <span className="font-semibold text-foreground">
+                {unitType === 'time' ? formatHoursAsClock(totalQuantity) : `${totalQuantity} ${unitDef.symbol}`}
+              </span>
+            </div>
+          )}
           {subtotalEstimado !== null && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Subtotal estimado</span>
