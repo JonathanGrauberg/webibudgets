@@ -56,6 +56,40 @@ function formatDate(date: Date | string): string {
   }).format(new Date(date))
 }
 
+type DateFilterPreset = 'all' | 'today' | 'month' | 'year' | 'custom'
+
+// Calcula el rango [desde, hasta] según el preset elegido. null = sin filtro (todas las fechas).
+function getDateRange(
+  preset: DateFilterPreset,
+  customFrom: string,
+  customTo: string
+): [Date, Date] | null {
+  const now = new Date()
+
+  if (preset === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    return [start, end]
+  }
+  if (preset === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    return [start, end]
+  }
+  if (preset === 'year') {
+    const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+    return [start, end]
+  }
+  if (preset === 'custom') {
+    if (!customFrom && !customTo) return null
+    const start = customFrom ? new Date(`${customFrom}T00:00:00`) : new Date(0)
+    const end = customTo ? new Date(`${customTo}T23:59:59`) : new Date(8640000000000000)
+    return [start, end]
+  }
+  return null
+}
+
 // 🌟 Ganancia = Total del presupuesto - costo de los productos que lo componen.
 // Ítems "libre" o sin `cost` cargado cuentan como costo $0 (inflan la ganancia mostrada).
 function computeBudgetCostMetrics(budget: Budget) {
@@ -195,11 +229,16 @@ export default function BudgetsPage() {
 
   // buscador + filtro de estado (para la tabla)
   const [searchQuery, setSearchQuery] = useState('')
-  // 👇 default: al entrar mostramos solo Aprobados + Completados (lo que
-  // realmente se usa después en Rendiciones), no todo el ruido de borradores
-  // y presupuestos enviados/rechazados/vencidos.
-  const [statusFilter, setStatusFilter] = useState<string>('approved_completed')
+  // 👇 default: mostramos todos los estados — el cliente prefirió esto a
+  // que arranque filtrado. El filtro "Aprobados y completados" sigue
+  // disponible en el dropdown, solo que ya no es la vista inicial.
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')
+
+  // 👇 filtro por fecha (de creación del presupuesto)
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'month' | 'year' | 'custom'>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
   const [presupuestosScope, setPresupuestosScope] = useState<'all' | 'active' | 'inactive'>('all')
@@ -209,6 +248,11 @@ export default function BudgetsPage() {
   const canEditBudgetsFeature = hasFeature(
     { plan: branding?.plan, features: branding?.features },
     'editBudgets'
+  )
+
+  const dateRange = useMemo(
+    () => getDateRange(dateFilter, customFrom, customTo),
+    [dateFilter, customFrom, customTo]
   )
 
   const filteredBudgets = useMemo(() => {
@@ -231,9 +275,15 @@ export default function BudgetsPage() {
       const matchesActive =
         activeFilter === 'all' ? true : activeFilter === 'active' ? isActive : !isActive
 
-      return matchesSearch && matchesStatus && matchesActive
+      const matchesDate =
+        !dateRange || (() => {
+          const created = new Date(b.createdAt)
+          return created >= dateRange[0] && created <= dateRange[1]
+        })()
+
+      return matchesSearch && matchesStatus && matchesActive && matchesDate
     })
-  }, [budgets, searchQuery, statusFilter, activeFilter])
+  }, [budgets, searchQuery, statusFilter, activeFilter, dateRange])
 
   const canViewFinancials = canEdit('budgets')
 
@@ -399,44 +449,88 @@ export default function BudgetsPage() {
           </div>
         )}
 
-        {/* buscador + filtro de estado (solo si hay presupuestos) */}
+        {/* buscador + filtros (solo si hay presupuestos) */}
         {budgets.length > 0 && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente o número..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente o número..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="approved_completed">Aprobados y completados</SelectItem>
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={activeFilter} onValueChange={(v: 'active' | 'inactive' | 'all') => setActiveFilter(v)}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Activos</SelectItem>
+                  <SelectItem value="inactive">Inactivos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={dateFilter}
+                onValueChange={(v: DateFilterPreset) => {
+                  setDateFilter(v)
+                  if (v !== 'custom') { setCustomFrom(''); setCustomTo('') }
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[170px]">
+                  <SelectValue placeholder="Fecha" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las fechas</SelectItem>
+                  <SelectItem value="today">Este día</SelectItem>
+                  <SelectItem value="month">Este mes</SelectItem>
+                  <SelectItem value="year">Este año</SelectItem>
+                  <SelectItem value="custom">Rango personalizado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="approved_completed">Aprobados y completados</SelectItem>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={activeFilter} onValueChange={(v: 'active' | 'inactive' | 'all') => setActiveFilter(v)}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Activos</SelectItem>
-                <SelectItem value="inactive">Inactivos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
+            {dateFilter === 'custom' && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Desde</span>
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full sm:w-[170px]"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Hasta</span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full sm:w-[170px]"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
