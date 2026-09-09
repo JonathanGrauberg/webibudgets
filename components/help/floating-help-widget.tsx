@@ -155,6 +155,12 @@ export function FloatingHelpWidget() {
             </div>
           </div>
 
+          {screens.length > 1 && (
+            <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground">
+              <House className="h-3 w-3 shrink-0" /> Tocá la casita de arriba para volver al menú principal
+            </div>
+          )}
+
           {/* Conversación */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-3">
             {screens.map((screen, i) => (

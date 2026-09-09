@@ -239,6 +239,7 @@ export default function BudgetsPage() {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'month' | 'year' | 'custom'>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [sellerFilter, setSellerFilter] = useState<string>('all')
 
   // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
   const [presupuestosScope, setPresupuestosScope] = useState<'all' | 'active' | 'inactive'>('all')
@@ -255,14 +256,29 @@ export default function BudgetsPage() {
     [dateFilter, customFrom, customTo]
   )
 
+  // 👇 opciones del filtro de vendedor — solo los que realmente tienen
+  // algún presupuesto (no todos los vendedores del tenant), evitando
+  // opciones vacías en el dropdown
+  const sellerOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const b of budgets) {
+      if (b.seller) map.set(b.seller.id, `${b.seller.name} ${b.seller.lastName}`.trim())
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [budgets])
+
   const filteredBudgets = useMemo(() => {
     return budgets.filter((b) => {
       const clientName = (b.client?.company || b.client?.name || '').toLowerCase()
       const budgetNum = String(b.budgetNumber ?? 0).padStart(6, '0')
+      const sellerName = b.seller ? `${b.seller.name} ${b.seller.lastName}`.toLowerCase() : ''
       const matchesSearch =
         !searchQuery ||
         clientName.includes(searchQuery.toLowerCase()) ||
-        budgetNum.includes(searchQuery)
+        budgetNum.includes(searchQuery) ||
+        sellerName.includes(searchQuery.toLowerCase())
 
       const matchesStatus =
         statusFilter === 'all'
@@ -281,9 +297,16 @@ export default function BudgetsPage() {
           return created >= dateRange[0] && created <= dateRange[1]
         })()
 
-      return matchesSearch && matchesStatus && matchesActive && matchesDate
+      const matchesSeller =
+        sellerFilter === 'all'
+          ? true
+          : sellerFilter === 'none'
+          ? !b.seller
+          : b.seller?.id === sellerFilter
+
+      return matchesSearch && matchesStatus && matchesActive && matchesDate && matchesSeller
     })
-  }, [budgets, searchQuery, statusFilter, activeFilter, dateRange])
+  }, [budgets, searchQuery, statusFilter, activeFilter, dateRange, sellerFilter])
 
   const canViewFinancials = canEdit('budgets')
 
@@ -456,12 +479,29 @@ export default function BudgetsPage() {
               <div className="relative w-full sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por cliente o número..."
+                  placeholder="Buscar por cliente, vendedor o número..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
                 />
               </div>
+
+              {sellerOptions.length > 0 && (
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los vendedores</SelectItem>
+                    <SelectItem value="none">Sin vendedor</SelectItem>
+                    {sellerOptions.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[200px]">
