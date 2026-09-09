@@ -65,6 +65,12 @@ export async function PATCH(
           data.cost !== undefined && data.cost !== ''
             ? Number(data.cost)
             : undefined, // 👈 nuevo — igual criterio que price
+        minStock:
+          data.minStock === null
+            ? null // borrar explícito = volver a usar el default global
+            : data.minStock !== undefined && data.minStock !== ''
+            ? Number(data.minStock)
+            : undefined,
         currency: isValidCurrency(data.currency) ? data.currency : undefined,
         unit: typeof data.unit === 'string' ? data.unit : undefined,
         active: typeof data.active === 'boolean' ? data.active : undefined,

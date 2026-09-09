@@ -81,6 +81,7 @@ export function ProductForm({ product, duplicateFrom, defaultCurrency, onSuccess
     description: source?.description ?? '',
     price:       source?.price?.toString() ?? '',
     cost:        source?.cost?.toString()  ?? '',
+    minStock:    source?.minStock?.toString() ?? '', // 👈 nuevo
     currency:    source?.currency    ?? defaultCurrency ?? DEFAULT_CURRENCY,
     unit:        savedUnit,
     active:      source?.active      ?? true,
@@ -516,6 +517,26 @@ const handleDeleteVariant = async (variantId: string) => {
                 })()}
               </div>
             </div>
+          </div>
+
+          {/* Stock mínimo — umbral propio de "stock bajo", opcional */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="minStock">Stock mínimo (alerta de stock bajo)</Label>
+              <Tooltip>
+                <TooltipTrigger asChild><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                <TooltipContent>Opcional. Si no lo completás, se usa el umbral general de la pantalla de Stock.</TooltipContent>
+              </Tooltip>
+            </div>
+            <Input
+              id="minStock"
+              type="number"
+              min="0"
+              step="any"
+              value={formData.minStock}
+              onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+              placeholder="Ej: 5 (dejalo vacío para usar el general)"
+            />
           </div>
 
 {/* Activo (Switch independiente y limpio) */}

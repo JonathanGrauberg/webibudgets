@@ -423,6 +423,7 @@ model ProductService {
   active      Boolean @default(true)
 
   stock       Float @default(0) // 👈 antes: Int
+  minStock    Float? // umbral de "stock bajo" propio — null = usa el default global
   variants    ProductVariant[]
 
   items            BudgetItem[]

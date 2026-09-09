@@ -3,6 +3,35 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 
+// Historial de movimientos de un producto (y opcionalmente una variante puntual)
+export async function GET(req: Request) {
+  try {
+    const tenantId = await getTenantIdFromRequest(req)
+    const { searchParams } = new URL(req.url)
+    const productServiceId = searchParams.get('productServiceId')
+    const productVariantId = searchParams.get('productVariantId')
+
+    if (!productServiceId) {
+      return NextResponse.json({ error: 'productServiceId is required' }, { status: 400 })
+    }
+
+    const movements = await prisma.stockMovement.findMany({
+      where: {
+        tenantId,
+        productServiceId,
+        ...(productVariantId ? { productVariantId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    })
+
+    return NextResponse.json(movements)
+  } catch (error) {
+    console.error('Stock movements fetch error:', error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const tenantId = await getTenantIdFromRequest(req)

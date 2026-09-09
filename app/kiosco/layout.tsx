@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   manifest: '/kiosco-manifest.json',
   icons: {
-    apple: '/icon-kiosco-192-square.png',
+    apple: '/icon-kiosco-192-maskable.png',
   },
   appleWebApp: {
     capable: true,

@@ -43,6 +43,7 @@ export interface ProductService {
   unit: string
   active: boolean
   stock?: number
+  minStock?: number | null // umbral propio de "stock bajo" — null = usa el default global
   createdAt: Date
   updatedAt: Date
   variants?: ProductVariant[]

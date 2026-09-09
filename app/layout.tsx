@@ -36,7 +36,7 @@ export const metadata: Metadata = {
       { url: '/favico.ico', media: '(prefers-color-scheme: light)' },
       { url: '/favico.ico', media: '(prefers-color-scheme: dark)' },
     ],
-    apple: '/icon-general-192-square.png', // 👈 antes: '/favico.ico' — ahora el ícono cuadrado real para iOS
+    apple: '/icon-general-192-maskable.png', // 👈 antes: versión cuadrada — ver nota sobre iOS en la conversación
   },
 
   verification: {
