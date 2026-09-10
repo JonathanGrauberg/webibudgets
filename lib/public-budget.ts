@@ -28,7 +28,6 @@ export async function loadPublicBudget(token: string) {
           showFooterBranding: true,
         },
       },
-      items: { include: { productService: { select: { name: true } } } },
       payments: { select: { amount: true, status: true } },
     },
   })

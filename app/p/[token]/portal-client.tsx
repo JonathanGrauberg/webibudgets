@@ -14,27 +14,7 @@ import { PAYMENT_STATE_LABEL, type PaymentState } from '@/lib/budget-payments'
 
 type PublicBudgetData = {
   budgetNumber: number | null
-  status: string
   currency: string
-  subtotal: number
-  discount: number
-  tax: number
-  shippingCost: number | null
-  total: number
-  paymentTerms: string | null
-  validUntil: string | null
-  createdAt: string
-  client: { name: string; company: string | null } | null
-  items: { name: string; quantity: number; unitPrice: number; subtotal: number | null }[]
-  tenant: {
-    name: string
-    logoUrl: string | null
-    primaryColor: string | null
-    accentColor: string | null
-    phone: string | null
-    email: string | null
-    website: string | null
-  }
   showFooterBranding: boolean
   depositEnabled: boolean
   payment: {
@@ -50,17 +30,23 @@ type PublicBudgetData = {
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_ATTEMPTS = 30 // ~1 minuto
 
-function formatDate(value: string) {
-  try {
-    return new Date(value).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
-  } catch {
-    return ''
-  }
-}
-
 export function PublicBudgetPortalClient({ token }: { token: string }) {
   const searchParams = useSearchParams()
   const pagoParam = searchParams.get('pago') // 'exito' | 'pendiente' | 'fallo'
+
+  // 👇 el "documento" en sí ya no se re-arma a mano en React — se muestra
+  // el HTML real del PDF adentro de un iframe (mismo motor, así nunca se
+  // desincroniza de lo que el cliente descarga), y este estado solo
+  // acompaña el alto dinámico del iframe según su contenido.
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [iframeHeight, setIframeHeight] = useState(500)
+
+  function handleIframeLoad() {
+    try {
+      const doc = iframeRef.current?.contentWindow?.document
+      if (doc) setIframeHeight(doc.documentElement.scrollHeight + 24)
+    } catch {}
+  }
 
   const [data, setData] = useState<PublicBudgetData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -150,110 +136,18 @@ export function PublicBudgetPortalClient({ token }: { token: string }) {
     )
   }
 
-  const primary = data.tenant.primaryColor || '#0f172a'
-  const budgetNumber = String(data.budgetNumber ?? 0).padStart(6, '0')
-
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-4 sm:py-10">
       <div className="mx-auto max-w-2xl">
-        {/* Documento */}
+        {/* Documento — el HTML real del PDF, embebido tal cual */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {/* Encabezado con marca del negocio */}
-          <div className="border-b border-slate-100 px-5 py-5 sm:px-8 sm:py-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {data.tenant.logoUrl ? (
-                  <img src={data.tenant.logoUrl} alt={data.tenant.name} className="h-12 w-12 rounded-xl object-contain" />
-                ) : (
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold text-white"
-                    style={{ backgroundColor: primary }}
-                  >
-                    {data.tenant.name?.[0]?.toUpperCase() ?? '.'}
-                  </div>
-                )}
-                <div>
-                  <p className="text-base font-bold text-slate-900">{data.tenant.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {[data.tenant.phone, data.tenant.email, data.tenant.website].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="text-sm font-semibold" style={{ color: primary }}>
-                  Presupuesto #{budgetNumber}
-                </p>
-                <p className="text-xs text-slate-400">{formatDate(data.createdAt)}</p>
-                {data.validUntil && (
-                  <p className="text-xs text-slate-400">Válido hasta {formatDate(data.validUntil)}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Cliente */}
-          <div className="border-b border-slate-100 px-5 py-4 sm:px-8">
-            <p className="text-xs uppercase tracking-wide text-slate-400">Para</p>
-            <p className="text-sm font-semibold text-slate-900">
-              {data.client?.company || data.client?.name || 'Cliente'}
-            </p>
-          </div>
-
-          {/* Ítems */}
-          <div className="divide-y divide-slate-100 px-5 sm:px-8">
-            {data.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-slate-800">{item.name}</p>
-                  <p className="text-xs text-slate-400">
-                    {item.quantity} × {formatCurrency(item.unitPrice, data.currency)}
-                  </p>
-                </div>
-                <p className="shrink-0 font-medium text-slate-700">
-                  {formatCurrency(item.subtotal ?? item.unitPrice * item.quantity, data.currency)}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Totales */}
-          <div className="space-y-1.5 border-t border-slate-100 bg-slate-50 px-5 py-4 text-sm sm:px-8">
-            <div className="flex items-center justify-between text-slate-500">
-              <span>Subtotal</span>
-              <span>{formatCurrency(data.subtotal, data.currency)}</span>
-            </div>
-            {data.discount > 0 && (
-              <div className="flex items-center justify-between text-slate-500">
-                <span>Descuento</span>
-                <span>− {formatCurrency(data.discount, data.currency)}</span>
-              </div>
-            )}
-            {data.tax > 0 && (
-              <div className="flex items-center justify-between text-slate-500">
-                <span>Impuestos</span>
-                <span>{formatCurrency(data.tax, data.currency)}</span>
-              </div>
-            )}
-            {!!data.shippingCost && (
-              <div className="flex items-center justify-between text-slate-500">
-                <span>Envío</span>
-                <span>{formatCurrency(data.shippingCost, data.currency)}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base">
-              <span className="font-semibold text-slate-900">Total</span>
-              <span className="text-lg font-bold" style={{ color: primary }}>
-                {formatCurrency(data.total, data.currency)}
-              </span>
-            </div>
-          </div>
-
-          {data.paymentTerms && (
-            <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:px-8">
-              {data.paymentTerms}
-            </div>
-          )}
+          <iframe
+            ref={iframeRef}
+            src={`/api/public/budgets/${token}/html`}
+            onLoad={handleIframeLoad}
+            title={`Presupuesto #${String(data.budgetNumber ?? 0).padStart(6, '0')}`}
+            style={{ width: '100%', height: iframeHeight, border: 0, display: 'block' }}
+          />
 
           <div className="border-t border-slate-100 px-5 py-3 sm:px-8">
             <a

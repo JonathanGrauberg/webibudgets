@@ -18,33 +18,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const summary = computePaymentSummary(budget, budget.payments)
 
   return NextResponse.json({
+    // 👇 el detalle visual (ítems, totales, datos de la empresa) ya no
+    // viaja acá — el portal lo muestra directo desde el HTML real del PDF
+    // (ver /api/public/budgets/[token]/html). Esto solo trae lo que hace
+    // falta para la tarjeta de pago.
     budgetNumber: budget.budgetNumber,
-    status: budget.status,
     currency: budget.currency,
-    subtotal: budget.subtotal,
-    discount: budget.discount,
-    tax: budget.tax,
-    shippingCost: budget.shippingCost,
-    total: budget.total,
-    paymentTerms: budget.paymentTerms,
-    validUntil: budget.validUntil,
-    createdAt: budget.createdAt,
-    client: budget.client ? { name: budget.client.name, company: budget.client.company } : null,
-    items: budget.items.map((item) => ({
-      name: item.customName || item.productService?.name || 'Ítem',
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: item.subtotal,
-    })),
-    tenant: {
-      name: budget.tenant.name,
-      logoUrl: budget.tenant.logoUrl,
-      primaryColor: budget.tenant.primaryColor,
-      accentColor: budget.tenant.accentColor,
-      phone: budget.tenant.phone,
-      email: budget.tenant.email,
-      website: budget.tenant.website,
-    },
     showFooterBranding: budget.tenant.showFooterBranding,
     depositEnabled: budget.depositEnabled,
     payment: {
