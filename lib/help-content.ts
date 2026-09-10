@@ -219,6 +219,66 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    slug: 'cobros-online',
+    title: 'Cobros online (Mercado Pago)',
+    description: 'Cobrar tus presupuestos con Mercado Pago, directo a tu cuenta.',
+    articles: [
+      {
+        slug: 'como-funciona',
+        title: 'Cómo funciona el cobro online',
+        body: [
+          'Podés generar un link para que tu cliente pague un presupuesto (la seña o el total) con Mercado Pago, sin salir de .budgets. El dinero llega directo a TU cuenta de Mercado Pago, nunca pasa por la nuestra.',
+          'Es 100% opcional — si preferís seguir cobrando en efectivo o transferencia y cargar el recibo a mano como siempre, podés hacerlo sin ningún problema, conviven las dos formas.',
+        ],
+        keywords: ['mercado pago', 'cobrar', 'pago online', 'mp'],
+      },
+      {
+        slug: 'conectar-mercado-pago',
+        title: 'Conectar tu cuenta de Mercado Pago',
+        body: [
+          'Andá a Configuración → Plan → "Conectar con Mercado Pago" e iniciá sesión con la cuenta de MP de tu negocio para autorizar la conexión. Es la misma lógica que "iniciar sesión con Google" en cualquier app: vos autorizás, nosotros nunca vemos ni guardamos tu contraseña de MP.',
+          'Este paso es obligatorio para poder generar links de cobro — sin conectar tu cuenta, Mercado Pago no tiene forma de saber que el dinero de un cobro generado desde .budgets tiene que caer en TU cuenta y no en otra.',
+        ],
+        keywords: ['conectar', 'oauth', 'vincular', 'cuenta'],
+      },
+      {
+        slug: 'comision',
+        title: '¿Se cobra comisión?',
+        body: [
+          'Solo en el plan Free — se retiene un pequeño porcentaje de cada cobro. En los planes PRO no se cobra ninguna comisión por usar el cobro online.',
+          'Aparte de esto, Mercado Pago siempre cobra su propia comisión por procesar el pago (como con cualquier cobro online, sea a través de .budgets o no) — es independiente de la nuestra.',
+        ],
+        keywords: ['comisión', 'costo', 'free', 'pro'],
+      },
+      {
+        slug: 'solicitar-sena',
+        title: 'Pedir una seña en vez del total',
+        body: [
+          'Desde el detalle de un presupuesto, en la card "Cobro online", activá "Solicitar seña" y elegí un porcentaje o un monto fijo. Tu cliente va a poder elegir entre pagar esa seña o el total — nunca un monto libre, para que no quede la duda de "ya pagué algo, ¿por qué no arrancás?".',
+        ],
+        keywords: ['seña', 'anticipo', 'parcial', 'porcentaje'],
+      },
+      {
+        slug: 'link-de-cobro',
+        title: 'El link de cobro y qué ve tu cliente',
+        body: [
+          '"Copiar link de cobro" (en el detalle del presupuesto, o el botón de WhatsApp que lo manda directo) genera una página web con el presupuesto — igual a como se ve el PDF — y el botón de pago abajo. No hace falta que tu cliente tenga cuenta ni inicie sesión.',
+          'Si el presupuesto cambia después de generar el link, no hay problema: el link sigue siendo válido y siempre muestra la información actualizada.',
+        ],
+        keywords: ['link', 'portal', 'whatsapp', 'compartir'],
+      },
+      {
+        slug: 'cuando-llega-un-pago',
+        title: 'Cuando llega un pago',
+        body: [
+          'Vas a ver una campanita al lado del total, en la fila del presupuesto — hacé clic para generar el recibo correspondiente con un solo paso, sin tener que cargarlo a mano.',
+          'El Dashboard distingue "Cobrado" (plata que entró de verdad, sea por recibo o por Mercado Pago) de "Presupuestado" (lo que valen los presupuestos aprobados, se hayan cobrado o no) — son dos números distintos a propósito, para que no se te mezclen.',
+        ],
+        keywords: ['campanita', 'notificación', 'recibo', 'cobrado'],
+      },
+    ],
+  },
+  {
     slug: 'gastos',
     title: 'Gastos',
     description: 'Gastos generales del negocio y gastos de trabajos puntuales.',

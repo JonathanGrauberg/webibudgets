@@ -299,6 +299,7 @@ export function LandingSections({
             'Tablero Kanban de tareas',
             'Vendedores, instaladores y equipo base',
             'Recibos, remitos y PDF con tu marca',
+            'Cobro online con Mercado Pago',
             'Rendiciones: métricas y detalle del período',
           ].map((f, j) => (
             <div key={j} className="flex items-start gap-3">
@@ -356,6 +357,7 @@ export function LandingSections({
             'Reeditar presupuestos ya emitidos',
             'Reparto de ganancias entre socios',
             'Dashboard con Business Intelligence',
+            'Cobro online sin comisión',
             'Exportación de reportes',
             'Historial detallado de distribución',
             'PDFs 100% con tu marca, sin la nuestra',

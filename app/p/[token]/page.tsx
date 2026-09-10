@@ -30,6 +30,10 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // 👇 nunca indexar — es el presupuesto privado de un cliente puntual,
+    // no una página pública del sitio. El og:image/description de arriba
+    // solo son para que la vista previa de WhatsApp se vea bien.
+    robots: { index: false, follow: false },
     openGraph: {
       title,
       description,

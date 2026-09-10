@@ -17,7 +17,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: '.budgets | Software de Gestión, Presupuestos y Órdenes de Trabajo',
   description:
-    'Ecosistema integral para PYMEs y profesionales: cotizador por m², órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.',
+    'Ecosistema integral para PYMEs y profesionales: cotizador por m², cobro online con Mercado Pago, órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.',
   generator: 'Webi',
 
   alternates: {
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: '.budgets | Presupuestos, Órdenes de Trabajo y Gestión Integral',
     description:
-      'Comenzá gratis. Cotizaciones por m², control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
+      'Comenzá gratis. Cotizaciones por m², cobro online con Mercado Pago, control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
     url: 'https://budgets.webistudio.net',
     siteName: '.budgets',
     images: [
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '.budgets | Sistema de Gestión Operativa y Financiera',
     description:
-      'Plataforma Freemium: cotizaciones por m², seguimiento de obras con QR, Kanban, stock y comisiones en tiempo real.',
+      'Plataforma Freemium: cotizaciones por m², cobro online con Mercado Pago, seguimiento de obras con QR, Kanban, stock y comisiones en tiempo real.',
     images: ['https://budgets.webistudio.net/og-image.png'],
   },
 }
@@ -84,7 +84,7 @@ const jsonLd = {
   'operatingSystem': 'Web, Android, iOS (PWA)',
   'applicationCategory': 'BusinessApplication',
   'url': 'https://budgets.webistudio.net',
-  'description': 'Sistema integral de gestión operativa y financiera para PYMEs, talleres, imprentas, constructoras y freelancers. Cotizador por m², órdenes de trabajo con QR, tablero Kanban, control de stock, CRM de clientes y cálculo de rendimientos.',
+  'description': 'Sistema integral de gestión operativa y financiera para PYMEs, talleres, imprentas, constructoras y freelancers. Cotizador por m², cobro online con Mercado Pago, órdenes de trabajo con QR, tablero Kanban, control de stock, CRM de clientes y cálculo de rendimientos.',
   'publisher': {
     '@type': 'Organization',
     'name': 'Webi Studio',
@@ -113,6 +113,7 @@ const jsonLd = {
   },
   'featureList': [
     'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
+    'Cobro online integrado con Mercado Pago: link de pago, seña o total, directo a la cuenta del negocio',
     'Generación de Órdenes de Trabajo con código QR y geolocalización',
     'Tablero Kanban de tareas operativo e integrado a presupuestos',
     'Modo Kiosco: pantalla táctil para pared del taller con tableros por proyecto y prioridades visuales',
