@@ -1,6 +1,11 @@
 //lib\dashboard-store.ts
 import { prisma } from '@/lib/prisma'
-import type { ProductCategory } from '@prisma/client' // 👈 nuevo
+import type { ProductCategory, BudgetStatus } from '@prisma/client' // 👈 nuevo
+import { getCollectedByBudgetIds } from '@/lib/collected-amount'
+
+// Estados de presupuesto donde tiene sentido esperar un cobro — un 'draft'
+// o 'rejected' nunca va a tener plata entrando.
+const PAYABLE_STATUSES: BudgetStatus[] = ['sent', 'approved', 'completed']
 
 export interface DashboardStats {
   totalClients: number
@@ -64,6 +69,40 @@ export async function getDashboardStats(
     pendingBudgets: draftBudgets + sentBudgets,
     rejectedBudgets,
     totalRevenue: approvedRevenue._sum.total || 0,
+  }
+}
+
+export interface CollectedStats {
+  totalCollected: number      // plata que entró de verdad (recibos + MP)
+  totalPending: number        // lo que falta cobrar de lo ya aprobado/enviado
+  totalApprovedValue: number  // "si se cobrara todo" — el número viejo, ahora secundario
+}
+
+// 👇 nuevo — a diferencia de totalRevenue (arriba), esto SÍ resta lo que ya
+// se cobró. totalRevenue mezclaba "lo que valen los presupuestos aprobados"
+// con "lo que entró de verdad", que dejaron de ser lo mismo apenas existió
+// el cobro parcial online.
+export async function getCollectedStats(tenantId: string): Promise<CollectedStats> {
+  const budgets = await prisma.budget.findMany({
+    where: { tenantId, status: { in: PAYABLE_STATUSES } },
+    select: { id: true, total: true },
+  })
+
+  const collectedByBudget = await getCollectedByBudgetIds(budgets.map((b) => b.id))
+
+  let totalCollected = 0
+  let totalApprovedValue = 0
+  for (const b of budgets) {
+    totalApprovedValue += b.total
+    // Math.min por las dudas — si alguien pagó de más por error, no
+    // queremos mostrar "cobrado" mayor a lo presupuestado.
+    totalCollected += Math.min(collectedByBudget.get(b.id) ?? 0, b.total)
+  }
+
+  return {
+    totalCollected,
+    totalApprovedValue,
+    totalPending: Math.max(totalApprovedValue - totalCollected, 0),
   }
 }
 

@@ -171,6 +171,7 @@ export interface Budget {
   depositEnabled?: boolean
   depositType?: 'percent' | 'fixed' | null
   depositValue?: number | null
+  payments?: { amount: number }[] // 👈 solo los aprobados (ver app/api/budgets/route.ts)
 
   createdAt: Date
   updatedAt: Date

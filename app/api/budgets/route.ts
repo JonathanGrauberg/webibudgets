@@ -40,6 +40,14 @@ export async function GET(request: Request) {
             productService: true,
           },
         },
+        // 👇 nuevo — pagos de Mercado Pago aprobados, livianos (solo el
+        // monto), para que las pantallas que ya suman Receipt.amount
+        // (documents, métricas) puedan sumar también esto y no subestimen
+        // lo cobrado.
+        payments: {
+          where: { status: 'approved' },
+          select: { amount: true },
+        },
       },
     })
 

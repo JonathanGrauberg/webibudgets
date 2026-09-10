@@ -385,7 +385,10 @@ export default function DocumentsPage() {
   const { data: branding, isLoading: isLoadingBranding } = useSWR('/api/tenants', fetcher)
   const hasVouchersFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'vouchers') // 👈 agregado plan
 
-  // Mapeo seguro de cobrados por cada presupuesto
+  // Mapeo seguro de cobrados por cada presupuesto — combina recibos
+  // manuales (efectivo/transferencia) y pagos online aprobados (Mercado
+  // Pago). Antes solo miraba recibos, así que un presupuesto cobrado por MP
+  // aparecía como si nada hubiera entrado.
   const collectedMap: Record<string, number> = {}
 
   receipts.forEach((r: any) => {
@@ -396,6 +399,13 @@ export default function DocumentsPage() {
       const key = String(bId)
       const amount = Number(r.amount || 0)
       collectedMap[key] = (collectedMap[key] || 0) + amount
+    }
+  })
+
+  budgets.forEach((b) => {
+    const mpAmount = (b.payments ?? []).reduce((acc, p) => acc + Number(p.amount || 0), 0)
+    if (mpAmount > 0) {
+      collectedMap[b.id] = (collectedMap[b.id] || 0) + mpAmount
     }
   })
 
@@ -427,13 +437,18 @@ export default function DocumentsPage() {
   )
   const totalAmount = totalApproved.reduce((acc, b) => acc + (b.total || 0), 0)
 
-  // Suma total cobrada en recibos (solo activos)
-  const totalCollected = receipts.reduce((acc: number, r: any) => {
+  // Suma total cobrada: recibos activos + pagos de Mercado Pago aprobados
+  const totalCollectedReceipts = receipts.reduce((acc: number, r: any) => {
     if (isReceiptActive(r.status)) {
       return acc + Number(r.amount || 0)
     }
     return acc
   }, 0)
+  const totalCollectedMp = budgets.reduce(
+    (acc, b) => acc + (b.payments ?? []).reduce((a, p) => a + Number(p.amount || 0), 0),
+    0
+  )
+  const totalCollected = totalCollectedReceipts + totalCollectedMp
 
   const totalPending = Math.max(0, totalAmount - totalCollected)
 
@@ -498,7 +513,7 @@ export default function DocumentsPage() {
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Cobrado en Recibos</p>
+                <p className="text-xs text-slate-500 font-medium">Cobrado (recibos + Mercado Pago)</p>
                 <p className="text-xl font-bold text-slate-900 mt-0.5">
                   {formatCurrency(totalCollected)}
                 </p>
@@ -627,7 +642,7 @@ export default function DocumentsPage() {
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">Recibos sin presupuesto</h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      No están asociados a ningún presupuesto, pero suman a "Cobrado en Recibos"
+                      No están asociados a ningún presupuesto, pero suman a "Cobrado"
                     </p>
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer shrink-0">

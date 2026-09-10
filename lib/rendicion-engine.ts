@@ -45,23 +45,36 @@ function computeBudgetMetrics(budget: BudgetForRendicion) {
 }
 
 export async function generateRendicionData(tenantId: string, periodStart: Date, periodEnd: Date) {
-  // 🌟 "Saldado en el período" = el recibo que terminó de cubrir el total del
-  // presupuesto se emitió dentro de este rango.
-  const receiptsInPeriod = await prisma.receipt.findMany({
-    where: {
-      budgetId: { not: null },
-      createdAt: { gte: periodStart, lte: periodEnd },
-      budget: { tenantId, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
-    },
-    select: { budgetId: true, status: true },
-  })
+  // 🌟 "Saldado en el período" = el cobro que terminó de cubrir el total del
+  // presupuesto ocurrió dentro de este rango. La plata puede haber entrado
+  // por recibo manual (Receipt, efectivo/transferencia) o por el link de
+  // cobro online (BudgetPayment, Mercado Pago) — ambas cuentan igual acá,
+  // si no, un presupuesto pagado por MP nunca se marcaría como saldado.
+  const [receiptsInPeriod, paymentsInPeriod] = await Promise.all([
+    prisma.receipt.findMany({
+      where: {
+        budgetId: { not: null },
+        createdAt: { gte: periodStart, lte: periodEnd },
+        budget: { tenantId, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true, status: true },
+    }),
+    prisma.budgetPayment.findMany({
+      where: {
+        tenantId,
+        status: 'approved',
+        createdAt: { gte: periodStart, lte: periodEnd },
+        budget: { status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true },
+    }),
+  ])
 
   const candidateBudgetIds = Array.from(
-    new Set(
-      receiptsInPeriod
-        .filter((r) => r.budgetId && isReceiptActive(r.status))
-        .map((r) => r.budgetId as string)
-    )
+    new Set([
+      ...receiptsInPeriod.filter((r) => r.budgetId && isReceiptActive(r.status)).map((r) => r.budgetId as string),
+      ...paymentsInPeriod.map((p) => p.budgetId),
+    ])
   )
 
   if (candidateBudgetIds.length === 0) {
@@ -85,13 +98,21 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       seller: { select: { name: true, lastName: true } },
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
       receipts: { select: { amount: true, status: true } },
+      payments: { select: { amount: true, status: true } },
     },
-  }) as unknown as (BudgetForRendicion & { receipts: { amount: number; status: string | null }[] })[]
+  }) as unknown as (BudgetForRendicion & {
+    receipts: { amount: number; status: string | null }[]
+    payments: { amount: number; status: string }[]
+  })[]
 
   const budgets = candidateBudgets.filter((b) => {
-    const collected = b.receipts
+    const collectedReceipts = b.receipts
       .filter((r) => isReceiptActive(r.status))
       .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+    const collectedPayments = b.payments
+      .filter((p) => p.status === 'approved')
+      .reduce((acc, p) => acc + Number(p.amount || 0), 0)
+    const collected = collectedReceipts + collectedPayments
     return collected >= b.total && b.total > 0
   })
 

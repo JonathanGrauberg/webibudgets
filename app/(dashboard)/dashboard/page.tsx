@@ -62,6 +62,11 @@ interface DashboardResponse {
     rejectedBudgets: number
     totalRevenue: number
   }
+  collectedStats: {
+    totalCollected: number
+    totalPending: number
+    totalApprovedValue: number
+  }
   recentBudgets: DashboardBudget[]
   revenue: { month: string; total: number }[]
   statusStats: { status: string; count: number }[]
@@ -158,6 +163,7 @@ export default function DashboardPage() {
   }
 
   const { stats, recentBudgets } = data
+  const collectedStats = data.collectedStats ?? { totalCollected: 0, totalPending: 0, totalApprovedValue: 0 }
   const budgets = filterBudgets(recentBudgets ?? [])
   const currency = branding?.currency ?? 'ARS'
 
@@ -220,24 +226,47 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
 
       <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
         
-        {/* BANNER FINANCIERO DESTACADO (HERO BI) */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* BANNER FINANCIERO DESTACADO (HERO BI) — plata real primero: lo que
+            entró y lo que falta entrar. Lo "presupuestado" (si se cobrara
+            todo) quedó más abajo, en la pestaña de Business Intelligence,
+            para no mezclarlo con la caja real. */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Card className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/30">
             <CardContent className="p-5 flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                  Ingresos Totales Aprobados
+                  Cobrado
                 </p>
                 <h3 className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(stats?.totalRevenue ?? 0, currency)}
+                  {formatCurrency(collectedStats.totalCollected, currency)}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3 text-emerald-500" />
-                  Facturación real confirmada
+                  Plata que entró de verdad (recibos + Mercado Pago)
                 </p>
               </div>
               <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                 <DollarSign className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-500/10 via-background to-background border-amber-500/30">
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                  Por Cobrar
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">
+                  {formatCurrency(collectedStats.totalPending, currency)}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-amber-500" />
+                  De presupuestos ya enviados o aprobados
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <Wallet className="h-6 w-6" />
               </div>
             </CardContent>
           </Card>
@@ -457,7 +486,17 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
               {showMetricsSection && (
                 <>
                   {/* Chips KPI de BI */}
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Card className="p-4 border-l-4 border-l-slate-400">
+                      <p className="text-xs text-muted-foreground font-medium">Presupuestado (Aprobados)</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">
+                        {formatCurrency(collectedStats.totalApprovedValue, currency)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Lo que valen — no es lo cobrado, ver "Cobrado" arriba
+                      </p>
+                    </Card>
+
                     <Card className="p-4 border-l-4 border-l-emerald-500">
                       <p className="text-xs text-muted-foreground font-medium">Efectividad Comercial</p>
                       <p className="mt-1 text-2xl font-bold text-foreground">{approvalRate}%</p>
@@ -495,8 +534,8 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
 
                     <Card className="rounded-xl shadow-sm">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-semibold">Evolución de Ingresos Aprobados</CardTitle>
-                        <CardDescription className="text-xs">Facturación mensual consolidada</CardDescription>
+                        <CardTitle className="text-sm font-semibold">Evolución de Presupuestos Aprobados</CardTitle>
+                        <CardDescription className="text-xs">Valor mensual — no es lo cobrado</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <RevenueBarChart
@@ -529,7 +568,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-semibold">Top 5 Clientes</CardTitle>
                         <CardDescription className="text-xs">
-                          Por facturación en presupuestos aprobados y completados
+                          Por valor de presupuestos aprobados y completados — no es lo cobrado
                         </CardDescription>
                       </CardHeader>
                       <CardContent>

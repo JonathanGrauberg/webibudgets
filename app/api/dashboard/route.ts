@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import {
   getDashboardStats,
+  getCollectedStats, // 👈 nuevo
   getRecentBudgets,
   getMonthlyRevenue,
   getBudgetStatusStats,
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
       : undefined
 
     const stats = await getDashboardStats(tenantId, range) // 👈 range agregado
+    const collectedStats = await getCollectedStats(tenantId) // 👈 nuevo — plata real, sin filtro de rango (es una foto de hoy)
     const recentBudgets = await getRecentBudgets(tenantId, 5)
     const revenue = await getMonthlyRevenue(tenantId)
     const statusStats = await getBudgetStatusStats(tenantId)
@@ -31,6 +33,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       stats,
+      collectedStats,
       recentBudgets,
       revenue,
       statusStats,
