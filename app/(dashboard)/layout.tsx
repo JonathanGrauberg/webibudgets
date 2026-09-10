@@ -8,6 +8,7 @@ import { effectiveBranding } from '@/lib/branding'
 import { DashboardContentWrapper } from '@/components/dashboard-content-wrapper'
 import { ModalPagoPendiente } from '@/components/modal-pago-pendiente'
 import { EmailVerificationBanner } from '@/components/email-verification-banner'
+import { MercadoPagoConnectBanner } from '@/components/mercadopago-connect-banner'
 import { DynamicIslandHeader } from '@/components/dynamic-island-header' // 👈 Componente de la Solapa flotante
 import { FloatingHelpWidget } from '@/components/help/floating-help-widget'
 
@@ -66,6 +67,7 @@ export default async function DashboardLayout({
               <DashboardContentWrapper>
                 <ModalPagoPendiente />
                 <EmailVerificationBanner />
+                <MercadoPagoConnectBanner />
                 {children}
               </DashboardContentWrapper>
             </div>

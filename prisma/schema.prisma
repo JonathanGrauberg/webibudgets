@@ -163,6 +163,7 @@ model Tenant {
   mpRefreshToken     String?
   mpTokenExpiresAt   DateTime?
   mpPublicKey        String?   // Public Key de esa cuenta, para el checkout del lado del cliente
+  budgetPayments     BudgetPayment[]
 
   active Boolean @default(true)
 
@@ -534,9 +535,42 @@ model Budget {
   attachConditionsPdf Boolean @default(true) // 👈 nuevo — se guarda por presupuesto, no solo en el form
 
   expenses Expense[] // 👈 nuevo
-   
+
+  // 👇 nuevo — Cobro online con Mercado Pago (opcional, convive con el flujo normal)
+  publicToken   String?  @unique // token random para el portal público /p/[token], regenerable sin tocar el id real
+  depositEnabled Boolean @default(false)
+  depositType    String? // 'percent' | 'fixed'
+  depositValue   Float?  // % (0-100) si depositType='percent', o monto fijo si 'fixed'
+  payments       BudgetPayment[]
+
   @@index([tenantId])
   @@index([clientId])
+}
+
+// 👇 nuevo — cada pago confirmado por Mercado Pago vía el link de cobro.
+// El estado "Pendiente/Seña cobrada/Saldado" NUNCA se guarda: se calcula
+// sumando payments.amount (status=approved) contra budget.total.
+model BudgetPayment {
+  id        String @id @default(uuid())
+
+  budgetId  String
+  budget    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  mpPaymentId      String @unique // id que le pone MP al pago — evita duplicar si el webhook llega 2 veces
+  mpPreferenceId   String?
+
+  amount           Float  // lo que pagó el cliente final
+  commissionAmount Float  @default(0) // lo que te quedaste de comisión (solo planes FREE)
+  status           String // approved | pending | rejected — tal cual los define MP
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId])
+  @@index([tenantId])
 }
 
 /* =========================

@@ -253,6 +253,10 @@ export async function PATCH(request: Request, { params }: Params) {
         notes: data.notes,
         total: data.total,
         active: data.active,   // 👈 nuevo — undefined si no viene, Prisma lo ignora igual que el resto
+        // 👇 nuevo — configuración de seña para el cobro online (opcional)
+        depositEnabled: data.depositEnabled,
+        depositType: data.depositType,
+        depositValue: data.depositValue !== undefined ? Number(data.depositValue) || null : undefined,
       },
     })
 

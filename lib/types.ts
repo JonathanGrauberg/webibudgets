@@ -166,6 +166,12 @@ export interface Budget {
 
   details?: BudgetDetail[]
 
+  // 💳 Cobro online con Mercado Pago (opcional)
+  publicToken?: string | null
+  depositEnabled?: boolean
+  depositType?: 'percent' | 'fixed' | null
+  depositValue?: number | null
+
   createdAt: Date
   updatedAt: Date
 }

@@ -1,6 +1,8 @@
 // app/api/webhooks/mercadopago/route.ts
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getValidTenantMpAccessToken, FREE_PLAN_COMMISSION_RATE } from '@/lib/mercadopago-checkout'
+import { isProPlan } from '@/lib/features'
 
 // MP manda el evento y nosotros consultamos la suscripción para obtener el estado real
 async function fetchSubscription(subscriptionId: string) {
@@ -18,6 +20,80 @@ function resolveBillingInterval(mpPlanId: string): 'monthly' | 'annual' | null {
   return null
 }
 
+// 👇 nuevo — cobro de un presupuesto (distinto de una suscripción PRO). El
+// webhook de "payment" trae el user_id del VENDEDOR (el tenant conectado),
+// así que buscamos el tenant por ese id en vez de por external_reference —
+// es el dato más confiable que nos manda MP sin tener que adivinar nada.
+async function handlePaymentWebhook(paymentId: string, collectorUserId: string | undefined) {
+  if (!collectorUserId) {
+    console.warn('[webhook/mp] Notificación de pago sin user_id, no podemos identificar el tenant')
+    return
+  }
+
+  const tenant = await prisma.tenant.findFirst({ where: { mpUserId: String(collectorUserId) } })
+  if (!tenant) {
+    console.warn('[webhook/mp] Ningún tenant conectado con mpUserId:', collectorUserId)
+    return
+  }
+
+  if (!tenant.mpConnected || !tenant.mpAccessToken) {
+    console.warn('[webhook/mp] Tenant encontrado pero sin cuenta de MP conectada:', tenant.id)
+    return
+  }
+
+  const accessToken = await getValidTenantMpAccessToken(tenant)
+
+  const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  if (!paymentRes.ok) {
+    console.error('[webhook/mp] No pudimos traer el pago desde la API de MP:', paymentId, paymentRes.status)
+    return
+  }
+
+  const payment = await paymentRes.json()
+  const externalReference = payment.external_reference as string | undefined
+  const budgetId = externalReference?.startsWith('budget:') ? externalReference.slice('budget:'.length) : null
+
+  if (!budgetId) {
+    console.warn('[webhook/mp] Pago sin external_reference de presupuesto reconocible:', paymentId)
+    return
+  }
+
+  const budget = await prisma.budget.findFirst({ where: { id: budgetId, tenantId: tenant.id } })
+  if (!budget) {
+    console.warn('[webhook/mp] El presupuesto del pago no existe (o no es de ese tenant):', budgetId)
+    return
+  }
+
+  // MP tiene más estados (in_process, authorized, in_mediation, etc.) — los
+  // reducimos a los 3 que de verdad importan para el cobro.
+  const status: 'approved' | 'pending' | 'rejected' =
+    payment.status === 'approved' ? 'approved' : payment.status === 'rejected' || payment.status === 'cancelled' ? 'rejected' : 'pending'
+
+  const amount = Number(payment.transaction_amount) || 0
+  const commissionAmount = !isProPlan(tenant.plan)
+    ? Math.round(amount * FREE_PLAN_COMMISSION_RATE * 100) / 100
+    : 0
+
+  await prisma.budgetPayment.upsert({
+    where: { mpPaymentId: String(payment.id) },
+    update: { status, amount, commissionAmount },
+    create: {
+      budgetId: budget.id,
+      tenantId: tenant.id,
+      mpPaymentId: String(payment.id),
+      mpPreferenceId: payment.preference_id ?? null,
+      amount,
+      commissionAmount,
+      status,
+    },
+  })
+
+  console.log(`[webhook/mp] 💰 Pago ${payment.id} (${status}) registrado para presupuesto ${budget.id}`)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
@@ -30,6 +106,12 @@ export async function POST(req: NextRequest) {
 
     if (!resourceId) {
       return NextResponse.json({ ok: true }) // Evita procesar pings vacíos de validación
+    }
+
+    // 👇 Cobro de un presupuesto — flujo totalmente distinto al de abajo
+    if (type === 'payment') {
+      await handlePaymentWebhook(String(resourceId), body?.user_id ? String(body.user_id) : undefined)
+      return NextResponse.json({ ok: true })
     }
 
     // Traer la suscripción en tiempo real desde MP

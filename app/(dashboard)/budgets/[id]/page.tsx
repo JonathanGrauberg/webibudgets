@@ -2,13 +2,14 @@
 
 // app/(dashboard)/budgets/[id]/page.tsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -139,6 +140,65 @@ export default function BudgetDetailPage() {
   const [stockProblems, setStockProblems] = useState<StockProblem[]>([])
 
   const hasStockProblems = stockProblems.length > 0
+
+  // 👇 nuevo — configuración de seña + link de cobro online (Mercado Pago)
+  const [depositEnabled, setDepositEnabled] = useState(false)
+  const [depositType, setDepositType] = useState<'percent' | 'fixed'>('percent')
+  const [depositValue, setDepositValue] = useState('50')
+  const [isSavingDeposit, setIsSavingDeposit] = useState(false)
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false)
+  const [depositHydrated, setDepositHydrated] = useState(false)
+
+  useEffect(() => {
+    if (!budget || depositHydrated) return
+    setDepositHydrated(true)
+    setDepositEnabled(!!budget.depositEnabled)
+    setDepositType(budget.depositType === 'fixed' ? 'fixed' : 'percent')
+    setDepositValue(budget.depositValue != null ? String(budget.depositValue) : '50')
+  }, [budget, depositHydrated])
+
+  const saveDepositConfig = async (overrides?: { depositEnabled?: boolean }) => {
+    if (!isValidId) return
+    setIsSavingDeposit(true)
+    try {
+      const res = await fetch(`/api/budgets/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          depositEnabled: overrides?.depositEnabled ?? depositEnabled,
+          depositType,
+          depositValue: Number(depositValue) || null,
+        }),
+      })
+      if (!res.ok) {
+        toast.error('No se pudo guardar la configuración de seña')
+        return
+      }
+      mutate(`/api/budgets/${id}`)
+    } finally {
+      setIsSavingDeposit(false)
+    }
+  }
+
+  const handleCopyPaymentLink = async () => {
+    if (!isValidId) return
+    setIsGeneratingLink(true)
+    try {
+      const res = await fetch(`/api/budgets/${id}/payment-link`, { method: 'POST' })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.url) {
+        toast.error('No se pudo generar el link')
+        return
+      }
+      await navigator.clipboard.writeText(json.url)
+      toast.success('Link copiado — ya lo podés mandar a tu cliente')
+      mutate(`/api/budgets/${id}`)
+    } catch {
+      toast.error('No se pudo copiar el link')
+    } finally {
+      setIsGeneratingLink(false)
+    }
+  }
 
   const postStatus = async (newStatus: BudgetStatus, confirmStock = false) => {
     if (!isValidId) return { ok: false, status: 0 as number, json: null as any }
@@ -616,6 +676,59 @@ const handleGeneratePDF = async () => {
 
           {/* SIDEBAR */}
           <div className="space-y-4 md:space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Cobro online</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Solicitar seña</p>
+                    <p className="text-xs text-muted-foreground">Pedile al cliente que pague una parte antes del total</p>
+                  </div>
+                  <Switch
+                    checked={depositEnabled}
+                    onCheckedChange={(checked) => {
+                      setDepositEnabled(checked)
+                      saveDepositConfig({ depositEnabled: checked })
+                    }}
+                  />
+                </div>
+
+                {depositEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Select value={depositType} onValueChange={(v) => setDepositType(v as 'percent' | 'fixed')}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percent">%</SelectItem>
+                        <SelectItem value="fixed">$ fijo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <input
+                      type="number"
+                      min="0"
+                      value={depositValue}
+                      onChange={(e) => setDepositValue(e.target.value)}
+                      onBlur={() => saveDepositConfig()}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder={depositType === 'percent' ? '50' : '10000'}
+                    />
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled={isGeneratingLink}
+                  onClick={handleCopyPaymentLink}
+                >
+                  {isGeneratingLink ? 'Generando...' : 'Copiar link de presupuesto'}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Estado del Presupuesto</CardTitle>

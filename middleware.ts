@@ -12,6 +12,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth',
   '/api/webhooks',
   '/api/cron', // cron interno
+  '/api/public', // 👈 nuevo — portal público del presupuesto (/p/[token]), sin login
   '/api/resellers/validate-code', // 👈 nuevo — necesita ser consultable sin sesión, ya que ahora también se usa antes de registrarse
 ]
 
