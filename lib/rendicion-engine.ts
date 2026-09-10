@@ -97,17 +97,19 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       client: { select: { name: true, company: true } },
       seller: { select: { name: true, lastName: true } },
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-      receipts: { select: { amount: true, status: true } },
+      receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
       payments: { select: { amount: true, status: true } },
     },
   }) as unknown as (BudgetForRendicion & {
-    receipts: { amount: number; status: string | null }[]
+    receipts: { amount: number; status: string | null; sourceBudgetPaymentId: string | null }[]
     payments: { amount: number; status: string }[]
   })[]
 
   const budgets = candidateBudgets.filter((b) => {
+    // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
+    // sumado más abajo — contarlo acá también duplicaría la plata.
     const collectedReceipts = b.receipts
-      .filter((r) => isReceiptActive(r.status))
+      .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
       .reduce((acc, r) => acc + Number(r.amount || 0), 0)
     const collectedPayments = b.payments
       .filter((p) => p.status === 'approved')

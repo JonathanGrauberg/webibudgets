@@ -41,6 +41,7 @@ import {
   User,
   Wrench,
   MessageCircle,
+  Link2,
 } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 import type { Budget, BudgetItem, BudgetStatus } from '@/lib/types'
@@ -398,6 +399,23 @@ const handleGeneratePDF = async () => {
         description={`Creado el ${formatDate(budget.createdAt)}`}
       >
 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              disabled={isGeneratingLink}
+              onClick={handleCopyPaymentLink}
+              className="w-full sm:w-auto gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <Link2 className="h-4 w-4" />
+              {isGeneratingLink ? 'Generando...' : 'Copiar link de cobro'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Link con el presupuesto y la opción de pago, para mandar por donde quieras
+          </TooltipContent>
+        </Tooltip>
+
         {whatsappNumber && budget.client && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -417,7 +435,7 @@ const handleGeneratePDF = async () => {
           </Tooltip>
         )}
 
-        
+
         <Link href="/budgets" className="w-full sm:w-auto">
           <Button variant="outline" className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -743,7 +761,7 @@ const handleGeneratePDF = async () => {
                   disabled={isGeneratingLink}
                   onClick={handleCopyPaymentLink}
                 >
-                  {isGeneratingLink ? 'Generando...' : 'Copiar link de presupuesto'}
+                  {isGeneratingLink ? 'Generando...' : 'Copiar link de cobro'}
                 </Button>
               </CardContent>
             </Card>

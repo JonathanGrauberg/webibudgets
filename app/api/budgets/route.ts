@@ -46,7 +46,13 @@ export async function GET(request: Request) {
         // lo cobrado.
         payments: {
           where: { status: 'approved' },
-          select: { amount: true },
+          select: {
+            id: true,
+            amount: true,
+            // 👇 nuevo — para saber si ya se generó el "recibo espejo" y
+            // así dejar de mostrar el aviso de "¿Crear recibo?" en la tabla.
+            receipt: { select: { id: true } },
+          },
         },
       },
     })

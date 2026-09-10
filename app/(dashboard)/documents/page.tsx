@@ -395,7 +395,10 @@ export default function DocumentsPage() {
     // Detectamos el ID vengar como venga (budgetId, budget_id o sub-objeto budget.id)
     const bId = r.budgetId ?? r.budget_id ?? r.budget?.id
 
-    if (bId !== undefined && bId !== null && isReceiptActive(r.status)) {
+    // 👇 sourceBudgetPaymentId: es un recibo "espejo" de un pago de MP — la
+    // plata que representa ya la sumamos abajo desde b.payments, sumarla
+    // acá también la contaría dos veces.
+    if (bId !== undefined && bId !== null && isReceiptActive(r.status) && !r.sourceBudgetPaymentId) {
       const key = String(bId)
       const amount = Number(r.amount || 0)
       collectedMap[key] = (collectedMap[key] || 0) + amount
@@ -437,9 +440,10 @@ export default function DocumentsPage() {
   )
   const totalAmount = totalApproved.reduce((acc, b) => acc + (b.total || 0), 0)
 
-  // Suma total cobrada: recibos activos + pagos de Mercado Pago aprobados
+  // Suma total cobrada: recibos activos (que no sean "espejo" de un pago de
+  // MP ya contado abajo) + pagos de Mercado Pago aprobados
   const totalCollectedReceipts = receipts.reduce((acc: number, r: any) => {
-    if (isReceiptActive(r.status)) {
+    if (isReceiptActive(r.status) && !r.sourceBudgetPaymentId) {
       return acc + Number(r.amount || 0)
     }
     return acc

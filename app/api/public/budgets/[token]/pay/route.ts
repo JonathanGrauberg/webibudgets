@@ -26,7 +26,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'Este negocio todavía no habilitó el cobro online' }, { status: 400 })
   }
 
-  const amount = summary.suggestedAmount
+  // 👇 el cliente final puede elegir entre pagar la seña o el total — pero
+  // el MONTO siempre se recalcula acá server-side, nunca se confía en un
+  // número que mande el navegador. Si ya pagó algo (state='partial'), no
+  // hay opciones: solo puede pagar lo que resta.
+  const body = await req.json().catch(() => null)
+  const kind = body?.kind === 'total' ? 'total' : body?.kind === 'deposit' ? 'deposit' : undefined
+
+  const amount =
+    summary.state === 'partial'
+      ? summary.remaining
+      : kind === 'total' || summary.depositAmount == null
+        ? summary.remaining // en 'pending' remaining === total (todavía no pagó nada)
+        : summary.depositAmount
+
   if (!amount || amount <= 0) {
     return NextResponse.json({ error: 'No hay ningún monto pendiente de cobro' }, { status: 400 })
   }

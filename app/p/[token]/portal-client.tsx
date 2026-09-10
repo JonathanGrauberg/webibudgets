@@ -100,10 +100,14 @@ export function PublicBudgetPortalClient({ token }: { token: string }) {
     return () => clearInterval(interval)
   }, [polling, token])
 
-  async function handlePay() {
+  async function handlePay(kind?: 'deposit' | 'total') {
     setPaying(true)
     try {
-      const res = await fetch(`/api/public/budgets/${token}/pay`, { method: 'POST' })
+      const res = await fetch(`/api/public/budgets/${token}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind }),
+      })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.url) {
         alert(json?.error ?? 'No pudimos generar el link de pago')
@@ -197,20 +201,46 @@ export function PublicBudgetPortalClient({ token }: { token: string }) {
             )}
 
             {data.canPay && data.payment.state !== 'paid' && (
-              <button
-                type="button"
-                onClick={handlePay}
-                disabled={paying}
-                className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-60"
-                style={{ backgroundColor: '#0038ff' }}
-              >
-                {paying
-                  ? 'Generando link de pago...'
-                  : `Pagar ${data.payment.paid > 0 ? 'saldo' : data.depositEnabled ? 'seña' : 'total'} (${formatCurrency(
-                      data.payment.suggestedAmount,
-                      data.currency
-                    )}) con Mercado Pago`}
-              </button>
+              <div className="space-y-2">
+                {data.payment.paid > 0 || data.payment.depositAmount == null ? (
+                  // Ya pagó una parte (solo puede pagar el saldo), o no hay
+                  // seña configurada (solo existe la opción de pagar todo).
+                  <button
+                    type="button"
+                    onClick={() => handlePay('total')}
+                    disabled={paying}
+                    className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-60"
+                    style={{ backgroundColor: '#0038ff' }}
+                  >
+                    {paying
+                      ? 'Generando link de pago...'
+                      : `Pagar ${data.payment.paid > 0 ? 'saldo' : 'total'} (${formatCurrency(data.payment.remaining, data.currency)}) con Mercado Pago`}
+                  </button>
+                ) : (
+                  // Todavía no pagó nada y hay seña configurada — dos
+                  // opciones claras, nada de montos libres (para evitar que
+                  // paguen $1 y esperen que ya arranque el trabajo).
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handlePay('deposit')}
+                      disabled={paying}
+                      className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-60"
+                      style={{ backgroundColor: '#0038ff' }}
+                    >
+                      {paying ? 'Generando link de pago...' : `Pagar seña (${formatCurrency(data.payment.depositAmount, data.currency)})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePay('total')}
+                      disabled={paying}
+                      className="w-full rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Pagar total ({formatCurrency(data.payment.remaining, data.currency)})
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}

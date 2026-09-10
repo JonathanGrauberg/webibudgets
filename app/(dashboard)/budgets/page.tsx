@@ -28,6 +28,7 @@ import {
 import {
   Loader2, Eye, Plus, FileText, Pencil, Search, CheckCircle2, Wallet,
   Percent, TrendingUp, PackageMinus, Handshake, ChevronDown, Check, StickyNote,
+  Bell,
 } from 'lucide-react'
 import type { Budget, BudgetStatus } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -362,6 +363,27 @@ export default function BudgetsPage() {
     )
   }
 
+  // 👇 nuevo — aviso + acción rápida cuando entró plata por Mercado Pago
+  // y todavía no se generó el recibo "espejo" para esos pagos.
+  const hasUnreceiptedPayment = (b: Budget) => (b.payments ?? []).some((p) => !p.receipt)
+
+  const handleCreatePaymentReceipts = async (b: Budget) => {
+    const pending = (b.payments ?? []).filter((p) => !p.receipt)
+    if (pending.length === 0) return
+    if (!confirm(`¿Generar recibo por ${pending.length} pago${pending.length > 1 ? 's' : ''} de Mercado Pago recibido${pending.length > 1 ? 's' : ''}?`)) return
+    try {
+      const results = await Promise.all(
+        pending.map((p) => fetch(`/api/budget-payments/${p.id}/create-receipt`, { method: 'POST' }))
+      )
+      if (results.some((r) => !r.ok)) throw new Error('No se pudo crear alguno de los recibos')
+      mutate('/api/budgets')
+      mutate('/api/receipts')
+    } catch (err) {
+      console.error(err)
+      alert('No se pudo crear el recibo')
+    }
+  }
+
   const handleToggleActive = async (budgetId: string, reactivate: boolean) => {
     if (!confirm(reactivate ? '¿Reactivar este presupuesto?' : '¿Desactivar este presupuesto? Podés reactivarlo cuando quieras.')) return
     try {
@@ -640,8 +662,18 @@ export default function BudgetsPage() {
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Total</span>
-                        <span className="font-semibold text-card-foreground">
+                        <span className="flex items-center gap-1.5 font-semibold text-card-foreground">
                           {formatCurrency(b.total)}
+                          {hasUnreceiptedPayment(b) && (
+                            <button
+                              type="button"
+                              title="Entró un pago por Mercado Pago — click para generar el recibo"
+                              onClick={() => handleCreatePaymentReceipts(b)}
+                              className="text-amber-500 transition hover:text-amber-600"
+                            >
+                              <Bell className="h-4 w-4" />
+                            </button>
+                          )}
                         </span>
                       </div>
 
@@ -748,7 +780,19 @@ export default function BudgetsPage() {
                               <NotesPreview notes={b.notes} />
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatCurrency(b.total)}
+                              <div className="flex items-center justify-end gap-1.5">
+                                {formatCurrency(b.total)}
+                                {hasUnreceiptedPayment(b) && (
+                                  <button
+                                    type="button"
+                                    title="Entró un pago por Mercado Pago — click para generar el recibo"
+                                    onClick={() => handleCreatePaymentReceipts(b)}
+                                    className="text-amber-500 transition hover:text-amber-600"
+                                  >
+                                    <Bell className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
                             </TableCell>
 
                             {canViewFinancials && (

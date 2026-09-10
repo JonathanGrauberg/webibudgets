@@ -569,6 +569,8 @@ model BudgetPayment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  receipt   Receipt? // 👈 nuevo — si ya se generó el recibo de este pago (ver Receipt.sourceBudgetPaymentId)
+
   @@index([budgetId])
   @@index([tenantId])
 }
@@ -749,7 +751,13 @@ model Receipt {
   clientId       String?  // 👈 nuevo — solo se usa cuando NO hay budgetId
   client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull) // 👈 nuevo
 
-  
+  // 👇 nuevo — cuando este recibo se generó desde "¿Crear recibo de este
+  // pago?" en un cobro de Mercado Pago. Con esto lib/collected-amount.ts
+  // sabe que NO tiene que sumar este recibo (la plata ya la contó el
+  // BudgetPayment) — si no, se contaría dos veces la misma plata.
+  sourceBudgetPaymentId String?        @unique
+  sourceBudgetPayment   BudgetPayment? @relation(fields: [sourceBudgetPaymentId], references: [id], onDelete: SetNull)
+
   receiptNumber  Int
   isStandalone   Boolean  @default(false) // 👈 nuevo — distingue la serie, más explícito que "budgetId es null"
 
