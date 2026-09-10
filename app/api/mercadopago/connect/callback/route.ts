@@ -8,10 +8,13 @@ import { prisma } from '@/lib/prisma'
 
 const STATE_COOKIE = 'mp_connect_state'
 
-function settingsRedirect(req: NextRequest, status: 'connected' | 'error') {
+function settingsRedirect(req: NextRequest, status: 'connected' | 'error', reason?: string) {
   const url = new URL('/settings/company', req.nextUrl.origin)
   url.searchParams.set('tab', 'plan')
   url.searchParams.set('mp', status)
+  // 👇 nuevo — motivo corto visible en la URL, para diagnosticar sin tener
+  // que ir a buscar logs de Vercel cada vez que algo falla acá.
+  if (reason) url.searchParams.set('mp_reason', reason)
   return NextResponse.redirect(url)
 }
 
@@ -20,19 +23,30 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get('state')
   const expectedState = req.cookies.get(STATE_COOKIE)?.value
 
-  if (!code || !state || !expectedState || state !== expectedState) {
-    return settingsRedirect(req, 'error')
+  // Si Mercado Pago rechaza la autorización (ej: cuenta = dueña de la app,
+  // usuario canceló, etc.) vuelve con ?error=...&error_description=... en
+  // vez de ?code=... — antes lo tirábamos sin loguear nada.
+  if (!code) {
+    const mpError = req.nextUrl.searchParams.get('error')
+    const mpErrorDescription = req.nextUrl.searchParams.get('error_description')
+    console.error('[mercadopago/connect/callback] sin code', { mpError, mpErrorDescription })
+    return settingsRedirect(req, 'error', mpError ?? 'sin_code')
+  }
+
+  if (!state || !expectedState || state !== expectedState) {
+    console.error('[mercadopago/connect/callback] state inválido', { state, expectedState })
+    return settingsRedirect(req, 'error', 'state_invalido')
   }
 
   const [tenantId] = state.split('.')
   if (!tenantId) {
-    return settingsRedirect(req, 'error')
+    return settingsRedirect(req, 'error', 'sin_tenant')
   }
 
   const clientId = process.env.MP_CLIENT_ID
   const clientSecret = process.env.MP_CLIENT_SECRET
   if (!clientId || !clientSecret) {
-    return settingsRedirect(req, 'error')
+    return settingsRedirect(req, 'error', 'sin_credenciales')
   }
 
   const redirectUri = `${req.nextUrl.origin}/api/mercadopago/connect/callback`
@@ -53,7 +67,12 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text().catch(() => '')
       console.error('[mercadopago/connect/callback] token exchange failed', tokenRes.status, errBody)
-      return settingsRedirect(req, 'error')
+      let reason = `token_${tokenRes.status}`
+      try {
+        const parsed = JSON.parse(errBody)
+        if (parsed?.message) reason = String(parsed.message).slice(0, 100)
+      } catch {}
+      return settingsRedirect(req, 'error', reason)
     }
 
     const data = await tokenRes.json()
@@ -78,6 +97,6 @@ export async function GET(req: NextRequest) {
     return res
   } catch (err) {
     console.error('[mercadopago/connect/callback]', err)
-    return settingsRedirect(req, 'error')
+    return settingsRedirect(req, 'error', 'excepcion')
   }
 }

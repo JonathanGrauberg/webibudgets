@@ -252,6 +252,7 @@ export default function CompanyBrandingSettingsClient({
   const [activeTab, setActiveTab] = useState(initialTab)
   // 👈 nuevo — feedback al volver del OAuth de Mercado Pago (?mp=connected|error)
   const [mpNotice] = useState(() => searchParams.get('mp'))
+  const [mpReason] = useState(() => searchParams.get('mp_reason'))
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
   const dbName = effective.name ?? ''
@@ -720,6 +721,7 @@ export default function CompanyBrandingSettingsClient({
         {mpNotice === 'error' && (
           <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
             No pudimos conectar tu cuenta de Mercado Pago. Probá de nuevo.
+            {mpReason && <div className="mt-1 font-mono text-xs opacity-70">Motivo: {mpReason}</div>}
           </div>
         )}
 
