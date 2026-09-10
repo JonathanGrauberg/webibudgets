@@ -153,6 +153,17 @@ model Tenant {
   mpSubscriptionId String?
   proBillingInterval String? // 👈 nuevo — "monthly" | "annual", solo informativo/UI
 
+  // 👇 Mercado Pago Connect — la cuenta de MP del propio tenant, para que
+  // pueda cobrarle a SUS clientes (distinto de mpSubscriptionId, que es lo
+  // que el tenant nos paga a nosotros). Guardado sensible: nunca exponer
+  // mpAccessToken/mpRefreshToken al cliente, solo usarlos server-side.
+  mpConnected        Boolean   @default(false)
+  mpUserId           String?   // id de la cuenta de MP conectada
+  mpAccessToken      String?
+  mpRefreshToken     String?
+  mpTokenExpiresAt   DateTime?
+  mpPublicKey        String?   // Public Key de esa cuenta, para el checkout del lado del cliente
+
   active Boolean @default(true)
 
   // 👇 metadata de alta — de dónde vino el tenant, para soporte/seguridad.

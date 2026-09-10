@@ -46,6 +46,9 @@ export async function GET(request: Request) {
       pdfTemplateDark: true,   // 👈 nuevo — toggle claro/oscuro de "directa"
 
       features: true,
+
+      mpConnected: true, // 👈 nuevo — para mostrar el estado en Configuración > Plan
+      mpPublicKey: true,
     }
   })
 

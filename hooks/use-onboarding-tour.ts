@@ -179,6 +179,13 @@ async function showStep(index: number) {
     return
   }
 
+  // 👇 nuevo — el sidebar tiene su propio scroll interno (creció bastante:
+  // Gastos, Tareas, Ayuda, etc.), y driver.js no lo sabe scrollear solo.
+  // Sin esto, el target puede terminar fuera de la vista y el popover
+  // queda flotando desconectado del ícono real.
+  target.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior })
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+
   const isLast = index === STEPS.length - 1
   const showNextBtn = step.mode === 'next'
 
@@ -238,4 +245,19 @@ async function showStep(index: number) {
       })
       .catch(() => {})
   }, [status, session])
+
+  // 👇 nuevo — reinicio manual desde el botón de Ayuda, sin importar si ya
+  // se vio antes. Escuchamos un evento global en vez de exponer una función
+  // por prop-drilling, porque el hook vive en DashboardContentWrapper y el
+  // botón vive en un widget flotante totalmente aparte.
+  useEffect(() => {
+    function handleRestart() {
+      driverRef.current?.destroy()
+      driverRef.current = driver({ allowClose: true, overlayOpacity: 0.65 })
+      showStep(0)
+    }
+
+    window.addEventListener('start-onboarding-tour', handleRestart)
+    return () => window.removeEventListener('start-onboarding-tour', handleRestart)
+  }, [])
 }

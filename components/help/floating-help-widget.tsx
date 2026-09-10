@@ -8,7 +8,8 @@
 // verdad para /manual, /help y este widget.
 
 import { useEffect, useRef, useState } from 'react'
-import { HelpCircle, X, ArrowLeft, House } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { HelpCircle, X, ArrowLeft, House, PlayCircle } from 'lucide-react'
 import { HELP_CATEGORIES } from '@/lib/help-content'
 
 const POSITION_KEY = 'help-widget-position'
@@ -30,6 +31,12 @@ function defaultPosition() {
 }
 
 export function FloatingHelpWidget() {
+  const { data: session } = useSession()
+  const role = (session?.user as any)?.role
+  // El tour recorre pantallas de admin (Configuración, Clientes, Productos) —
+  // no tiene sentido ofrecérselo a un vendedor o instalador que ni las ve.
+  const canRestartTour = role === 'admin' || role === 'owner'
+
   const [mounted, setMounted] = useState(false)
   const [position, setPosition] = useState(defaultPosition)
   const [isOpen, setIsOpen] = useState(false)
@@ -100,6 +107,12 @@ export function FloatingHelpWidget() {
     setScreens([{ type: 'root' }])
   }
 
+  function restartTour() {
+    setIsOpen(false)
+    resetConversation()
+    window.dispatchEvent(new Event('start-onboarding-tour'))
+  }
+
   function goTo(screen: Screen) {
     setScreens((prev) => [...prev, screen])
   }
@@ -167,6 +180,16 @@ export function FloatingHelpWidget() {
               <ChatScreen key={i} screen={screen} isLast={i === screens.length - 1} onSelect={goTo} />
             ))}
           </div>
+
+          {canRestartTour && (
+            <button
+              type="button"
+              onClick={restartTour}
+              className="flex items-center justify-center gap-1.5 border-t border-border bg-card px-3 py-2.5 text-xs font-medium text-primary transition hover:bg-primary/5"
+            >
+              <PlayCircle className="h-3.5 w-3.5" /> Volver a ver el tutorial guiado
+            </button>
+          )}
         </div>
       )}
 

@@ -31,6 +31,7 @@ import {
 import { useSession } from 'next-auth/react'
 
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
+import MercadoPagoConnectCard from '@/components/settings/company/mercadopago-connect-card'
 import { SmartAssetRow } from '@/components/branding/smart-asset-row'
 import { SmartPdfRow } from '@/components/branding/smart-pdf-row'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
@@ -229,7 +230,7 @@ export default function CompanyBrandingSettingsClient({
   const { data: session } = useSession()
 
   // 👇 trae plan/features frescos, no depende de lo que traiga initialBranding
-  const { data: tenantPlanData } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
+  const { data: tenantPlanData, mutate: mutateTenantPlanData } = useSWR('/api/tenants', (url: string) => fetch(url).then((r) => r.json()))
   const hasWhiteLabel = hasFeature(
     { plan: tenantPlanData?.plan, features: tenantPlanData?.features },
     'whiteLabel'
@@ -249,6 +250,8 @@ export default function CompanyBrandingSettingsClient({
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab') === 'plan' ? 'plan' : 'company'
   const [activeTab, setActiveTab] = useState(initialTab)
+  // 👈 nuevo — feedback al volver del OAuth de Mercado Pago (?mp=connected|error)
+  const [mpNotice] = useState(() => searchParams.get('mp'))
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
   const dbName = effective.name ?? ''
@@ -706,6 +709,17 @@ export default function CompanyBrandingSettingsClient({
         {saveError && (
           <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
             {saveError}
+          </div>
+        )}
+
+        {mpNotice === 'connected' && (
+          <div className="mb-4 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+            ¡Listo! Tu cuenta de Mercado Pago quedó conectada.
+          </div>
+        )}
+        {mpNotice === 'error' && (
+          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+            No pudimos conectar tu cuenta de Mercado Pago. Probá de nuevo.
           </div>
         )}
 
@@ -1256,6 +1270,14 @@ export default function CompanyBrandingSettingsClient({
           plan={planInfo.plan}
           colors={colorSystem}
         />
+
+        <div className="mt-6">
+          <MercadoPagoConnectCard
+            connected={!!tenantPlanData?.mpConnected}
+            colors={colorSystem}
+            onDisconnected={() => mutateTenantPlanData?.()}
+          />
+        </div>
       </motion.div>
     )}
 
