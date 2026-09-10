@@ -267,6 +267,7 @@ export function budgetPdfTemplateDirecta(
         ${budget.client?.company && budget.client?.name ? `<div class="party-sub">${budget.client.name}</div>` : ''}
         ${budget.client?.phone ? `<div class="party-sub">${budget.client.phone}</div>` : ''}
         ${budget.client?.email ? `<div class="party-sub">${budget.client.email}</div>` : ''}
+        ${budget.client?.address || budget.client?.city ? `<div class="party-sub">${budget.client?.address || ''}${budget.client?.city ? `, ${budget.client.city}` : ''}</div>` : ''}
       </div>
       <div>
         <p class="eyebrow">De</p>

@@ -225,7 +225,7 @@ export function budgetPdfTemplate(
         Contacto: ${budget.client?.name ?? '—'}<br />
         Tel: ${budget.client?.phone || '—'}<br />
         Email: ${budget.client?.email || '—'}<br />
-        Dirección: ${budget.client?.address || '—'}
+        Dirección: ${budget.client?.address || '—'}${budget.client?.city ? `, ${budget.client.city}` : ''}
       </div>
 
       <div class="box avoid-break">

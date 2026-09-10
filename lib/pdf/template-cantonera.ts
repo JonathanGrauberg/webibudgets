@@ -220,7 +220,7 @@ export function budgetPdfTemplateCantonera(
         <div class="line">Contacto: ${budget.client?.name ?? '—'}</div>
         <div class="line">Tel: ${budget.client?.phone || '—'}</div>
         <div class="line">Email: ${budget.client?.email || '—'}</div>
-        <div class="line">Dirección: ${budget.client?.address || '—'}</div>
+        <div class="line">Dirección: ${budget.client?.address || '—'}${budget.client?.city ? `, ${budget.client.city}` : ''}</div>
       </div>
       <div class="card">
         <div class="name">${tenant?.name ?? 'Empresa'}</div>
