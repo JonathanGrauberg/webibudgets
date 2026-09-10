@@ -2,8 +2,9 @@
 //app\p\[token]\page.tsx
 //
 // Portal público del presupuesto — lo abre el cliente final desde el link
-// que le mandaron, sin login. Muestra el presupuesto y, si el negocio
-// conectó Mercado Pago, un botón para pagar la seña o el saldo.
+// que le mandaron, sin login. Es una versión web fiel del presupuesto (con
+// la marca del negocio, no la nuestra) más, si el negocio conectó Mercado
+// Pago, la pasarela para pagar la seña o el saldo.
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -14,11 +15,26 @@ type PublicBudgetData = {
   budgetNumber: number | null
   status: string
   currency: string
+  subtotal: number
+  discount: number
+  tax: number
+  shippingCost: number | null
   total: number
+  paymentTerms: string | null
+  validUntil: string | null
   createdAt: string
   client: { name: string; company: string | null } | null
   items: { name: string; quantity: number; unitPrice: number; subtotal: number | null }[]
-  tenant: { name: string; logoUrl: string | null; primaryColor: string | null; accentColor: string | null }
+  tenant: {
+    name: string
+    logoUrl: string | null
+    primaryColor: string | null
+    accentColor: string | null
+    phone: string | null
+    email: string | null
+    website: string | null
+  }
+  showFooterBranding: boolean
   depositEnabled: boolean
   payment: {
     paid: number
@@ -32,6 +48,14 @@ type PublicBudgetData = {
 
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_ATTEMPTS = 30 // ~1 minuto
+
+function formatDate(value: string) {
+  try {
+    return new Date(value).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
+  } catch {
+    return ''
+  }
+}
 
 export default function PublicBudgetPortalPage() {
   const params = useParams<{ token: string }>()
@@ -109,7 +133,7 @@ export default function PublicBudgetPortalPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <p className="text-sm text-slate-400">Cargando presupuesto...</p>
       </div>
     )
@@ -117,7 +141,7 @@ export default function PublicBudgetPortalPage() {
 
   if (notFound || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
         <div className="text-center">
           <p className="text-lg font-semibold text-slate-700">No encontramos este presupuesto</p>
           <p className="mt-1 text-sm text-slate-500">El link puede haber vencido o ser incorrecto.</p>
@@ -130,56 +154,111 @@ export default function PublicBudgetPortalPage() {
   const budgetNumber = String(data.budgetNumber ?? 0).padStart(6, '0')
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:py-12">
+    <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-4 sm:py-10">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-6 flex items-center gap-3">
-          {data.tenant.logoUrl ? (
-            <img src={data.tenant.logoUrl} alt={data.tenant.name} className="h-10 w-10 rounded-lg object-contain" />
-          ) : (
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold text-white"
-              style={{ backgroundColor: primary }}
-            >
-              {data.tenant.name?.[0]?.toUpperCase() ?? '.'}
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{data.tenant.name}</p>
-            <p className="text-xs text-slate-500">Presupuesto #{budgetNumber}</p>
-          </div>
-        </div>
-
+        {/* Documento */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
+          {/* Encabezado con marca del negocio */}
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-8 sm:py-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {data.tenant.logoUrl ? (
+                  <img src={data.tenant.logoUrl} alt={data.tenant.name} className="h-12 w-12 rounded-xl object-contain" />
+                ) : (
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold text-white"
+                    style={{ backgroundColor: primary }}
+                  >
+                    {data.tenant.name?.[0]?.toUpperCase() ?? '.'}
+                  </div>
+                )}
+                <div>
+                  <p className="text-base font-bold text-slate-900">{data.tenant.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {[data.tenant.phone, data.tenant.email, data.tenant.website].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm font-semibold" style={{ color: primary }}>
+                  Presupuesto #{budgetNumber}
+                </p>
+                <p className="text-xs text-slate-400">{formatDate(data.createdAt)}</p>
+                {data.validUntil && (
+                  <p className="text-xs text-slate-400">Válido hasta {formatDate(data.validUntil)}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Cliente */}
+          <div className="border-b border-slate-100 px-5 py-4 sm:px-8">
             <p className="text-xs uppercase tracking-wide text-slate-400">Para</p>
             <p className="text-sm font-semibold text-slate-900">
               {data.client?.company || data.client?.name || 'Cliente'}
             </p>
           </div>
 
-          <div className="divide-y divide-slate-100">
+          {/* Ítems */}
+          <div className="divide-y divide-slate-100 px-5 sm:px-8">
             {data.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between px-5 py-3 text-sm">
-                <div>
-                  <p className="text-slate-800">{item.name}</p>
-                  <p className="text-xs text-slate-400">Cant: {item.quantity}</p>
+              <div key={i} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate text-slate-800">{item.name}</p>
+                  <p className="text-xs text-slate-400">
+                    {item.quantity} × {formatCurrency(item.unitPrice, data.currency)}
+                  </p>
                 </div>
-                <p className="font-medium text-slate-700">
+                <p className="shrink-0 font-medium text-slate-700">
                   {formatCurrency(item.subtotal ?? item.unitPrice * item.quantity, data.currency)}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="flex items-center justify-between bg-slate-50 px-5 py-4">
-            <p className="text-sm font-semibold text-slate-900">Total</p>
-            <p className="text-lg font-bold text-slate-900">{formatCurrency(data.total, data.currency)}</p>
+          {/* Totales */}
+          <div className="space-y-1.5 border-t border-slate-100 bg-slate-50 px-5 py-4 text-sm sm:px-8">
+            <div className="flex items-center justify-between text-slate-500">
+              <span>Subtotal</span>
+              <span>{formatCurrency(data.subtotal, data.currency)}</span>
+            </div>
+            {data.discount > 0 && (
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Descuento</span>
+                <span>− {formatCurrency(data.discount, data.currency)}</span>
+              </div>
+            )}
+            {data.tax > 0 && (
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Impuestos</span>
+                <span>{formatCurrency(data.tax, data.currency)}</span>
+              </div>
+            )}
+            {!!data.shippingCost && (
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Envío</span>
+                <span>{formatCurrency(data.shippingCost, data.currency)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base">
+              <span className="font-semibold text-slate-900">Total</span>
+              <span className="text-lg font-bold" style={{ color: primary }}>
+                {formatCurrency(data.total, data.currency)}
+              </span>
+            </div>
           </div>
+
+          {data.paymentTerms && (
+            <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:px-8">
+              {data.paymentTerms}
+            </div>
+          )}
         </div>
 
-        {/* Estado de cobro — solo si hay algo que mostrar */}
+        {/* Pasarela de pago — solo si hay algo que mostrar */}
         {(data.payment.paid > 0 || data.canPay) && (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">Estado del pago</p>
               <span
@@ -230,6 +309,18 @@ export default function PublicBudgetPortalPage() {
               </button>
             )}
           </div>
+        )}
+
+        {/* CTA de .budgets — solo si el negocio no desactivó el branding (whiteLabel) */}
+        {data.showFooterBranding && (
+          <a
+            href="https://budgets.webistudio.net"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white/60 px-4 py-3 text-xs text-slate-500 transition hover:border-slate-400 hover:text-slate-700"
+          >
+            ¿Te gustaría un sistema de presupuestos y cobros como este para tu negocio? Conocé <span className="font-semibold">.budgets</span> →
+          </a>
         )}
       </div>
     </div>

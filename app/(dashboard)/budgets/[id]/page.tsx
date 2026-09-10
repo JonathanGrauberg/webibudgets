@@ -180,23 +180,44 @@ export default function BudgetDetailPage() {
     }
   }
 
+  const ensurePaymentLinkUrl = async (): Promise<string | null> => {
+    if (!isValidId) return null
+    const res = await fetch(`/api/budgets/${id}/payment-link`, { method: 'POST' })
+    const json = await res.json().catch(() => null)
+    if (!res.ok || !json?.url) return null
+    mutate(`/api/budgets/${id}`)
+    return json.url as string
+  }
+
   const handleCopyPaymentLink = async () => {
-    if (!isValidId) return
     setIsGeneratingLink(true)
     try {
-      const res = await fetch(`/api/budgets/${id}/payment-link`, { method: 'POST' })
-      const json = await res.json().catch(() => null)
-      if (!res.ok || !json?.url) {
+      const url = await ensurePaymentLinkUrl()
+      if (!url) {
         toast.error('No se pudo generar el link')
         return
       }
-      await navigator.clipboard.writeText(json.url)
+      await navigator.clipboard.writeText(url)
       toast.success('Link copiado — ya lo podés mandar a tu cliente')
-      mutate(`/api/budgets/${id}`)
     } catch {
       toast.error('No se pudo copiar el link')
     } finally {
       setIsGeneratingLink(false)
+    }
+  }
+
+  const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false)
+
+  const handleSendWhatsapp = async (whatsappNumber: string, clientName: string, budgetNumberLabel: string) => {
+    setIsSendingWhatsapp(true)
+    try {
+      const url = await ensurePaymentLinkUrl()
+      const message = url
+        ? `Hola ${clientName}! Te comparto el presupuesto N° ${budgetNumberLabel}: ${url}`
+        : `Hola ${clientName}! Te escribo por el presupuesto N° ${budgetNumberLabel}. ¿Pudiste revisarlo?`
+      window.open(buildWhatsappLink(whatsappNumber, message), '_blank', 'noopener,noreferrer')
+    } finally {
+      setIsSendingWhatsapp(false)
     }
   }
 
@@ -367,13 +388,8 @@ const handleGeneratePDF = async () => {
       budget.budgetNumber ?? 0
       ).padStart(6, '0')
 
-  const whatsappMessage = budget?.client
-    ? `Hola ${budget.client.name}! Te escribo por el presupuesto N° ${budgetNumber}. ¿Pudiste revisarlo?`
-    : ''
-  const whatsappHref = (budget?.client as any)?.whatsappNumber
-    ? buildWhatsappLink((budget.client as any).whatsappNumber, whatsappMessage)
-    : null
-    
+  const whatsappNumber = (budget?.client as any)?.whatsappNumber as string | undefined
+
   return (
   <TooltipProvider>
     <div className="min-h-screen">
@@ -382,18 +398,21 @@ const handleGeneratePDF = async () => {
         description={`Creado el ${formatDate(budget.createdAt)}`}
       >
 
-        {whatsappHref && (
+        {whatsappNumber && budget.client && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full sm:w-auto gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
-                  <MessageCircle className="h-4 w-4" />
-                  WhatsApp
-                </Button>
-              </a>
+              <Button
+                variant="outline"
+                disabled={isSendingWhatsapp}
+                onClick={() => handleSendWhatsapp(whatsappNumber, budget.client!.name, budgetNumber)}
+                className="w-full sm:w-auto gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {isSendingWhatsapp ? 'Generando link...' : 'WhatsApp'}
+              </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {budget.status === 'sent' ? 'Enviar recordatorio por WhatsApp' : 'Abrir chat de WhatsApp con el cliente'}
+              Manda el link del presupuesto (con opción de pago si está activada) por WhatsApp
             </TooltipContent>
           </Tooltip>
         )}
