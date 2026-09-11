@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
-import { Crown, Gem, Trash2, Search, X, Info } from 'lucide-react'
+import { Crown, Gem, Trash2, Search, X, Info, Wallet, CheckCircle2 } from 'lucide-react'
 import TenantFeaturesForm from '@/components/admin/tenant-features-form'
 
 interface TenantRow {
@@ -17,6 +17,11 @@ interface TenantRow {
   features: Record<string, boolean> | null
   userCount: number
   budgetCount: number
+  receiptCount: number
+  deliveryNoteCount: number
+  workOrderCount: number
+  paymentCount: number
+  mpConnected: boolean
   signupCountry: string | null
   signupReferrer: string | null
   signupUserAgent: string | null
@@ -244,6 +249,28 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
             Sin datos de alta — esta cuenta se creó antes de que empezáramos a registrar esto.
           </p>
         )}
+
+        <div className="col-span-2 sm:col-span-3 mt-1 border-t border-slate-200 pt-3 dark:border-slate-700">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Uso — documentos generados</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            <div>
+              <p className="text-[10px] text-slate-400">Recibos</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{tenant.receiptCount}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Remitos</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{tenant.deliveryNoteCount}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Órdenes de trabajo</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{tenant.workOrderCount}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Pagos con Mercado Pago</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{tenant.paymentCount}</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -453,6 +480,18 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                           {tenant.budgetCount}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Mercado Pago</p>
+                        {tenant.mpConnected ? (
+                          <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-sm text-slate-400">
+                            <Wallet className="h-3.5 w-3.5" /> No conectado
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -556,6 +595,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                   <th className="px-6 py-4">Creado</th>
                   <th className="px-6 py-4 text-center" title="Usuarios creados">Usuarios</th>
                   <th className="px-6 py-4 text-center" title="Presupuestos creados — mide uso real">Presup.</th>
+                  <th className="px-6 py-4 text-center" title="¿Conectó su cuenta de Mercado Pago para cobrar online?">MP</th>
                   <th className="sticky right-0 whitespace-nowrap bg-slate-50 px-6 py-4 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-900">
                     Acciones
                   </th>
@@ -608,6 +648,13 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                         </td>
                         <td className={`px-6 py-4 text-center text-sm font-medium ${tenant.budgetCount === 0 ? 'text-amber-600' : 'text-slate-600 dark:text-slate-400'}`}>
                           {tenant.budgetCount}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {tenant.mpConnected ? (
+                            <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-500" />
+                          ) : (
+                            <span className="mx-auto block h-4 w-4 text-slate-300 dark:text-slate-700">—</span>
+                          )}
                         </td>
 
                         <td className="sticky right-0 whitespace-nowrap bg-white px-6 py-4 text-right text-sm shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-950">
@@ -680,7 +727,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       {/* Fila extra: detalle de alta/actividad — toggle con el botón Info */}
                       {!isEditing && expandedId === tenant.id && (
                         <tr key={`${tenant.id}-detail`}>
-                          <td colSpan={9} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                          <td colSpan={10} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
                             <TenantDetailPanel tenant={tenant} />
                           </td>
                         </tr>
@@ -689,7 +736,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       {/* Fila extra: módulos Custom, solo mientras se edita un tenant con plan "custom" */}
                       {isEditing && edit && edit.plan === 'custom' && (
                         <tr key={`${tenant.id}-features`}>
-                          <td colSpan={9} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                          <td colSpan={10} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
                             <TenantFeaturesForm
                               tenantId={tenant.id}
                               plan={edit.plan}
