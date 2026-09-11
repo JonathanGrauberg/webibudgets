@@ -24,6 +24,7 @@ import { LandingWorkflowBento } from './LandingWorkflowBento'
 import { FeaturesGrid } from './FeaturesGrid'
 import { LandingLiveTasksBento } from './LandingLiveTasksBento'
 import { MicrosoftStoreBadge } from '@/components/microsoft-store-badge' // 👈 nuevo
+import { LandingPaymentsBento } from './LandingPaymentsBento' // 👈 nuevo
 
 const fonts = [
   'font-sans', 
@@ -200,6 +201,9 @@ export function LandingSections({
           </div>
         </div>
       </section>
+
+      {/* ── COBRO ONLINE CON MERCADO PAGO ── */}
+      <LandingPaymentsBento />
 
       {/* ── PROFIT SPLIT BENTO ── */}
       <section id="demo-profit">
@@ -382,35 +386,6 @@ export function LandingSections({
     )}
   </div>
 </section>
-
-
-      {/* ── MICROSOFT STORE ── */}
-      <section id="microsoft-store" className="px-4 py-20 sm:px-6 lg:px-8 mt-[-60]">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#fcc107]">También disponible</p>
-            <h2 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Instalalo como app de Windows
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Si trabajás desde la computadora del local o la oficina, .budgets también está en la tienda oficial de Microsoft — instalación en un clic, sin pasar por el navegador.
-            </p>
-            <div className="mt-8">
-              <MicrosoftStoreBadge size="large" />
-            </div>
-          </div>
-
-          <div className="relative">
-            <Image
-              src="/images/microsoft-store-screenshot.png"
-              alt="Vista previa de .budgets en Microsoft Store"
-              width={700}
-              height={500}
-              className="rounded-2xl border border-border shadow-lg"
-            />
-          </div>
-        </div>
-      </section>
 
 
       {/* ── FAQ ── */}

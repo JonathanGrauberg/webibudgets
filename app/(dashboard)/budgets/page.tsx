@@ -28,11 +28,12 @@ import {
 import {
   Loader2, Eye, Plus, FileText, Pencil, Search, CheckCircle2, Wallet,
   Percent, TrendingUp, PackageMinus, Handshake, ChevronDown, Check, StickyNote,
-  Bell,
+  Bell, MessageCircle,
 } from 'lucide-react'
 import type { Budget, BudgetStatus } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
 import { usePermissions } from '@/hooks/use-permissions'
+import { buildWhatsappLink } from '@/lib/whatsapp'
 
 
 async function fetcher(url: string) {
@@ -367,6 +368,33 @@ export default function BudgetsPage() {
   // y todavía no se generó el recibo "espejo" para esos pagos.
   const hasUnreceiptedPayment = (b: Budget) => (b.payments ?? []).some((p) => !p.receipt)
 
+  // 👇 nuevo — seguimiento simple para presupuestos "Enviado": si hace
+  // varios días que no cambia de estado, probablemente nadie lo miró más.
+  // Usamos updatedAt como proxy de "cuándo se envió" — un 'sent' casi
+  // nunca se vuelve a editar, así que es una fecha confiable sin tener
+  // que sumar el history completo a la consulta.
+  const FOLLOWUP_THRESHOLD_DAYS = 3
+  const daysSinceSent = (b: Budget) => {
+    if (b.status !== 'sent') return null
+    const days = Math.floor((Date.now() - new Date(b.updatedAt).getTime()) / 86400000)
+    return days
+  }
+  const needsFollowup = (b: Budget) => {
+    const days = daysSinceSent(b)
+    return days !== null && days >= FOLLOWUP_THRESHOLD_DAYS
+  }
+
+  const handleSendFollowup = (b: Budget) => {
+    const whatsappNumber = (b.client as any)?.whatsappNumber as string | undefined
+    if (!whatsappNumber) {
+      alert('Ese cliente no tiene WhatsApp cargado')
+      return
+    }
+    const budgetNum = String(b.budgetNumber ?? 0).padStart(6, '0')
+    const message = `Hola ${b.client?.name}! Te escribo para saber si pudiste ver el presupuesto N° ${budgetNum} — ¿qué te pareció? Cualquier duda me avisás.`
+    window.open(buildWhatsappLink(whatsappNumber, message), '_blank', 'noopener,noreferrer')
+  }
+
   const handleCreatePaymentReceipts = async (b: Budget) => {
     const pending = (b.payments ?? []).filter((p) => !p.receipt)
     if (pending.length === 0) return
@@ -651,6 +679,19 @@ export default function BudgetsPage() {
                         </Badge>
                       </div>
 
+                      {needsFollowup(b) && (
+                        <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
+                          <span>Hace {daysSinceSent(b)} días sin respuesta</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSendFollowup(b)}
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300"
+                          >
+                            <MessageCircle className="h-3 w-3" /> Recordar
+                          </button>
+                        </div>
+                      )}
+
                       {b.seller && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -774,6 +815,16 @@ export default function BudgetsPage() {
                               <Badge className={STATUS_COLORS[b.status]}>
                                 {STATUS_LABELS[b.status]}
                               </Badge>
+                              {needsFollowup(b) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendFollowup(b)}
+                                  title={`Hace ${daysSinceSent(b)} días sin respuesta — mandar recordatorio`}
+                                  className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300"
+                                >
+                                  <MessageCircle className="h-3 w-3" /> {daysSinceSent(b)}d
+                                </button>
+                              )}
                             </TableCell>
                             <TableCell>
                               {/* 👇 nuevo */}
