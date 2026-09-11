@@ -427,7 +427,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         title: '¿Querés ser revendedor de .budgets?',
         body: [
           'Si vendés servicios o productos a negocios que podrían necesitar un sistema de gestión (contadores, consultores, diseñadores web, etc.), podés convertirte en revendedor: te damos un código propio que tus referidos usan al suscribirse, con un descuento para ellos, y vos generás una comisión por cada cliente que sume.',
-          'Escribinos para coordinarlo — no es un alta automática, lo armamos a medida con cada revendedor.',
+          'Mirá los detalles en la página de Revendedores (/revendedores) y escribinos por ahí — no es un alta automática, lo armamos a medida con cada revendedor.',
         ],
         keywords: ['revendedor', 'reseller', 'comision', 'codigo de descuento', 'referido'],
       },

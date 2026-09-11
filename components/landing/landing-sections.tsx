@@ -495,7 +495,7 @@ export function LandingSections({
             </div>
             {[
               { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Manual de uso', '/manual']] },
-              { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#'], ['Revendedores', '/manual#revendedores'], ['Trabajá con nosotros', '/manual#revendedores']] },
+              { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#'], ['Revendedores', '/revendedores'], ['Trabajá con nosotros', '/manual#revendedores']] },
               { title: 'Legal', links: [['Privacidad', '/privacidad'], ['Términos', '/terminos']] },
             ].map((col) => (
               <div key={col.title}>
