@@ -206,6 +206,8 @@ model Tenant {
   cobroSequence Int @default(1) // 👈 nuevo
   cobros Cobro[] // 👈 nuevo
 
+  budgetFollowups BudgetFollowup[] // 👈 nuevo
+
   tasks Task[]
   kioskBoards KioskBoard[] // 👈 nuevo — falta esto, es el lado inverso de KioskBoard.tenant
 
@@ -535,6 +537,7 @@ model Budget {
 
   items     BudgetItem[]
   history   BudgetStatusHistory[]
+  followups BudgetFollowup[] // 👈 nuevo — mini-CRM de seguimiento (llamadas, WhatsApp, etc.)
 
   status    BudgetStatus @default(draft)
 
@@ -755,6 +758,31 @@ model BudgetStatusHistory {
   changedAt DateTime @default(now())
 
   user      String?
+}
+
+// 👇 nuevo — mini-CRM de seguimiento por presupuesto: cada llamada/mensaje
+// que se registra, para saber "¿ya lo contacté? ¿qué me dijo?" sin
+// depender de la memoria de nadie. Independiente del cambio de estado.
+model BudgetFollowup {
+  id       String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  note        String
+  channel     String?  // 'whatsapp' | 'llamada' | 'email' | 'presencial' | 'otro'
+  contactedAt DateTime @default(now())
+
+  // Mismo criterio liviano que BudgetStatusHistory.user — texto plano, no FK
+  registeredBy String?
+
+  createdAt DateTime @default(now())
+
+  @@index([budgetId])
+  @@index([tenantId])
 }
 
 /* =========================

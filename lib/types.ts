@@ -118,6 +118,16 @@ export interface BudgetStatusHistory {
   user?: string | null
 }
 
+export interface BudgetFollowup {
+  id: string
+  budgetId: string
+  note: string
+  channel?: string | null
+  contactedAt: string
+  registeredBy?: string | null
+  createdAt: string
+}
+
 export interface BudgetDetail {
   id?: string
   title: string

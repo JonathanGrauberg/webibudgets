@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -42,9 +43,10 @@ import {
   Wrench,
   MessageCircle,
   Link2,
+  Trash2,
 } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
-import type { Budget, BudgetItem, BudgetStatus } from '@/lib/types'
+import type { Budget, BudgetItem, BudgetStatus, BudgetFollowup } from '@/lib/types'
 import {
   STATUS_LABELS,
   STATUS_COLORS,
@@ -141,6 +143,45 @@ export default function BudgetDetailPage() {
   const [stockProblems, setStockProblems] = useState<StockProblem[]>([])
 
   const hasStockProblems = stockProblems.length > 0
+
+  // 👇 nuevo — mini-CRM de seguimiento (llamadas/WhatsApp) por presupuesto
+  const { data: followups, mutate: mutateFollowups } = useSWR<BudgetFollowup[]>(
+    isValidId ? `/api/budgets/${id}/followups` : null,
+    fetcher
+  )
+  const [followupNote, setFollowupNote] = useState('')
+  const [followupChannel, setFollowupChannel] = useState<string>('none')
+  const [isSavingFollowup, setIsSavingFollowup] = useState(false)
+
+  const handleAddFollowup = async () => {
+    if (!followupNote.trim()) return
+    setIsSavingFollowup(true)
+    try {
+      const res = await fetch(`/api/budgets/${id}/followups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note: followupNote.trim(),
+          channel: followupChannel === 'none' ? null : followupChannel,
+        }),
+      })
+      if (!res.ok) {
+        toast.error('No se pudo guardar el seguimiento')
+        return
+      }
+      setFollowupNote('')
+      setFollowupChannel('none')
+      mutateFollowups()
+    } finally {
+      setIsSavingFollowup(false)
+    }
+  }
+
+  const handleDeleteFollowup = async (followupId: string) => {
+    if (!confirm('¿Eliminar este registro de seguimiento?')) return
+    const res = await fetch(`/api/budgets/${id}/followups/${followupId}`, { method: 'DELETE' })
+    if (res.ok) mutateFollowups()
+  }
 
   // 👇 nuevo — configuración de seña + link de cobro online (Mercado Pago)
   const [depositEnabled, setDepositEnabled] = useState(false)
@@ -834,6 +875,74 @@ const handleGeneratePDF = async () => {
                     Sin movimientos registrados
                   </p>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Seguimiento</CardTitle>
+              </CardHeader>
+
+              <CardContent className="space-y-4 pt-0">
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="¿Qué pasó? Ej: Lo llamé, dijo que lo va a mirar con su socio..."
+                    value={followupNote}
+                    onChange={(e) => setFollowupNote(e.target.value)}
+                    rows={3}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Select value={followupChannel} onValueChange={setFollowupChannel}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin especificar</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="llamada">Llamada</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="presencial">Presencial</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      disabled={isSavingFollowup || !followupNote.trim()}
+                      onClick={handleAddFollowup}
+                    >
+                      {isSavingFollowup ? 'Guardando...' : 'Registrar contacto'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t pt-4">
+                  {followups?.length ? (
+                    followups.map((f) => (
+                      <div key={f.id} className="group relative border-l-2 pl-4">
+                        <div className="absolute -left-[6px] top-1 h-3 w-3 rounded-full bg-emerald-500" />
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm">{f.note}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {f.channel ? `${f.channel} · ` : ''}{formatDate(new Date(f.contactedAt))}
+                              {f.registeredBy ? ` · ${f.registeredBy}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFollowup(f.id)}
+                            className="shrink-0 text-muted-foreground opacity-0 transition hover:text-destructive group-hover:opacity-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sin seguimientos registrados</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
