@@ -129,6 +129,10 @@ export const faqs = [
     question: '¿Necesito tarjeta de crédito para empezar?',
     answer: 'No. Te registrás y usás el plan Free sin ingresar ningún dato de pago, y sin límite de tiempo. Pasás a PRO cuando vos decidas que lo necesitás.',
   },
+  {
+    question: '¿.budgets permite cobrar mis presupuestos con Mercado Pago?',
+    answer: 'Sí. Conectás tu propia cuenta de Mercado Pago (el dinero llega directo a tu cuenta, nunca pasa por .budgets) y generás un link de cobro para cada presupuesto — tu cliente lo paga desde el celular, sin crear cuenta ni instalar nada. Podés pedir una seña o el total, y mandarlo directo por WhatsApp. Disponible en el plan Free (con una comisión mínima) y sin comisión en PRO.',
+  },
 ]
 
 // Nota: Conservamos los planes tal como están para revisarlos otro día
