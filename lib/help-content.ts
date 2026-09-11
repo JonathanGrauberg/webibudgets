@@ -279,6 +279,39 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    slug: 'cobros',
+    title: 'Cobros (cargos recurrentes)',
+    description: 'Cuotas mensuales a clientes, sin necesidad de armar un presupuesto.',
+    articles: [
+      {
+        slug: 'que-es-un-cobro',
+        title: '¿Qué es un Cobro?',
+        body: [
+          'Si le cobrás a un cliente lo mismo todos los meses (mantenimiento, marketing, una suscripción a tu servicio), un Cobro es más rápido que armar un presupuesto nuevo cada vez: elegís el cliente, el concepto y el monto, y listo.',
+          'Es un documento propio — no es un presupuesto ni un recibo — así que no se mezcla con esas métricas.',
+        ],
+        keywords: ['cobro', 'mensualidad', 'cuota', 'recurrente'],
+      },
+      {
+        slug: 'reutilizar-mes-que-viene',
+        title: 'Reutilizar el mes que viene',
+        body: [
+          'En vez de crear el cobro de cero cada mes, tocá "Reutilizar" en el cobro del mes anterior — se crea uno nuevo con el mismo cliente, concepto y monto, listo para el próximo período. Por ahora es un paso manual, no se genera solo.',
+        ],
+        keywords: ['duplicar', 'reutilizar', 'recurrente', 'mensual'],
+      },
+      {
+        slug: 'cobrar-un-cobro',
+        title: 'Cómo se cobra',
+        body: [
+          'Igual que con los presupuestos: "Link" copia el link de pago, o mandalo directo por WhatsApp. Tu cliente paga con Mercado Pago sin necesidad de cuenta.',
+          'Si te pagan en efectivo o transferencia, tocá "Marcar pagado" para dejarlo asentado igual.',
+        ],
+        keywords: ['pagar', 'mercado pago', 'whatsapp', 'marcar pagado'],
+      },
+    ],
+  },
+  {
     slug: 'gastos',
     title: 'Gastos',
     description: 'Gastos generales del negocio y gastos de trabajos puntuales.',
