@@ -251,6 +251,16 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         keywords: ['comisión', 'costo', 'free', 'pro'],
       },
       {
+        slug: 'acreditacion-instantanea',
+        title: '⚠️ Importante: configurá la acreditación en Mercado Pago',
+        body: [
+          'Por defecto, Mercado Pago NO te acredita la plata al instante — la deja como "a liquidar" y te la libera recién a los 35 días (o el plazo que tengas configurado). Esto es una configuración de TU cuenta de Mercado Pago, no algo que dependa de .budgets — conviene revisarlo antes de empezar a cobrar, para no llevarte una sorpresa el primer cobro.',
+          'Para cambiarlo: entrá a la app o web de Mercado Pago → Más → Costos y Cuotas → Link de pago → Por cobro → Configurar costos por cobro. Ahí elegís entre varias velocidades, cada una con su propio costo: Al instante (5,34%), 10 días (3,77%), 18 días (2,19%) o 35 días (0,83% — la que viene por defecto).',
+          'Es un trade-off tuyo: acreditación más rápida cuesta más comisión, más lenta cuesta menos. Elegí según lo que necesites — si vivís de esa plata para pagar proveedores rápido, probablemente te convenga "Al instante" aunque cueste más.',
+        ],
+        keywords: ['acreditación', 'liquidar', 'plazo', 'cuando cobro', '35 días', 'demora'],
+      },
+      {
         slug: 'solicitar-sena',
         title: 'Pedir una seña en vez del total',
         body: [

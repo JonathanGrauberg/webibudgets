@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Wallet, CheckCircle2, Loader2 } from 'lucide-react'
+import { Wallet, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
 import { getContrastColor } from '@/lib/contrast'
 
 interface ColorSystem {
@@ -64,6 +64,13 @@ export default function MercadoPagoConnectCard({ connected, colors, onDisconnect
             ? 'Tu cuenta de Mercado Pago está vinculada. El dinero de los cobros generados desde la app llega directo a tu cuenta.'
             : 'Vinculá tu cuenta de Mercado Pago para poder generar links de cobro desde tus presupuestos. El dinero llega directo a tu cuenta, no pasa por Webi Studio.'}
         </p>
+
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/20">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            <strong>Importante:</strong> por defecto Mercado Pago demora hasta 35 días en liberarte la plata de un cobro ("a liquidar"). Revisá en tu cuenta de MP → Más → Costos y Cuotas → Link de pago → Por cobro, para elegir "Al instante" u otro plazo más corto (cada opción tiene su propio costo).
+          </p>
+        </div>
 
         {connected ? (
           <button
