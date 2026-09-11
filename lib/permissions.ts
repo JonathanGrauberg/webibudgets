@@ -17,6 +17,7 @@ export type RouteKey =
   | 'commissions'
   | 'tasks' // 👈 nuevo
   | 'expenses' // 👈 nuevo
+  | 'cobros' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
   | 'help'
@@ -54,6 +55,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   tasks: ['owner', 'admin', 'seller', 'installer'], // 👈 nuevo — mismo alcance que budgets, sin viewer
   expenses: ['owner', 'admin'], // 👈 nuevo — datos financieros sensibles (sueldos, alquiler), no para seller/installer
   help: ['owner', 'admin', 'seller', 'installer', 'viewer'], // 👈 nuevo — el manual lo ve cualquiera
+  cobros: ['owner', 'admin'], // 👈 nuevo — cargos recurrentes a clientes, mismo nivel que expenses/commissions
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -132,6 +134,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/rendiciones' || pathname.startsWith('/rendiciones/')) return 'commissions'
   if (pathname === '/tasks' || pathname.startsWith('/tasks/')) return 'tasks' // 👈 nuevo
   if (pathname === '/expenses' || pathname.startsWith('/expenses/')) return 'expenses' // 👈 nuevo
+  if (pathname === '/cobros' || pathname.startsWith('/cobros/')) return 'cobros' // 👈 nuevo
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -154,6 +157,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'documents', name: 'Documentos', href: '/documents', tooltip: 'Recibos, órdenes de trabajo y remitos', requiresFeature: 'vouchers' },
   { route: 'commissions', name: 'Rendiciones', href: '/rendiciones', tooltip: 'Comisiones y reparto de ganancias' }, // 👈 Removido requiresFeature
   { route: 'expenses', name: 'Gastos', href: '/expenses', tooltip: 'Gastos generales y de trabajos puntuales' }, // 👈 nuevo
+  { route: 'cobros', name: 'Cobros', href: '/cobros', tooltip: 'Cargos recurrentes a clientes (mantenimiento, mensualidades)' }, // 👈 nuevo
   { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' },
   { route: 'help', name: 'Ayuda', href: '/help', tooltip: 'Manual de uso del sistema' }, // 👈 nuevo
 ]

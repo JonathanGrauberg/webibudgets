@@ -31,6 +31,7 @@ const PROTECTED_PREFIXES = [
   '/tasks',        // 👈 nuevo — mismo agujero
   '/kiosco', // 👈 nuevo
   '/help', // 👈 nuevo
+  '/cobros', // 👈 nuevo
 ]
 
 function isPublic(pathname: string): boolean {

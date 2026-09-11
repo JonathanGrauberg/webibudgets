@@ -54,18 +54,6 @@ async function handlePaymentWebhook(paymentId: string, collectorUserId: string |
 
   const payment = await paymentRes.json()
   const externalReference = payment.external_reference as string | undefined
-  const budgetId = externalReference?.startsWith('budget:') ? externalReference.slice('budget:'.length) : null
-
-  if (!budgetId) {
-    console.warn('[webhook/mp] Pago sin external_reference de presupuesto reconocible:', paymentId)
-    return
-  }
-
-  const budget = await prisma.budget.findFirst({ where: { id: budgetId, tenantId: tenant.id } })
-  if (!budget) {
-    console.warn('[webhook/mp] El presupuesto del pago no existe (o no es de ese tenant):', budgetId)
-    return
-  }
 
   // MP tiene más estados (in_process, authorized, in_mediation, etc.) — los
   // reducimos a los 3 que de verdad importan para el cobro.
@@ -76,6 +64,46 @@ async function handlePaymentWebhook(paymentId: string, collectorUserId: string |
   const commissionAmount = !isProPlan(tenant.plan)
     ? Math.round(amount * FREE_PLAN_COMMISSION_RATE * 100) / 100
     : 0
+
+  // 👇 Cobro (cargo recurrente sin presupuesto) — no tiene pagos parciales
+  // ni estados intermedios como BudgetPayment, así que solo actuamos
+  // cuando MP confirma 'approved'; un rechazo/pendiente no debe bloquear
+  // que el cliente reintente pagar después.
+  if (externalReference?.startsWith('cobro:')) {
+    const cobroId = externalReference.slice('cobro:'.length)
+    const cobro = await prisma.cobro.findFirst({ where: { id: cobroId, tenantId: tenant.id } })
+    if (!cobro) {
+      console.warn('[webhook/mp] El cobro del pago no existe (o no es de ese tenant):', cobroId)
+      return
+    }
+    if (status === 'approved' && cobro.status !== 'paid') {
+      await prisma.cobro.update({
+        where: { id: cobro.id },
+        data: {
+          status: 'paid',
+          paidAt: new Date(),
+          paymentMethod: 'mercado_pago',
+          mpPaymentId: String(payment.id),
+          commissionAmount,
+        },
+      })
+      console.log(`[webhook/mp] 💰 Cobro ${cobro.id} pagado vía MP (pago ${payment.id})`)
+    }
+    return
+  }
+
+  const budgetId = externalReference?.startsWith('budget:') ? externalReference.slice('budget:'.length) : null
+
+  if (!budgetId) {
+    console.warn('[webhook/mp] Pago sin external_reference reconocible (ni budget: ni cobro:):', paymentId)
+    return
+  }
+
+  const budget = await prisma.budget.findFirst({ where: { id: budgetId, tenantId: tenant.id } })
+  if (!budget) {
+    console.warn('[webhook/mp] El presupuesto del pago no existe (o no es de ese tenant):', budgetId)
+    return
+  }
 
   await prisma.budgetPayment.upsert({
     where: { mpPaymentId: String(payment.id) },

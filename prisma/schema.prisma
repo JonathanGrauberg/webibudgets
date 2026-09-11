@@ -203,6 +203,9 @@ model Tenant {
   workOrderSequence Int @default(1) // 👈 nuevo
   workOrders WorkOrder[] // 👈 nuevo
 
+  cobroSequence Int @default(1) // 👈 nuevo
+  cobros Cobro[] // 👈 nuevo
+
   tasks Task[]
   kioskBoards KioskBoard[] // 👈 nuevo — falta esto, es el lado inverso de KioskBoard.tenant
 
@@ -404,11 +407,59 @@ model Client {
   // Relaciones
   budgets   Budget[]
   receipts  Receipt[]
+  cobros    Cobro[] // 👈 nuevo
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
+}
+
+/* =========================
+   COBROS — cargos recurrentes SIN presupuesto (ej: cuota mensual de
+   mantenimiento/marketing). Documento propio, no un Budget ni un Receipt:
+   así las métricas de presupuestos no se ensucian con esta plata, y viceversa.
+========================= */
+
+model Cobro {
+  id       String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  cobroNumber Int
+
+  concept  String
+  amount   Float
+  currency String @default("ARS")
+
+  // Siempre el día 1 del mes que corresponde — agrupa las métricas
+  // mensuales sin tener que parsear fechas de vencimiento.
+  periodMonth DateTime
+
+  status   String @default("pending") // pending | paid
+  paidAt   DateTime?
+  paymentMethod PaymentMethod?
+
+  // Cobro online — mismo mecanismo que Budget (portal público + MP)
+  publicToken String? @unique
+  mpPaymentId String? @unique
+  commissionAmount Float @default(0) // comisión retenida (solo planes FREE), igual que BudgetPayment
+
+  // Para "reutilizar el mes que viene" — de qué Cobro se duplicó, informativo
+  duplicatedFromId String?
+
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([periodMonth])
 }
 
 /* =========================

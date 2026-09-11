@@ -164,3 +164,82 @@ export async function createBudgetPaymentPreference(params: {
     initPoint: (data.init_point ?? data.sandbox_init_point) as string,
   }
 }
+
+type CobroForPreference = {
+  id: string
+  cobroNumber: number
+  concept: string
+  amount: number
+  currency: string
+  client: { name: string; company: string | null } | null
+}
+
+// Mismo mecanismo que createBudgetPaymentPreference, pero para un Cobro
+// (cargo recurrente sin presupuesto) — external_reference distinto
+// ('cobro:' en vez de 'budget:') para que el webhook sepa a qué tabla ir.
+export async function createCobroPaymentPreference(params: {
+  tenant: TenantMp
+  cobro: CobroForPreference
+  publicToken: string
+  origin: string
+}) {
+  const { tenant, cobro, publicToken, origin } = params
+
+  const accessToken = await getValidTenantMpAccessToken(tenant)
+
+  const portalUrl = `${origin}/c/${publicToken}`
+  const now = new Date()
+  const expiresTo = new Date(now.getTime() + PREFERENCE_VALID_DAYS * 24 * 60 * 60 * 1000)
+
+  const clientLabel = cobro.client?.company || cobro.client?.name || 'Cliente'
+  const isFree = !isProPlan(tenant.plan)
+  const commissionAmount = isFree ? Math.round(cobro.amount * FREE_PLAN_COMMISSION_RATE * 100) / 100 : 0
+
+  const body: Record<string, unknown> = {
+    items: [
+      {
+        title: `${cobro.concept} — ${clientLabel}`.slice(0, 250),
+        quantity: 1,
+        unit_price: cobro.amount,
+        currency_id: cobro.currency || 'ARS',
+      },
+    ],
+    external_reference: `cobro:${cobro.id}`,
+    back_urls: {
+      success: `${portalUrl}?pago=exito`,
+      pending: `${portalUrl}?pago=pendiente`,
+      failure: `${portalUrl}?pago=fallo`,
+    },
+    auto_return: 'approved',
+    notification_url: `${origin}/api/webhooks/mercadopago`,
+    expiration_date_from: now.toISOString(),
+    expiration_date_to: expiresTo.toISOString(),
+    expires: true,
+  }
+
+  if (commissionAmount > 0) {
+    body.marketplace_fee = commissionAmount
+  }
+
+  const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '')
+    console.error('[mercadopago-checkout] creación de preferencia de cobro falló', res.status, errBody)
+    throw new Error('No pudimos generar el link de cobro en Mercado Pago')
+  }
+
+  const data = await res.json()
+  return {
+    preferenceId: data.id as string,
+    initPoint: (data.init_point ?? data.sandbox_init_point) as string,
+    commissionAmount,
+  }
+}
