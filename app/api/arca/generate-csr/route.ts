@@ -11,6 +11,7 @@ import { getToken } from 'next-auth/jwt'
 import { prisma } from '@/lib/prisma'
 import { generateArcaCsr } from '@/lib/arca/certificate'
 import { encryptPrivateKey } from '@/lib/arca/crypto'
+import { tenantHasArcaFeature } from '@/lib/arca/access'
 
 const MANAGER_ROLES = ['owner', 'admin']
 
@@ -21,6 +22,10 @@ export async function POST(req: NextRequest) {
 
   if (!tenantId || !role || !MANAGER_ROLES.includes(role)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
+  if (!(await tenantHasArcaFeature(tenantId))) {
+    return NextResponse.json({ error: 'La facturación electrónica ARCA requiere el plan PRO' }, { status: 403 })
   }
 
   const data = await req.json().catch(() => ({}))

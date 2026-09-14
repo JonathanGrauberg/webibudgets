@@ -15,6 +15,7 @@ export type FeatureKey =
   | "customCategories"
   | "kiosk"
   | "pdfTemplates" // 👈 nuevo — elegir plantilla de diseño para el PDF de presupuesto
+  | "arcaInvoicing" // 👈 nuevo — facturación electrónica ARCA (ex-AFIP)
 
 // 👇 nuevo — evita repetir las 14 claves dos veces (vip y custom deben ser
 // siempre idénticos: los dos son "PRO completo", solo cambia si pagan o no)
@@ -34,6 +35,7 @@ const ALL_PRO_FEATURES: Record<FeatureKey, boolean> = {
   customCategories: true,
   kiosk: true,
   pdfTemplates: true, // 👈 nuevo
+  arcaInvoicing: true, // 👈 nuevo
 }
 
 const PLAN_FEATURE_DEFAULTS: Record<string, Partial<Record<FeatureKey, boolean>>> = {

@@ -167,8 +167,8 @@ function serializeBranding(
   })
 }
 
-function TabButton({ active, onClick, icon: Icon, label, id }: {
-  active: boolean; onClick: () => void; icon: React.ElementType; label: string; id?: string
+function TabButton({ active, onClick, icon: Icon, label, id, locked }: {
+  active: boolean; onClick: () => void; icon: React.ElementType; label: string; id?: string; locked?: boolean
 }) {
   return (
     <motion.button
@@ -185,6 +185,7 @@ function TabButton({ active, onClick, icon: Icon, label, id }: {
     >
       <Icon className="w-4 h-4" />
       <span className="hidden sm:inline">{label}</span>
+      {locked && <Crown className="h-3 w-3 text-amber-500" />}
     </motion.button>
   )
 }
@@ -245,6 +246,13 @@ export default function CompanyBrandingSettingsClient({
     'pdfTemplates'
   )
   const [pdfTemplateUpgradeOpen, setPdfTemplateUpgradeOpen] = useState(false)
+
+  // 👇 nuevo — facturación electrónica ARCA, feature PRO
+  const hasArcaInvoicing = hasFeature(
+    { plan: tenantPlanData?.plan, features: tenantPlanData?.features },
+    'arcaInvoicing'
+  )
+  const [arcaUpgradeOpen, setArcaUpgradeOpen] = useState(false)
 
   const effective = useMemo(() => effectiveBranding(initialBranding), [initialBranding])
   const { updateBranding } = useBranding()
@@ -704,7 +712,8 @@ export default function CompanyBrandingSettingsClient({
             active={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             icon={tab.icon}
-            label={tab.label} />
+            label={tab.label}
+            locked={tab.id === 'arca' && !hasArcaInvoicing} />
           ))}
         </div>
       </div>
@@ -1296,7 +1305,24 @@ export default function CompanyBrandingSettingsClient({
         transition={{ duration: 0.2 }}
         className="max-w-2xl"
       >
-        <ArcaSettingsCard colors={colorSystem} />
+        {hasArcaInvoicing ? (
+          <ArcaSettingsCard colors={colorSystem} />
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+            <Crown className="mx-auto h-8 w-8 text-amber-500" />
+            <h3 className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-50">Facturación electrónica (ARCA)</h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+              Emití comprobantes válidos ante ARCA directo desde tus presupuestos. Disponible en el plan PRO.
+            </p>
+            <button
+              type="button"
+              onClick={() => setArcaUpgradeOpen(true)}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+            >
+              <Crown className="h-3.5 w-3.5" /> Pasate a PRO
+            </button>
+          </div>
+        )}
       </motion.div>
     )}
 
@@ -1304,6 +1330,7 @@ export default function CompanyBrandingSettingsClient({
       </div>
       <UpgradeModal feature="whiteLabel" open={upgradeOpen} onOpenChange={setUpgradeOpen} />
       <UpgradeModal feature="pdfTemplates" open={pdfTemplateUpgradeOpen} onOpenChange={setPdfTemplateUpgradeOpen} />
+      <UpgradeModal feature="arcaInvoicing" open={arcaUpgradeOpen} onOpenChange={setArcaUpgradeOpen} />
     </div>
   )
 }

@@ -56,6 +56,10 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { title: string; description: str
     title: 'Plantillas de PDF',
     description: 'Elegí entre distintos diseños para tus presupuestos en PDF, además del clásico. Disponible en el plan PRO.',
   },
+  arcaInvoicing: {
+    title: 'Facturación electrónica (ARCA)',
+    description: 'Emití comprobantes válidos ante ARCA (ex-AFIP) directo desde tus presupuestos. Disponible en el plan PRO.',
+  },
 }
 
 export function UpgradeModal({ feature, open, onOpenChange }: {
