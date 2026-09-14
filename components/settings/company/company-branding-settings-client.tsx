@@ -17,6 +17,7 @@ import {
   Save,
   Plus,
   Loader2,
+  Landmark,
 } from 'lucide-react'
 
 import type { Branding } from '@/lib/branding'
@@ -32,6 +33,7 @@ import { useSession } from 'next-auth/react'
 
 import TeamPlanCard from '@/components/settings/company/team-plan-card'
 import MercadoPagoConnectCard from '@/components/settings/company/mercadopago-connect-card'
+import ArcaSettingsCard from '@/components/settings/company/arca-settings-card'
 import { SmartAssetRow } from '@/components/branding/smart-asset-row'
 import { SmartPdfRow } from '@/components/branding/smart-pdf-row'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
@@ -689,6 +691,7 @@ export default function CompanyBrandingSettingsClient({
     { id: 'company', icon: Building2, label: 'Configuración' },
     { id: 'branding', icon: ImageIcon, label: 'Branding' },
     { id: 'plan', icon: Crown, label: 'Plan' },
+    { id: 'arca', icon: Landmark, label: 'Facturación' },
   ]
 
   return (
@@ -1280,6 +1283,20 @@ export default function CompanyBrandingSettingsClient({
             onDisconnected={() => mutateTenantPlanData?.()}
           />
         </div>
+      </motion.div>
+    )}
+
+    {/* ── ARCA (facturación electrónica) ── */}
+    {activeTab === 'arca' && (
+      <motion.div
+        key="arca"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.2 }}
+        className="max-w-2xl"
+      >
+        <ArcaSettingsCard colors={colorSystem} />
       </motion.div>
     )}
 

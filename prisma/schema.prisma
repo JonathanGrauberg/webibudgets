@@ -208,6 +208,8 @@ model Tenant {
 
   budgetFollowups BudgetFollowup[] // 👈 nuevo
 
+  arcaCredential ArcaCredential? // 👈 nuevo — facturación electrónica
+
   tasks Task[]
   kioskBoards KioskBoard[] // 👈 nuevo — falta esto, es el lado inverso de KioskBoard.tenant
 
@@ -462,6 +464,39 @@ model Cobro {
   @@index([tenantId])
   @@index([clientId])
   @@index([periodMonth])
+}
+
+/* =========================
+   ARCA (ex-AFIP) — Facturación electrónica.
+   Sin librerías/servicios de terceros de por medio a propósito: nosotros
+   generamos y guardamos la clave privada (cifrada, ver lib/arca/crypto.ts)
+   y hablamos directo con los webservices SOAP de ARCA (WSAA + WSFEv1).
+========================= */
+
+model ArcaCredential {
+  id       String @id @default(uuid())
+
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  cuit         String // CUIT con el que se factura — puede no ser el mismo que Tenant.cuit
+  environment  String @default("testing") // 'testing' (homologación) | 'production'
+  alias        String? // el "Alias" que ARCA le pone al certificado
+
+  // 👇 la clave privada SIEMPRE cifrada (lib/arca/crypto.ts) — nunca en
+  // texto plano, ni siquiera acá. El certificado en cambio no es secreto
+  // (es información pública una vez emitido), va en texto plano.
+  privateKeyEncrypted String?
+  certificatePem      String?
+
+  puntoVenta Int?
+
+  // pending_csr (generamos clave+CSR, esperando que suban el .crt) ->
+  // active (ya tienen certificado y pueden facturar) -> expired
+  status String @default("pending_csr")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /* =========================
