@@ -496,6 +496,14 @@ model ArcaCredential {
   // active (ya tienen certificado y pueden facturar) -> expired
   status String @default("pending_csr")
 
+  // 👇 Cache del Ticket de Acceso (TA) de WSAA — vale 12hs y ARCA pide
+  // explícitamente no pedir uno nuevo mientras el actual sirva. Guardamos
+  // uno solo (alcanza para "wsfe", el único servicio que usamos por ahora).
+  wsaaToken           String?
+  wsaaSign            String?
+  wsaaTokenExpiresAt  DateTime?
+  wsaaService         String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

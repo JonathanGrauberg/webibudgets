@@ -41,6 +41,9 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  const [testingWsaa, setTestingWsaa] = useState(false)
+  const [wsaaResult, setWsaaResult] = useState<{ ok: boolean; message?: string } | null>(null)
+
   useEffect(() => {
     fetch('/api/arca/generate-csr')
       .then((r) => (r.ok ? r.json() : null))
@@ -81,6 +84,20 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
       setError('No se pudo generar el certificado')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function handleTestWsaa() {
+    setTestingWsaa(true)
+    setWsaaResult(null)
+    try {
+      const res = await fetch('/api/arca/test-wsaa', { method: 'POST' })
+      const json = await res.json().catch(() => null)
+      setWsaaResult(res.ok ? { ok: true } : { ok: false, message: json?.error ?? 'No se pudo conectar con WSAA' })
+    } catch {
+      setWsaaResult({ ok: false, message: 'No se pudo conectar con WSAA' })
+    } finally {
+      setTestingWsaa(false)
     }
   }
 
@@ -157,6 +174,25 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
                 ? `Activo — vence el ${status.certificateExpiresAt ? new Date(status.certificateExpiresAt).toLocaleDateString('es-AR') : '?'}`
                 : 'Esperando que subas el certificado (.crt) que te dé ARCA'}
             </p>
+
+            {status.status === 'active' && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleTestWsaa}
+                  disabled={testingWsaa}
+                  className="flex items-center gap-1.5 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                >
+                  {testingWsaa ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  {testingWsaa ? 'Conectando con ARCA...' : 'Probar conexión (WSAA)'}
+                </button>
+                {wsaaResult && (
+                  <p className={`mt-2 text-xs ${wsaaResult.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {wsaaResult.ok ? '✓ ARCA aceptó el certificado y devolvió un Ticket de Acceso válido' : wsaaResult.message}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
