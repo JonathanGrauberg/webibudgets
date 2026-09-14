@@ -1,14 +1,13 @@
 'use client'
 //components\settings\company\arca-settings-card.tsx
 //
-// Paso 1 de facturación electrónica ARCA: generar el certificado (clave
-// privada + CSR). El resto del flujo (subir el .crt que devuelve ARCA,
-// configurar punto de venta, emitir comprobantes) todavía no está armado
-// — esto es a propósito el primer paso chico, mismo criterio que usamos
-// para arrancar con Mercado Pago.
+// Pasos 1 y 2 de facturación electrónica ARCA: generar el certificado
+// (clave privada + CSR) y subir el .crt que devuelve ARCA. Configurar
+// punto de venta y emitir comprobantes todavía no está armado — esto es a
+// propósito, mismo criterio que usamos para arrancar con Mercado Pago.
 
 import React, { useEffect, useState } from 'react'
-import { Landmark, Download, Loader2, ExternalLink } from 'lucide-react'
+import { Landmark, Download, Loader2, ExternalLink, Upload, CheckCircle2 } from 'lucide-react'
 import { getContrastColor } from '@/lib/contrast'
 
 interface ColorSystem {
@@ -22,6 +21,7 @@ interface ArcaStatus {
   alias: string | null
   puntoVenta: number | null
   status: string
+  certificateExpiresAt: string | null
 }
 
 export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
@@ -36,6 +36,10 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [csrGenerated, setCsrGenerated] = useState(false)
+
+  const [certificateText, setCertificateText] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/arca/generate-csr')
@@ -72,11 +76,43 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
       URL.revokeObjectURL(url)
 
       setCsrGenerated(true)
-      setStatus({ cuit: cuit.replace(/\D/g, ''), environment, alias: alias || null, puntoVenta: null, status: 'pending_csr' })
+      setStatus({ cuit: cuit.replace(/\D/g, ''), environment, alias: alias || null, puntoVenta: null, status: 'pending_csr', certificateExpiresAt: null })
     } catch {
       setError('No se pudo generar el certificado')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  function handleCertificateFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setCertificateText(String(reader.result || ''))
+    reader.readAsText(file)
+  }
+
+  async function handleUploadCertificate(e: React.FormEvent) {
+    e.preventDefault()
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const res = await fetch('/api/arca/upload-certificate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ certificatePem: certificateText }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) {
+        setUploadError(json?.error ?? 'No se pudo procesar el certificado')
+        return
+      }
+      setStatus((prev) => (prev ? { ...prev, status: 'active', certificateExpiresAt: json.expiresAt } : prev))
+      setCertificateText('')
+    } catch {
+      setUploadError('No se pudo procesar el certificado')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -96,23 +132,68 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
           </div>
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Facturación electrónica (ARCA)</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">En construcción — primer paso: generar tu certificado</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">En construcción — generar certificado y subirlo</p>
           </div>
         </div>
 
         <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-          Todavía no se puede facturar desde acá — esto solo genera el certificado que hay que darle a ARCA. Los pasos de subir el certificado que te devuelvan y emitir comprobantes vienen después.
+          Todavía no se puede facturar desde acá — falta la autenticación (WSAA) y la emisión real de comprobantes (WSFEv1). Esto deja lista la parte del certificado.
         </div>
 
         {!loadingStatus && status && (
-          <div className="mb-5 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2.5 text-sm">
-            <p className="text-slate-700 dark:text-slate-300">
-              Certificado generado para CUIT <strong>{status.cuit}</strong> ({status.environment === 'production' ? 'Producción' : 'Homologación/Testing'})
+          <div
+            className={`mb-5 rounded-lg px-3 py-2.5 text-sm ${
+              status.status === 'active'
+                ? 'bg-emerald-50 dark:bg-emerald-950/20'
+                : 'bg-slate-50 dark:bg-slate-800/50'
+            }`}
+          >
+            <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              {status.status === 'active' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              Certificado para CUIT <strong>{status.cuit}</strong> ({status.environment === 'production' ? 'Producción' : 'Homologación/Testing'})
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Estado: {status.status === 'pending_csr' ? 'Esperando que subas el certificado (.crt) que te dé ARCA' : status.status}
+              {status.status === 'active'
+                ? `Activo — vence el ${status.certificateExpiresAt ? new Date(status.certificateExpiresAt).toLocaleDateString('es-AR') : '?'}`
+                : 'Esperando que subas el certificado (.crt) que te dé ARCA'}
             </p>
           </div>
+        )}
+
+        {status && (
+          <form onSubmit={handleUploadCertificate} className="mb-6 space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+              {status.status === 'active' ? 'Reemplazar certificado' : 'Subir el certificado (.crt) que te dio ARCA'}
+            </p>
+            <input
+              type="file"
+              accept=".crt,.pem,.cer"
+              onChange={handleCertificateFile}
+              className="block w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1.5 file:text-xs dark:file:bg-slate-800"
+            />
+            <textarea
+              value={certificateText}
+              onChange={(e) => setCertificateText(e.target.value)}
+              placeholder="...o pegá el contenido del .crt acá (-----BEGIN CERTIFICATE-----)"
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono outline-none focus:border-slate-400"
+            />
+            {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+            <button
+              type="submit"
+              disabled={uploading || !certificateText.trim()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+            >
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              {uploading ? 'Validando...' : 'Confirmar certificado'}
+            </button>
+          </form>
+        )}
+
+        {status && (
+          <p className="mb-2 text-xs text-slate-400">
+            Generar de nuevo acá abajo crea una clave y un CSR nuevos — el certificado que ya tenías activo dejaría de servir hasta que subas uno nuevo que corresponda a esta clave.
+          </p>
         )}
 
         <form onSubmit={handleGenerate} className="space-y-3">

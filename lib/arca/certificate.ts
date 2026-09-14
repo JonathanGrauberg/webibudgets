@@ -46,3 +46,43 @@ export function generateArcaCsr(params: {
 
   return { privateKeyPem, csrPem }
 }
+
+export class CertificateKeyMismatchError extends Error {
+  constructor() {
+    super('Este certificado no corresponde a la clave privada generada acá — subiste el certificado equivocado, o el CSR que usaste para pedirlo era de otro momento')
+    this.name = 'CertificateKeyMismatchError'
+  }
+}
+
+// Valida el .crt que ARCA le devuelve al tenant, y confirma que la clave
+// pública que trae el certificado coincide con la clave privada que
+// generamos nosotros — si no coincide, el certificado es inútil (nadie
+// podría firmar nada con él) y hay que detectarlo ACÁ, no en producción
+// en medio de un intento de facturar.
+export function parseAndVerifyCertificate(params: {
+  certificatePem: string
+  privateKeyPem: string
+}): { expiresAt: Date } {
+  let cert: forge.pki.Certificate
+  try {
+    cert = forge.pki.certificateFromPem(params.certificatePem)
+  } catch {
+    throw new Error('El archivo no es un certificado PEM válido')
+  }
+
+  let privateKey: forge.pki.rsa.PrivateKey
+  try {
+    privateKey = forge.pki.privateKeyFromPem(params.privateKeyPem) as forge.pki.rsa.PrivateKey
+  } catch {
+    throw new Error('No se pudo leer la clave privada guardada — regenerá el certificado de nuevo')
+  }
+
+  const certPublicKey = cert.publicKey as forge.pki.rsa.PublicKey
+  const matches = certPublicKey.n.equals(privateKey.n) && certPublicKey.e.equals(privateKey.e)
+
+  if (!matches) {
+    throw new CertificateKeyMismatchError()
+  }
+
+  return { expiresAt: cert.validity.notAfter }
+}

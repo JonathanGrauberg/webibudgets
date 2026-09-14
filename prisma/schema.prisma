@@ -488,6 +488,7 @@ model ArcaCredential {
   // (es información pública una vez emitido), va en texto plano.
   privateKeyEncrypted String?
   certificatePem      String?
+  certificateExpiresAt DateTime? // 👈 para poder avisar antes de que venza y haya que renovarlo
 
   puntoVenta Int?
 

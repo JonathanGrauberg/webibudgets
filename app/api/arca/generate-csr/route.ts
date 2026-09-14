@@ -86,6 +86,7 @@ export async function GET(req: NextRequest) {
       alias: true,
       puntoVenta: true,
       status: true,
+      certificateExpiresAt: true,
       // 👇 nunca devolvemos privateKeyEncrypted ni certificatePem completos acá
     },
   })
