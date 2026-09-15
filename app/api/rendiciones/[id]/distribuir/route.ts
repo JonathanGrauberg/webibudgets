@@ -44,11 +44,15 @@ export async function POST(
     // 3. Guardamos el reparto de ESTE presupuesto puntual — reemplaza, no acumula
     await prisma.$transaction(async (tx) => {
 
-      // 🌟 Borramos cualquier reparto previo de este presupuesto en esta rendición.
-      // Así, si volvés a guardar (ej: cambiaste de 50/50 a 100/0), la fila vieja
-      // desaparece en vez de quedar sumada a la nueva.
+      // 🌟 Borramos cualquier reparto previo de este presupuesto — de CUALQUIER
+      // rendición del tenant, no solo esta. El reparto es una propiedad del
+      // trabajo, no del rango de fechas con el que se generó la rendición: el
+      // date-picker puede crear una rendición distinta cada vez, y antes el
+      // reparto quedaba "pegado" a la rendición exacta donde se guardó, así
+      // que abrir el mismo trabajo desde otro rango lo mostraba como "sin
+      // repartir" aunque ya se hubiera hecho.
       await tx.rendicionAsignacion.deleteMany({
-        where: { rendicionId, budgetId },
+        where: { budgetId, rendicion: { tenantId } },
       })
 
       for (const dist of distribuciones) {

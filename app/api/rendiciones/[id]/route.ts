@@ -122,13 +122,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0) - totalGastosGenerales
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
-  // 👇 RESTAURADO — el reparto real, guardado por presupuesto puntual en RendicionAsignacion.
-  // Esto es lo que se había perdido en la versión anterior (leía de la tabla vieja RendicionSellerShare).
-  const asignacionesDb = await prisma.rendicionAsignacion.findMany({
-    where: { rendicionId: id },
-  })
-
   const budgetById = new Map(budgetRowsAll.map((b) => [b.id, b]))
+
+  // 👇 el reparto es una propiedad del PRESUPUESTO, no de la rendición
+  // puntual donde se guardó — se busca en cualquier rendición del tenant,
+  // no solo en esta. Como puede haber lotes viejos de antes de este fix
+  // (guardados desde otra rendición para el mismo presupuesto), nos
+  // quedamos solo con el lote más reciente por presupuesto: todas las filas
+  // que comparten el rendicionId de la fila más nueva de ese presupuesto
+  // (un guardado = un rendicionId, aunque el createdAt de cada fila varíe
+  // unos milisegundos entre sí dentro del mismo guardado).
+  const asignacionesRaw = await prisma.rendicionAsignacion.findMany({
+    where: { budgetId: { in: Array.from(budgetById.keys()) }, rendicion: { tenantId } },
+  })
+  const latestRowByBudget = new Map<string, { rendicionId: string; createdAt: number }>()
+  asignacionesRaw.forEach((a) => {
+    const t = a.createdAt.getTime()
+    const cur = latestRowByBudget.get(a.budgetId)
+    if (!cur || t > cur.createdAt) latestRowByBudget.set(a.budgetId, { rendicionId: a.rendicionId, createdAt: t })
+  })
+  const asignacionesDb = asignacionesRaw.filter(
+    (a) => latestRowByBudget.get(a.budgetId)?.rendicionId === a.rendicionId
+  )
 
   const asignacionesGuardadas = asignacionesDb
     .map((a) => {
