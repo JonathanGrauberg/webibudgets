@@ -91,6 +91,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ id: existente.id }, { status: 200 })
     }
 
+    // 🔎 👈 nuevo — no hubo coincidencia EXACTA de fechas, pero puede haber un
+    // borrador abierto para el mismo periodStart (el periodEnd por defecto es
+    // "hoy", así que cambia solo con el paso de los días — sin esto, cada día
+    // que se entra a la pantalla se crea una fila nueva en vez de reusar la
+    // de ayer). Si existe, lo reusamos y le actualizamos el periodEnd en vez
+    // de duplicar.
+    const borradorAbierto = await prisma.rendicion.findFirst({
+      where: { tenantId, periodStart, status: 'draft' },
+      orderBy: { periodEnd: 'desc' },
+    })
+
+    if (borradorAbierto) {
+      const computed = await generateRendicionData(tenantId, periodStart, periodEnd)
+
+      await prisma.$transaction(async (tx) => {
+        await tx.rendicion.update({
+          where: { id: borradorAbierto.id },
+          data: {
+            periodEnd,
+            presupuestosCompletados: computed.presupuestosCompletados,
+            totalFacturado: computed.totalFacturado,
+            totalCosto: computed.totalCosto,
+            totalGanancia: computed.totalGanancia,
+            totalGastosGenerales: computed.totalGastosGenerales,
+            margenPromedio: computed.margenPromedio,
+          },
+        })
+
+        if (computed.budgetRows.length > 0) {
+          await tx.rendicionBudget.createMany({
+            data: computed.budgetRows.map((b) => ({
+              rendicionId: borradorAbierto.id,
+              budgetId: b.budgetId,
+            })),
+            skipDuplicates: true,
+          })
+        }
+      })
+
+      return NextResponse.json({ id: borradorAbierto.id }, { status: 200 })
+    }
+
     // No existía ninguna para este período: la creamos por primera vez, igual que antes.
     const computed = await generateRendicionData(tenantId, periodStart, periodEnd)
 
