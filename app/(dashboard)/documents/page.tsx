@@ -658,7 +658,72 @@ export default function DocumentsPage() {
               })}
             </div>
 
-            {/* 👇 nuevo — recibos sin presupuesto, listado independiente */}
+            
+
+
+            {/* DESKTOP */}
+            <div className="hidden md:block w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableHead className="w-[100px] font-semibold text-slate-700">N° Presup.</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Fecha</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Monto Total</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Estado Presup.</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Estado de Cobro</TableHead>
+                    <TableHead className="text-right font-semibold text-slate-700 pr-6">
+                      Generar Documentos
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredBudgets.map((b) => {
+                    const collected = getCollectedAmount(b.id)
+                    return (
+                      <TableRow key={b.id} className="hover:bg-slate-50/60 transition-colors">
+                        <TableCell className="text-xs font-semibold text-slate-500">
+                          #{String(b.budgetNumber ?? 0).padStart(6, '0')}
+                        </TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {b.client?.company || b.client?.name || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {formatDate(b.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-slate-900">
+                          {formatCurrency(b.total || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={STATUS_COLORS[b.status]}>
+                            {STATUS_LABELS[b.status]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {showsPaymentStatus(b.status) ? (
+                            <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 py-3">
+                          <DocumentRow
+                            budget={b}
+                            onReceiptCreated={handleDocumentChange}
+                            alreadyCollected={collected} // 👈 nuevo
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* 👇 nuevo — recibos sin presupuesto, listado independiente */}
             {standaloneReceipts.length > 0 && (
               <Card className="border-slate-200 shadow-xs overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
@@ -724,69 +789,6 @@ export default function DocumentsPage() {
               )}
               </Card>
             )}
-
-
-            {/* DESKTOP */}
-            <div className="hidden md:block w-full overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                    <TableHead className="w-[100px] font-semibold text-slate-700">N° Presup.</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Fecha</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Monto Total</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado Presup.</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado de Cobro</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700 pr-6">
-                      Generar Documentos
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBudgets.map((b) => {
-                    const collected = getCollectedAmount(b.id)
-                    return (
-                      <TableRow key={b.id} className="hover:bg-slate-50/60 transition-colors">
-                        <TableCell className="text-xs font-semibold text-slate-500">
-                          #{String(b.budgetNumber ?? 0).padStart(6, '0')}
-                        </TableCell>
-                        <TableCell className="font-medium text-slate-900">
-                          {b.client?.company || b.client?.name || '-'}
-                        </TableCell>
-                        <TableCell className="text-xs text-slate-500">
-                          {formatDate(b.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-sm font-semibold text-slate-900">
-                          {formatCurrency(b.total || 0)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={STATUS_COLORS[b.status]}>
-                            {STATUS_LABELS[b.status]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {showsPaymentStatus(b.status) ? (
-                            <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
-                          ) : (
-                            <span className="text-xs text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right pr-6 py-3">
-                          <DocumentRow
-                            budget={b}
-                            onReceiptCreated={handleDocumentChange}
-                            alreadyCollected={collected} // 👈 nuevo
-                          />
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        )}
-      </div>
 
       {/* 👇 nuevo — modal de recibo standalone, vive a nivel de página, no depende de ningún presupuesto */}
       <CreateReceiptModal
