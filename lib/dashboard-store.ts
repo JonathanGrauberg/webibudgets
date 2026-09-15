@@ -3,9 +3,11 @@ import { prisma } from '@/lib/prisma'
 import type { ProductCategory, BudgetStatus } from '@prisma/client' // 👈 nuevo
 import { getCollectedByBudgetIds } from '@/lib/collected-amount'
 
-// Estados de presupuesto donde tiene sentido esperar un cobro — un 'draft'
-// o 'rejected' nunca va a tener plata entrando.
-const PAYABLE_STATUSES: BudgetStatus[] = ['sent', 'approved', 'completed']
+// Estados de presupuesto donde el cobro es una expectativa REAL, no una
+// suposición — un 'sent' todavía no lo aprobó el cliente, así que contarlo
+// en "Por Cobrar" da a entender que todo lo enviado se aprueba y se cobra,
+// que no es el caso. Solo 'approved' y 'completed' son negocio confirmado.
+const PAYABLE_STATUSES: BudgetStatus[] = ['approved', 'completed']
 
 export interface DashboardStats {
   totalClients: number

@@ -292,7 +292,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   <Clock className="h-3 w-3 text-amber-500" />
-                  De presupuestos ya enviados o aprobados
+                  De presupuestos ya aprobados
                 </p>
               </div>
               <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
