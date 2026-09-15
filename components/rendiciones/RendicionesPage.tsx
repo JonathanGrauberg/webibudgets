@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock, Crown, AlertTriangle, Wallet } from "lucide-react";
+import { Download, Info, Calendar, CheckCircle2, UserCheck, Search, ChevronDown, ChevronUp, Lock, Unlock, Crown, Wallet } from "lucide-react";
 import { UpgradeModal } from '@/components/feature-gate'
 
 export interface RendicionSellerRow {
@@ -34,14 +34,16 @@ export interface RendicionBudgetRow {
   clienteName: string;
   vendedorName: string;
   budgetNumber: number;
-  fecha: string; 
-  estado: string; // 👈 estado del TRABAJO (draft/sent/approved/completed) — ya no es el criterio de filtrado, es solo informativo
-  total: number;
+  fecha: string;
+  estado: string; // 👈 estado del TRABAJO (draft/sent/approved/completed) — informativo
+  total: number; // total nominal del trabajo (aunque no se haya cobrado del todo)
+  collected: number; // 👈 nuevo — lo efectivamente cobrado a la fecha (recibos + MP + Cobros vinculados)
+  pctCobrado: number; // 👈 nuevo — collected/total * 100
   costo: number;
-  ganancia: number;
+  gananciaTotal: number; // 👈 nuevo — ganancia del trabajo COMPLETO, informativa
+  ganancia: number; // ganancia YA REPARTIBLE — proporcional a lo cobrado, no la del trabajo completo
   margen: number;
-  saldado: boolean; // 👈 true si la suma de recibos activos cubre el total. Este es el criterio real de esta tabla ahora.
-  gastosAsociados: number; // 👈 nuevo — gastos puntuales de este trabajo (ej: viáticos), ya descontados de "ganancia"
+  gastosAsociados: number; // 👈 gastos puntuales de este trabajo (ej: viáticos), ya descontados de "ganancia"
 }
 
 export interface AsignacionConfirmada {
@@ -80,8 +82,7 @@ export interface RendicionData {
   margenPromedio: number;
   sellers: RendicionSellerRow[];
   facturacionPorIntegrante?: FacturacionPorIntegranteRow[]; // 👈 nuevo — cuánto facturó cada uno, sin depender de reparto manual
-  budgets: RendicionBudgetRow[]; // 👈 ahora representa trabajos SALDADOS, no solo "completados"
-  budgetsNoLongerCompleted?: RendicionBudgetRow[]; // trabajos que estaban saldados al generar la rendición pero dejaron de estarlo (ej: se anuló un recibo)
+  budgets: RendicionBudgetRow[]; // 👈 trabajos con ALGO cobrado (total o parcial) — ver RendicionBudgetRow.collected/pctCobrado
   tenantUsers?: TenantUser[];
   asignacionesGuardadas?: AsignacionConfirmada[];
   currency?: string; 
@@ -196,7 +197,7 @@ function MiSaldoCard({ monto, currency, periodStart, periodEnd }: { monto: numbe
           <p className="text-sm font-semibold text-blue-900">Tu saldo</p>
           <p className="mt-1 text-2xl font-bold text-blue-700 sm:text-3xl">{formatCurrency(monto, currency)}</p>
           <p className="mt-1 text-xs text-blue-600/80">
-            Tu parte ya repartida en trabajos saldados, del {formatDate(periodStart)} al {formatDate(periodEnd)}.
+            Tu parte ya repartida en trabajos con cobro, del {formatDate(periodStart)} al {formatDate(periodEnd)}.
           </p>
         </div>
         <Wallet className="h-9 w-9 shrink-0 text-blue-300" />
@@ -258,6 +259,7 @@ export default function RendicionesPage({
   const [asignacionesGuardadas, setAsignacionesGuardadas] = useState<AsignacionConfirmada[]>(data.asignacionesGuardadas || []);
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [repartoFilter, setRepartoFilter] = useState<"all" | "calculado" | "pendiente">("all"); // 👈 nuevo
   const [expandedBudgets, setExpandedBudgets] = useState<Record<string, boolean>>({});
   const [upgradeFeature, setUpgradeFeature] = useState<'commissions' | 'exportData' | 'auditHistory' | null>(null);
 
@@ -398,6 +400,15 @@ export default function RendicionesPage({
     setExpandedBudgets(prev => ({ ...prev, [budgetId]: !prev[budgetId] }));
   };
 
+  // 👇 nuevo — filtro "Ver: Todos / Calculados / Pendientes" de la tabla principal
+  const visibleBudgets = useMemo(() => {
+    if (repartoFilter === "all") return data.budgets;
+    return data.budgets.filter((b) => {
+      const status = getRepartoStatus(b.id, asignacionesGuardadas);
+      return repartoFilter === "calculado" ? status !== "pendiente" : status === "pendiente";
+    });
+  }, [data.budgets, asignacionesGuardadas, repartoFilter]);
+
   // 👇 nuevo — "Tu saldo": solo lo que ya está guardado y repartido a tu nombre,
   // no una proyección de lo que "te tocaría" si todo estuviera dividido.
   const miSaldo = useMemo(() => {
@@ -413,7 +424,7 @@ export default function RendicionesPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Rendiciones</h1>
-          <p className="mt-1 text-sm text-slate-500">Resumen de trabajos saldados y distribución de ganancias</p>
+          <p className="mt-1 text-sm text-slate-500">Resumen de cobros (totales y parciales) y distribución de ganancias</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button type="button" onClick={() => onDateRangeChange?.(data.periodStart, data.periodEnd)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">
@@ -438,7 +449,7 @@ export default function RendicionesPage({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <KpiCard label="Trabajos saldados" value={String(data.presupuestosCompletados)} sublabel="En el período" />
+        <KpiCard label="Trabajos con cobro" value={String(data.presupuestosCompletados)} sublabel="En el período" />
         <KpiCard label="Total facturado" value={formatCurrency(data.totalFacturado, currency)} sublabel="Cobrado en el período, sin importar reparto" />
         <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo - gastos" valueClassName="text-emerald-600" />
         <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
@@ -456,7 +467,7 @@ export default function RendicionesPage({
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
             <h2 className="text-sm font-semibold text-slate-900">Facturación por integrante</h2>
-            <p className="text-xs text-slate-400">Cuánto facturó cada uno en trabajos saldados de este período</p>
+            <p className="text-xs text-slate-400">Cuánto cobró cada uno en trabajos con cobro de este período</p>
           </CardHeader>
           <CardContent className="space-y-5 p-4 sm:p-5">
             {/* Barras — un vistazo rápido de quién aportó más, antes del detalle en tabla */}
@@ -489,7 +500,7 @@ export default function RendicionesPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Integrante</TableHead>
-                    <TableHead className="text-right">Trabajos saldados</TableHead>
+                    <TableHead className="text-right">Trabajos con cobro</TableHead>
                     <TableHead className="text-right">Total facturado</TableHead>
                     <TableHead className="text-right">% del total</TableHead>
                   </TableRow>
@@ -669,13 +680,33 @@ export default function RendicionesPage({
         </Card>
       </div>
 
-      {/* Tabla Principal — TRABAJOS SALDADOS, la más importante: queda abierta por default, con acento de color */}
+      {/* Tabla Principal — trabajos con ALGO cobrado (total o parcial), la más importante: queda abierta por default, con acento de color */}
       <CollapsibleCard
         defaultOpen
         accentClassName="border-t-4 border-t-blue-600"
         icon={<Wallet className="h-5 w-5 text-blue-600 shrink-0" />}
-        title="Detalle de trabajos saldados"
+        title="Detalle de trabajos con cobro"
         subtitle="Hacé click en una fila para abrir el panel de distribución de arriba"
+        headerRight={
+          <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+            {([
+              { value: "all", label: "Todos" },
+              { value: "calculado", label: "Calculados" },
+              { value: "pendiente", label: "Pendientes" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setRepartoFilter(opt.value)}
+                className={`rounded-md px-2.5 py-1 font-medium transition ${
+                  repartoFilter === opt.value ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        }
       >
         <div className="overflow-x-auto">
           <Table>
@@ -685,35 +716,50 @@ export default function RendicionesPage({
                 <TableHead>Vendedor Inicial</TableHead>
                 <TableHead>N°</TableHead>
                 <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Ganancia</TableHead>
+                <TableHead className="text-right">Cobrado</TableHead>
+                <TableHead className="text-right">Ganancia repartible</TableHead>
                 <TableHead className="text-center">Estado del trabajo</TableHead>
                 <TableHead className="text-center">Estado del reparto</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.budgets.length === 0 ? (
+              {visibleBudgets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-400">
-                    Todavía no hay trabajos saldados en este período.
+                    {data.budgets.length === 0
+                      ? "Todavía no se cobró nada en este período."
+                      : "No hay trabajos que coincidan con este filtro."}
                   </TableCell>
                 </TableRow>
               ) : (
-                data.budgets.map((b) => {
+                visibleBudgets.map((b) => {
                   const repartoStatus = getRepartoStatus(b.id, asignacionesGuardadas);
+                  const saldado = b.pctCobrado >= 100;
                   return (
                     <TableRow key={b.id} className={`cursor-pointer transition-colors ${selectedBudget?.id === b.id ? 'bg-blue-50/70 hover:bg-blue-50' : 'hover:bg-slate-50/80'}`} onClick={() => handleSelectBudget(b)}>
                       <TableCell className="font-medium text-slate-800">{b.clienteName}</TableCell>
                       <TableCell className="text-slate-600">{b.vendedorName}</TableCell>
                       <TableCell className="text-slate-600">#{String(b.budgetNumber).padStart(6, "0")}</TableCell>
                       <TableCell className="text-slate-600">{formatDate(b.fecha)}</TableCell>
-                      <TableCell className="text-right text-slate-700">{formatCurrency(b.total, currency)}</TableCell>
+                      <TableCell className="text-right text-slate-700">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className={saldado ? "font-medium text-emerald-700" : "font-medium"}>
+                            {formatCurrency(b.collected, currency)}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {saldado ? "Saldado" : `${formatPercent(b.pctCobrado)} de ${formatCurrency(b.total, currency)}`}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">
                         {formatCurrency(b.ganancia, currency)}
-                        {b.gastosAsociados > 0 && (
+                        {(b.gastosAsociados > 0 || !saldado) && (
                           <span
                             className="ml-1 cursor-help text-xs text-amber-600"
-                            title={`Ya incluye -${formatCurrency(b.gastosAsociados, currency)} en gastos asociados a este trabajo`}
+                            title={[
+                              !saldado ? `Proporcional a lo cobrado (${formatPercent(b.pctCobrado)} de ${formatCurrency(b.gananciaTotal, currency)} de ganancia total)` : null,
+                              b.gastosAsociados > 0 ? `Ya incluye -${formatCurrency(b.gastosAsociados, currency)} en gastos asociados a este trabajo` : null,
+                            ].filter(Boolean).join(' · ')}
                           >
                             *
                           </span>
@@ -733,51 +779,9 @@ export default function RendicionesPage({
           </Table>
         </div>
         <p className="flex items-center gap-1.5 px-4 py-3 text-xs text-slate-400 border-t border-slate-100">
-          <Info className="h-3.5 w-3.5" /> Solo se incluyen trabajos con el cobro totalmente saldado (según los recibos activos cargados).
+          <Info className="h-3.5 w-3.5" /> Se incluye cualquier trabajo con algo cobrado (total o parcial). La ganancia repartible es proporcional a lo cobrado — si un trabajo se paga en cuotas, se reparte a medida que entra cada una.
         </p>
       </CollapsibleCard>
-
-      {/* Trabajos que dejaron de estar saldados */}
-      {(data.budgetsNoLongerCompleted?.length ?? 0) > 0 && (
-        <CollapsibleCard
-          defaultOpen={false}
-          accentClassName="border-t-4 border-t-amber-400"
-          icon={<AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />}
-          title="Trabajos que dejaron de estar saldados"
-          subtitle="Estaban saldados cuando se generó esta rendición, pero su cobro cambió después (ej: se anuló un recibo). No se incluyen en los totales de arriba ni en la tabla principal."
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Vendedor Inicial</TableHead>
-                <TableHead>N°</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Ganancia</TableHead>
-                <TableHead className="text-center">Estado actual</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.budgetsNoLongerCompleted!.map((b) => (
-                <TableRow key={b.id} className="bg-amber-50/30">
-                  <TableCell className="font-medium text-slate-800">{b.clienteName}</TableCell>
-                  <TableCell className="text-slate-600">{b.vendedorName}</TableCell>
-                  <TableCell className="text-slate-600">#{String(b.budgetNumber).padStart(6, "0")}</TableCell>
-                  <TableCell className="text-slate-600">{formatDate(b.fecha)}</TableCell>
-                  <TableCell className="text-right text-slate-700">{formatCurrency(b.total, currency)}</TableCell>
-                  <TableCell className="text-right font-medium text-emerald-600">{formatCurrency(b.ganancia, currency)}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                      Cobro pendiente
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CollapsibleCard>
-      )}
 
       {/* Historial de Ganancias Distribuidas */}
       {asignacionesGuardadas.length > 0 && (

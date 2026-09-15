@@ -31,7 +31,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               client: { select: { name: true, company: true } },
               seller: { select: { name: true, lastName: true, userId: true } },
               items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-              receipts: { select: { amount: true, status: true } },
+              receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
+              payments: { select: { amount: true, status: true } },
+              cobros: { select: { amount: true, status: true } },
               expenses: { select: { amount: true } },
             },
           },
@@ -67,45 +69,63 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   })
 
   // 👇 los presupuestos desactivados no se muestran en Rendiciones, aunque
-  // hayan quedado vinculados a una rendición ya generada antes de desactivarlos.
+  // hayan quedado vinculados a una rendición ya generada antes de
+  // desactivarlos. Tampoco se exige que esté 100% saldado — un trabajo
+  // grande pagado en cuotas debe poder repartirse a medida que entra cada
+  // cuota, no recién cuando termina de pagarse del todo (ver
+  // lib/rendicion-engine.ts, mismo criterio al generar una rendición nueva).
   const budgetRowsAll = rendicion.budgets
     .filter(({ budget: b }) => b.active !== false)
     .map(({ budget: b }) => {
-    let cost = 0
-    for (const item of b.items) {
-      const itemCost = item.cost ?? item.productService?.cost ?? 0
-      cost += itemCost * item.quantity
-    }
-    const gananciaBruta = b.total - cost
+      let cost = 0
+      for (const item of b.items) {
+        const itemCost = item.cost ?? item.productService?.cost ?? 0
+        cost += itemCost * item.quantity
+      }
+      const gananciaBrutaTotal = b.total - cost
 
-    const collected = b.receipts
-      .filter((r) => isReceiptActive(r.status))
-      .reduce((acc, r) => acc + Number(r.amount || 0), 0)
-    const saldado = collected >= b.total && b.total > 0
+      // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
+      // sumado abajo — contarlo acá también duplicaría la plata.
+      const collectedReceipts = b.receipts
+        .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
+        .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+      const collectedPayments = b.payments
+        .filter((p) => p.status === 'approved')
+        .reduce((acc, p) => acc + Number(p.amount || 0), 0)
+      const collectedCobros = b.cobros
+        .filter((c) => c.status === 'paid')
+        .reduce((acc, c) => acc + Number(c.amount || 0), 0)
+      const collected = Math.min(collectedReceipts + collectedPayments + collectedCobros, b.total)
+      const pctCobrado = b.total > 0 ? collected / b.total : 0
 
-    const gastosAsociados = b.expenses.reduce((acc, e) => acc + e.amount, 0)
-    const ganancia = gananciaBruta - gastosAsociados
-    const margen = b.total > 0 ? (ganancia / b.total) * 100 : 0
+      const gastosAsociados = b.expenses.reduce((acc, e) => acc + e.amount, 0)
+      const gananciaTotal = gananciaBrutaTotal - gastosAsociados
+      // 👇 ganancia YA REPARTIBLE — proporcional a lo efectivamente cobrado,
+      // no la ganancia completa de un trabajo que todavía no terminó de pagarse.
+      const ganancia = gananciaTotal * pctCobrado
+      const margen = b.total > 0 ? (ganancia / b.total) * 100 : 0
 
-    return {
-      id: b.id,
-      clienteName: b.client?.company || b.client?.name || '—',
-      vendedorName: b.seller ? `${b.seller.name} ${b.seller.lastName}` : 'Sin asignar',
-      sellerId: b.sellerId ?? null,
-      budgetNumber: b.budgetNumber ?? 0,
-      fecha: b.createdAt.toISOString(),
-      estado: b.status,
-      total: b.total,
-      costo: cost,
-      ganancia,
-      margen,
-      saldado,
-      gastosAsociados,
-    }
-  })
+      return {
+        id: b.id,
+        clienteName: b.client?.company || b.client?.name || '—',
+        vendedorName: b.seller ? `${b.seller.name} ${b.seller.lastName}` : 'Sin asignar',
+        sellerId: b.sellerId ?? null,
+        budgetNumber: b.budgetNumber ?? 0,
+        fecha: b.createdAt.toISOString(),
+        estado: b.status,
+        total: b.total,
+        collected,
+        pctCobrado: pctCobrado * 100,
+        costo: cost,
+        gananciaTotal,
+        ganancia,
+        margen,
+        gastosAsociados,
+      }
+    })
+    .filter((b) => b.collected > 0) // 👈 solo entran trabajos con ALGO cobrado
 
-  const budgetRows = budgetRowsAll.filter((b) => b.saldado)
-  const budgetRowsNoLongerCompleted = budgetRowsAll.filter((b) => !b.saldado)
+  const budgetRows = budgetRowsAll
 
   const generalExpenses = await prisma.expense.findMany({
     where: {
@@ -117,8 +137,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   })
   const totalGastosGenerales = generalExpenses.reduce((acc, e) => acc + e.amount, 0)
 
-  const totalFacturado = budgetRows.reduce((acc, b) => acc + b.total, 0)
-  const totalCosto = budgetRows.reduce((acc, b) => acc + b.costo, 0)
+  const totalFacturado = budgetRows.reduce((acc, b) => acc + b.collected, 0)
+  const totalCosto = budgetRows.reduce((acc, b) => acc + b.costo * (b.pctCobrado / 100), 0)
   const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0) - totalGastosGenerales
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
@@ -173,7 +193,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const b = budgetById.get(a.budgetId)
     if (!acc || !b) return
     acc.ganancia += a.gananciaAsignada
-    acc.facturado += b.total * (a.porcentaje / 100)
+    acc.facturado += b.collected * (a.porcentaje / 100)
     acc.presupuestos.add(a.budgetId)
   })
 
@@ -198,7 +218,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     budgetRows.forEach((b) => {
       const key = b.sellerId ?? 'sin_asignar'
       if (!acc[key]) acc[key] = { sellerName: b.vendedorName, totalFacturado: 0, cantidad: 0 }
-      acc[key].totalFacturado += b.total
+      acc[key].totalFacturado += b.collected // 👈 lo efectivamente cobrado, no el total nominal del trabajo
       acc[key].cantidad += 1
     })
     return Object.entries(acc)
@@ -220,7 +240,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     sellers: canSeeDistribution ? sellersRows : [],
     facturacionPorIntegrante,
     budgets: budgetRows,
-    budgetsNoLongerCompleted: budgetRowsNoLongerCompleted,
     tenantUsers: canSeeDistribution ? tenantUsers : [],
     asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [],
     currency: 'ARS',

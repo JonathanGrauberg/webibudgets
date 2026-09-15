@@ -33,13 +33,15 @@ function today() {
 
 function exportToCsv(data: RendicionData) {
   const rows = [
-    ['Cliente', 'Vendedor', 'N°', 'Fecha', 'Total', 'Costo', 'Ganancia', 'Margen'],
+    ['Cliente', 'Vendedor', 'N°', 'Fecha', 'Total', 'Cobrado', '% Cobrado', 'Costo', 'Ganancia repartible', 'Margen'],
     ...data.budgets.map((b) => [
       b.clienteName,
       b.vendedorName,
       String(b.budgetNumber),
       b.fecha,
       String(b.total),
+      String(b.collected),
+      `${b.pctCobrado.toFixed(1)}%`,
       String(b.costo),
       String(b.ganancia),
       `${b.margen.toFixed(1)}%`,

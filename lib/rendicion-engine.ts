@@ -45,12 +45,15 @@ function computeBudgetMetrics(budget: BudgetForRendicion) {
 }
 
 export async function generateRendicionData(tenantId: string, periodStart: Date, periodEnd: Date) {
-  // 🌟 "Saldado en el período" = el cobro que terminó de cubrir el total del
-  // presupuesto ocurrió dentro de este rango. La plata puede haber entrado
-  // por recibo manual (Receipt, efectivo/transferencia) o por el link de
-  // cobro online (BudgetPayment, Mercado Pago) — ambas cuentan igual acá,
-  // si no, un presupuesto pagado por MP nunca se marcaría como saldado.
-  const [receiptsInPeriod, paymentsInPeriod] = await Promise.all([
+  // 🌟 Un presupuesto entra como "candidato" si tuvo ALGÚN movimiento de
+  // cobro dentro de este rango — cobro total o parcial, da igual (antes acá
+  // exigíamos que el cobro completara el 100% del presupuesto para que
+  // cuente; eso dejaba afuera trabajos grandes pagados en cuotas, que se
+  // van cobrando de a poco mes a mes). La plata puede haber entrado por
+  // recibo manual (Receipt), pago online (BudgetPayment, Mercado Pago) o un
+  // Cobro del módulo "Cobros" vinculado a este presupuesto — las tres
+  // cuentan igual.
+  const [receiptsInPeriod, paymentsInPeriod, cobrosInPeriod] = await Promise.all([
     prisma.receipt.findMany({
       where: {
         budgetId: { not: null },
@@ -68,12 +71,23 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       },
       select: { budgetId: true },
     }),
+    prisma.cobro.findMany({
+      where: {
+        tenantId,
+        status: 'paid',
+        budgetId: { not: null },
+        paidAt: { gte: periodStart, lte: periodEnd },
+        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true },
+    }),
   ])
 
   const candidateBudgetIds = Array.from(
     new Set([
       ...receiptsInPeriod.filter((r) => r.budgetId && isReceiptActive(r.status)).map((r) => r.budgetId as string),
       ...paymentsInPeriod.map((p) => p.budgetId),
+      ...cobrosInPeriod.map((c) => c.budgetId as string),
     ])
   )
 
@@ -99,24 +113,38 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
       receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
       payments: { select: { amount: true, status: true } },
+      cobros: { select: { amount: true, status: true } },
     },
   }) as unknown as (BudgetForRendicion & {
     receipts: { amount: number; status: string | null; sourceBudgetPaymentId: string | null }[]
     payments: { amount: number; status: string }[]
+    cobros: { amount: number; status: string }[]
   })[]
 
-  const budgets = candidateBudgets.filter((b) => {
-    // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
-    // sumado más abajo — contarlo acá también duplicaría la plata.
-    const collectedReceipts = b.receipts
-      .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
-      .reduce((acc, r) => acc + Number(r.amount || 0), 0)
-    const collectedPayments = b.payments
-      .filter((p) => p.status === 'approved')
-      .reduce((acc, p) => acc + Number(p.amount || 0), 0)
-    const collected = collectedReceipts + collectedPayments
-    return collected >= b.total && b.total > 0
-  })
+  // 👇 antes acá se exigía collected >= total (100% cobrado) para que el
+  // trabajo entre en la rendición. Ahora con que haya ALGO cobrado alcanza
+  // — un trabajo grande pagado en cuotas debe poder repartirse a medida que
+  // entra cada cuota, no recién cuando se termina de pagar del todo.
+  const budgetsWithCollected = candidateBudgets
+    .map((b) => {
+      // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
+      // sumado más abajo — contarlo acá también duplicaría la plata.
+      const collectedReceipts = b.receipts
+        .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
+        .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+      const collectedPayments = b.payments
+        .filter((p) => p.status === 'approved')
+        .reduce((acc, p) => acc + Number(p.amount || 0), 0)
+      const collectedCobros = b.cobros
+        .filter((c) => c.status === 'paid')
+        .reduce((acc, c) => acc + Number(c.amount || 0), 0)
+      const collected = collectedReceipts + collectedPayments + collectedCobros
+      return { budget: b, collected }
+    })
+    .filter(({ collected, budget }) => collected > 0 && budget.total > 0)
+
+  const budgets = budgetsWithCollected.map(({ budget }) => budget)
+  const collectedByBudgetId = new Map(budgetsWithCollected.map(({ budget, collected }) => [budget.id, collected]))
 
   // 🌟 nuevo — Gastos del período. Separamos los asociados a un trabajo puntual
   // (restan de LA GANANCIA DE ESE TRABAJO, no de otro) de los generales del negocio
@@ -154,13 +182,20 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
   let anyMissingCost = false
 
   const budgetRows = budgets.map((b) => {
-    const { cost, ganancia: gananciaBruta, margen: margenBruto, hasMissingCost } = computeBudgetMetrics(b)
+    const { cost, ganancia: gananciaBrutaTotal, margen: margenBruto, hasMissingCost } = computeBudgetMetrics(b)
     const gastosAsociados = expensesByBudget.get(b.id) ?? 0 // 👈 nuevo
-    const ganancia = gananciaBruta - gastosAsociados // 👈 nuevo — la ganancia real de ESTE trabajo, ya con sus gastos puntuales descontados
+    const gananciaTotal = gananciaBrutaTotal - gastosAsociados // ganancia del trabajo COMPLETO, ya con sus gastos puntuales descontados
+    const collected = collectedByBudgetId.get(b.id) ?? 0
+    const pctCobrado = b.total > 0 ? Math.min(1, collected / b.total) : 0
+    // 👇 nuevo — solo se reparte la ganancia PROPORCIONAL a lo efectivamente
+    // cobrado. Si cobraste el 25% de un trabajo grande, se reparte el 25%
+    // de su ganancia — no la ganancia completa de algo que todavía no
+    // terminó de entrar.
+    const ganancia = gananciaTotal * pctCobrado
     const margen = b.total > 0 ? (ganancia / b.total) * 100 : margenBruto
 
-    totalFacturado += b.total
-    totalCosto += cost
+    totalFacturado += Math.min(collected, b.total) // 👈 lo efectivamente cobrado, no el total del trabajo
+    totalCosto += cost * pctCobrado
     totalGanancia += ganancia
     if (hasMissingCost) anyMissingCost = true
 
@@ -172,8 +207,11 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       fecha: b.createdAt,
       estado: b.status,
       total: b.total,
+      collected: Math.min(collected, b.total), // 👈 nuevo
+      pctCobrado: pctCobrado * 100, // 👈 nuevo
       costo: cost,
-      ganancia,
+      gananciaTotal, // 👈 nuevo — informativo, la ganancia del trabajo entero
+      ganancia, // ganancia YA REPARTIBLE (proporcional a lo cobrado)
       margen,
       gastosAsociados, // 👈 nuevo
       sellerId: b.sellerId,
