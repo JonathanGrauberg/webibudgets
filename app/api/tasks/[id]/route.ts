@@ -16,6 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (data.order !== undefined) updateData.order = Number(data.order)
     if (data.linkType !== undefined) updateData.linkType = data.linkType || null
     if (data.linkId !== undefined) updateData.linkId = data.linkId || null
+    if (data.priority !== undefined) updateData.priority = data.priority || null
 
     const result = await prisma.task.updateMany({
       where: { id, tenantId },

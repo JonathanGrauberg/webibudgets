@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
   Receipt,
@@ -233,15 +234,26 @@ function MobileActionsMenu({
           Documentar <MoreHorizontal className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem onClick={defer(onNewReceipt)} className="gap-2 text-xs">
           <Receipt className="h-3.5 w-3.5 text-emerald-600" /> Nuevo Recibo
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={defer(onHistoryReceipt)} className="gap-2 text-xs">
+          <History className="h-3.5 w-3.5 text-slate-500" /> Historial de Recibos
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={defer(onNewDelivery)} className="gap-2 text-xs">
           <Truck className="h-3.5 w-3.5 text-blue-600" /> Nuevo Remito
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={defer(onHistoryDelivery)} className="gap-2 text-xs">
+          <History className="h-3.5 w-3.5 text-slate-500" /> Historial de Remitos
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={defer(onNewWorkOrder)} className="gap-2 text-xs">
           <ClipboardList className="h-3.5 w-3.5 text-amber-600" /> Nueva Órden
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={defer(onHistoryWorkOrder)} className="gap-2 text-xs">
+          <History className="h-3.5 w-3.5 text-slate-500" /> Historial de Órdenes
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

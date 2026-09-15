@@ -5,9 +5,12 @@ import useSWR, { mutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Trash, Link2, FileText, Receipt, Truck, GripVertical, Inbox,
-  ChevronLeft, ChevronRight, AlertTriangle,
+  ChevronLeft, ChevronRight, AlertTriangle, Pencil,
 } from 'lucide-react'
 import { LinkPickerModal } from './link-picker-modal'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogOverlay,
+} from '@/components/ui/dialog'
 
 type TaskColumn = 'backlog' | 'todo' | 'doing' | 'done'
 type TaskLinkType = 'budget' | 'receipt' | 'delivery_note' | null
@@ -108,6 +111,7 @@ export function TasksBoard({ boardId = null, canEdit = true, large = false }: Ta
   const swrKey = boardId ? `/api/tasks?kioskBoardId=${boardId}` : '/api/tasks'
   const { data: tasks = EMPTY_TASKS } = useSWR<Task[]>(swrKey, fetcher, { refreshInterval: 4000 }) // 👈 nuevo — polling cada 4s, para que el kiosco se actualice solo sin depender de cambiar de foco
   const [linkPickerTaskId, setLinkPickerTaskId] = useState<string | null>(null)
+  const [editTaskId, setEditTaskId] = useState<string | null>(null) // 👈 nuevo
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0)
 
   const handleDrop = useCallback(
@@ -183,6 +187,20 @@ export function TasksBoard({ boardId = null, canEdit = true, large = false }: Ta
     [linkPickerTaskId, swrKey]
   )
 
+  // 👇 nuevo — editar título/prioridad de una tarjeta ya creada
+  const handleEditSave = useCallback(
+    async (id: string, title: string, priority: TaskPriority) => {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, priority }),
+      })
+      mutate(swrKey)
+      setEditTaskId(null)
+    },
+    [swrKey]
+  )
+
   const cardsByColumn = useMemo(() => {
     const map = new Map<TaskColumn, Task[]>()
     for (const col of COLUMNS) {
@@ -212,6 +230,7 @@ export function TasksBoard({ boardId = null, canEdit = true, large = false }: Ta
             onAdd={handleAdd}
             onDelete={handleDelete}
             onLinkRequest={setLinkPickerTaskId}
+            onEditRequest={setEditTaskId}
           />
         ))}
       </div>
@@ -254,6 +273,7 @@ export function TasksBoard({ boardId = null, canEdit = true, large = false }: Ta
           onAdd={handleAdd}
           onDelete={handleDelete}
           onLinkRequest={setLinkPickerTaskId}
+          onEditRequest={setEditTaskId}
         />
       </div>
 
@@ -262,7 +282,77 @@ export function TasksBoard({ boardId = null, canEdit = true, large = false }: Ta
         onOpenChange={(o) => !o && setLinkPickerTaskId(null)}
         onSelect={(linkType, linkId) => handleLink(linkType, linkId)}
       />
+
+      <EditTaskModal
+        task={tasks.find((t) => t.id === editTaskId) ?? null}
+        open={editTaskId !== null}
+        onOpenChange={(o) => !o && setEditTaskId(null)}
+        onSave={handleEditSave}
+      />
     </>
+  )
+}
+
+/* =========================================================
+   Modal de edición — título y prioridad de una tarjeta ya creada
+   ========================================================= */
+function EditTaskModal({
+  task, open, onOpenChange, onSave,
+}: {
+  task: Task | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (id: string, title: string, priority: TaskPriority) => void
+}) {
+  const [title, setTitle] = useState('')
+  const [priority, setPriority] = useState<TaskPriority>('medium')
+
+  // 👇 sincroniza el form con la tarjeta elegida cada vez que se abre —
+  // el modal no se desmonta entre aperturas, así que un useState inicial
+  // solo no alcanza si se abre para tarjetas distintas.
+  React.useEffect(() => {
+    if (open && task) {
+      setTitle(task.title)
+      setPriority(task.priority ?? 'medium')
+    }
+  }, [open, task])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!task || !title.trim()) return
+    onSave(task.id, title.trim(), priority)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar tarjeta</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <textarea
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-lg border border-input bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            rows={3}
+          />
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Prioridad</p>
+            <PrioritySelector value={priority} onChange={setPriority} />
+          </div>
+          <DialogFooter>
+            <button type="button" onClick={() => onOpenChange(false)} className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+              Cancelar
+            </button>
+            <button type="submit" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background">
+              Guardar
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -295,13 +385,14 @@ function PrioritySelector({ value, onChange, large }: { value: TaskPriority; onC
    Contenido compartido de una tarjeta
    ========================================================= */
 function TaskCardBody({
-  card, canEdit, large, onDelete, onLinkRequest,
+  card, canEdit, large, onDelete, onLinkRequest, onEditRequest,
 }: {
   card: Task
   canEdit: boolean
   large?: boolean
   onDelete: (id: string) => void
   onLinkRequest: (id: string) => void
+  onEditRequest: (id: string) => void
 }) {
   const href = linkHref(card.linkType, card.linkId)
   const linkMeta = card.linkType ? LINK_META[card.linkType] : null
@@ -345,15 +436,28 @@ function TaskCardBody({
       </div>
 
       {canEdit && (
-        <button
-          type="button"
-          onClick={() => onDelete(card.id)}
-          className={`shrink-0 rounded text-muted-foreground/60 transition-colors hover:!text-destructive ${
-            large ? 'p-1.5' : 'p-0.5 md:text-muted-foreground/0 md:group-hover:text-muted-foreground/60'
-          }`}
-        >
-          <Trash className={large ? 'h-5 w-5' : 'h-3.5 w-3.5'} />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => onEditRequest(card.id)}
+            className={`rounded text-muted-foreground/60 transition-colors hover:!text-foreground ${
+              large ? 'p-1.5' : 'p-0.5 md:text-muted-foreground/0 md:group-hover:text-muted-foreground/60'
+            }`}
+            title="Editar título y prioridad"
+          >
+            <Pencil className={large ? 'h-5 w-5' : 'h-3.5 w-3.5'} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(card.id)}
+            className={`rounded text-muted-foreground/60 transition-colors hover:!text-destructive ${
+              large ? 'p-1.5' : 'p-0.5 md:text-muted-foreground/0 md:group-hover:text-muted-foreground/60'
+            }`}
+            title="Eliminar"
+          >
+            <Trash className={large ? 'h-5 w-5' : 'h-3.5 w-3.5'} />
+          </button>
+        </div>
       )}
     </div>
   )
@@ -363,7 +467,7 @@ function TaskCardBody({
    MOBILE — lista de cards de una columna, con flechas de mover
    ========================================================= */
 function MobileColumnCards({
-  column, accentBorder, emptyLabel, cards, canMoveLeft, canMoveRight, canEdit, large, onMove, onAdd, onDelete, onLinkRequest,
+  column, accentBorder, emptyLabel, cards, canMoveLeft, canMoveRight, canEdit, large, onMove, onAdd, onDelete, onLinkRequest, onEditRequest,
 }: {
   column: TaskColumn
   accentBorder: string
@@ -377,6 +481,7 @@ function MobileColumnCards({
   onAdd: (column: TaskColumn, title: string, priority: TaskPriority) => void
   onDelete: (id: string) => void
   onLinkRequest: (id: string) => void
+  onEditRequest: (id: string) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
@@ -406,7 +511,7 @@ function MobileColumnCards({
           >
             <div className={large ? 'p-4' : 'p-3'}>
               <p className={`leading-snug text-card-foreground ${large ? 'text-base' : 'text-sm'}`}>{card.title}</p>
-              <TaskCardBody card={card} canEdit={canEdit} large={large} onDelete={onDelete} onLinkRequest={onLinkRequest} />
+              <TaskCardBody card={card} canEdit={canEdit} large={large} onDelete={onDelete} onLinkRequest={onLinkRequest} onEditRequest={onEditRequest} />
 
               <div className={`flex items-center gap-2 border-t border-border ${large ? 'mt-4 pt-4' : 'mt-2.5 pt-2.5'}`}>
                 <button
@@ -485,7 +590,7 @@ function MobileColumnCards({
    DESKTOP — columna con drag & drop nativo
    ========================================================= */
 function Column({
-  title, dot, accentBorder, emptyLabel, column, cards, canEdit, large, onDrop, onAdd, onDelete, onLinkRequest,
+  title, dot, accentBorder, emptyLabel, column, cards, canEdit, large, onDrop, onAdd, onDelete, onLinkRequest, onEditRequest,
 }: {
   title: string
   dot: string
@@ -499,6 +604,7 @@ function Column({
   onAdd: (column: TaskColumn, title: string, priority: TaskPriority) => void
   onDelete: (id: string) => void
   onLinkRequest: (taskId: string) => void
+  onEditRequest: (taskId: string) => void
 }) {
   const [active, setActive] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -579,7 +685,7 @@ function Column({
                     <p className={`flex-1 leading-snug text-card-foreground ${large ? 'text-base' : 'text-sm'}`}>{card.title}</p>
                   </div>
                   <div className={large ? 'pl-6' : 'pl-5'}>
-                    <TaskCardBody card={card} canEdit={canEdit} large={large} onDelete={onDelete} onLinkRequest={onLinkRequest} />
+                    <TaskCardBody card={card} canEdit={canEdit} large={large} onDelete={onDelete} onLinkRequest={onLinkRequest} onEditRequest={onEditRequest} />
                   </div>
                 </div>
               </motion.div>
