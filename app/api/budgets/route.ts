@@ -54,6 +54,13 @@ export async function GET(request: Request) {
             receipt: { select: { id: true } },
           },
         },
+        // 👇 nuevo — cobros del módulo "Cobros" vinculados a este trabajo,
+        // livianos (solo lo que suma a "cobrado"), para que Documentos no
+        // subestime lo cobrado si el pago se cargó ahí en vez de un recibo.
+        cobros: {
+          where: { status: 'paid' },
+          select: { id: true, amount: true },
+        },
       },
     })
 

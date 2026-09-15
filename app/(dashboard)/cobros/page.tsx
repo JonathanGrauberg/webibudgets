@@ -1,11 +1,13 @@
 'use client'
 //app\(dashboard)\cobros\page.tsx
 //
-// Módulo de Cobros — cargos recurrentes a clientes SIN presupuesto (ej:
-// cuota mensual de mantenimiento/marketing). Documento propio, con sus
-// propias métricas mensuales, separado a propósito de Presupuestos y
-// Documentos para no mezclar "lo presupuestado" con "lo que se cobra todos
-// los meses".
+// Módulo de Cobros — cargos recurrentes a clientes (ej: cuota mensual de
+// mantenimiento/marketing), o el pago puntual de un trabajo cuando se
+// vincula a un presupuesto (opcional — ver LinkBudgetDialog más abajo, ese
+// vínculo hace que este cobro sume al "cobrado" de ese presupuesto en
+// Documentos/Rendiciones). Documento propio, con sus propias métricas
+// mensuales, separado a propósito de Presupuestos y Documentos para no
+// mezclar "lo presupuestado" con "lo que se cobra todos los meses".
 
 import { useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
@@ -37,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet } from 'lucide-react'
+import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet, FileText, X } from 'lucide-react'
 import { buildWhatsappLink } from '@/lib/whatsapp'
 import { formatCurrency } from '@/lib/format'
 
@@ -57,6 +59,14 @@ type Cobro = {
   periodMonth: string
   paymentMethod: string | null
   client: { id: string; name: string; company: string | null } | null
+  budget: { id: string; budgetNumber: number; total: number } | null
+}
+
+type BudgetOption = {
+  id: string
+  budgetNumber: number
+  total: number
+  client?: { id: string; name: string | null; company: string | null } | null
 }
 
 type Client = { id: string; name: string; company: string | null; whatsappNumber?: string | null }
@@ -82,6 +92,7 @@ export default function CobrosPage() {
   const [period, setPeriod] = useState(currentPeriod())
   const [createOpen, setCreateOpen] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [linkDialogCobro, setLinkDialogCobro] = useState<Cobro | null>(null)
 
   const { data: cobros, isLoading } = useSWR<Cobro[]>(`/api/cobros?period=${period}`, fetcher)
   const { data: clients } = useSWR<Client[]>('/api/clients', fetcher)
@@ -169,6 +180,26 @@ export default function CobrosPage() {
       }
       toast.success('Se creó el cobro para el mes que viene')
       mutate((key) => typeof key === 'string' && key.startsWith('/api/cobros?period='))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleLinkBudget(cobroId: string, budgetId: string | null) {
+    setBusyId(cobroId)
+    try {
+      const res = await fetch(`/api/cobros/${cobroId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budgetId }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => null)
+        toast.error(json?.error ?? 'No se pudo vincular el presupuesto')
+        return
+      }
+      toast.success(budgetId ? 'Presupuesto vinculado' : 'Presupuesto desvinculado')
+      mutate(`/api/cobros?period=${period}`)
     } finally {
       setBusyId(null)
     }
@@ -264,6 +295,8 @@ export default function CobrosPage() {
                   onMarkPaid={() => handleMarkPaid(c.id)}
                   onDuplicate={() => handleDuplicate(c.id)}
                   onDelete={() => handleDelete(c.id)}
+                  onLinkBudget={() => setLinkDialogCobro(c)}
+                  onUnlinkBudget={() => handleLinkBudget(c.id, null)}
                 />
               ))}
             </div>
@@ -277,6 +310,7 @@ export default function CobrosPage() {
                       <TableRow>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Concepto</TableHead>
+                        <TableHead>Presupuesto</TableHead>
                         <TableHead className="text-right">Monto</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
@@ -287,6 +321,24 @@ export default function CobrosPage() {
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.client?.company || c.client?.name || '—'}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{c.concept}</TableCell>
+                          <TableCell>
+                            {c.budget ? (
+                              <button
+                                type="button"
+                                disabled={busyId === c.id}
+                                onClick={() => handleLinkBudget(c.id, null)}
+                                className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                title="Click para desvincular"
+                              >
+                                <FileText className="h-3 w-3" /> #{String(c.budget.budgetNumber).padStart(6, '0')}
+                                <X className="h-3 w-3 opacity-60" />
+                              </button>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground" disabled={busyId === c.id} onClick={() => setLinkDialogCobro(c)}>
+                                <FileText className="h-3.5 w-3.5" /> Vincular
+                              </Button>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right font-medium">{formatCurrency(c.amount, c.currency)}</TableCell>
                           <TableCell>
                             <Badge className={c.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
@@ -334,7 +386,79 @@ export default function CobrosPage() {
         defaultPeriod={period}
         onCreated={() => mutate(`/api/cobros?period=${period}`)}
       />
+
+      <LinkBudgetDialog
+        open={!!linkDialogCobro}
+        onOpenChange={(o) => !o && setLinkDialogCobro(null)}
+        onSelect={(budgetId) => {
+          if (linkDialogCobro) handleLinkBudget(linkDialogCobro.id, budgetId)
+          setLinkDialogCobro(null)
+        }}
+      />
     </div>
+  )
+}
+
+// 👇 nuevo — buscador simple de presupuesto para vincular un cobro. A
+// diferencia del picker de Tareas, acá solo interesa el presupuesto en sí
+// (el cobro no se vincula a un recibo o remito puntual).
+function LinkBudgetDialog({
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSelect: (budgetId: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const { data: budgets = [] } = useSWR<BudgetOption[]>(open ? '/api/budgets' : null, fetcher)
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return budgets.slice(0, 20)
+    return budgets.filter((b) => {
+      const name = (b.client?.company || b.client?.name || '').toLowerCase()
+      const num = String(b.budgetNumber ?? 0).padStart(6, '0')
+      return name.includes(term) || num.includes(term)
+    })
+  }, [budgets, search])
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setSearch(''); onOpenChange(o) }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Vincular a un presupuesto</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input
+            placeholder="Buscar por cliente o número..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="max-h-72 space-y-1 overflow-y-auto">
+            {filtered.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => onSelect(b.id)}
+                className="flex w-full items-center justify-between rounded-lg border p-2.5 text-left text-sm hover:bg-muted/50"
+              >
+                <span>{b.client?.company || b.client?.name || '—'}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{formatCurrency(b.total)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">#{String(b.budgetNumber ?? 0).padStart(6, '0')}</span>
+                </span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">Sin resultados</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -346,6 +470,8 @@ function CobroCard({
   onMarkPaid,
   onDuplicate,
   onDelete,
+  onLinkBudget,
+  onUnlinkBudget,
 }: {
   cobro: Cobro
   busy: boolean
@@ -354,6 +480,8 @@ function CobroCard({
   onMarkPaid: () => void
   onDuplicate: () => void
   onDelete: () => void
+  onLinkBudget: () => void
+  onUnlinkBudget: () => void
 }) {
   return (
     <Card>
@@ -368,6 +496,21 @@ function CobroCard({
           </Badge>
         </div>
         <p className="text-lg font-bold">{formatCurrency(cobro.amount, cobro.currency)}</p>
+        {cobro.budget ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onUnlinkBudget}
+            className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+          >
+            <FileText className="h-3 w-3" /> Presupuesto #{String(cobro.budget.budgetNumber).padStart(6, '0')}
+            <X className="h-3 w-3 opacity-60" />
+          </button>
+        ) : (
+          <Button variant="ghost" size="sm" className="h-7 gap-1 px-0 text-xs text-muted-foreground" disabled={busy} onClick={onLinkBudget}>
+            <FileText className="h-3.5 w-3.5" /> Vincular a un presupuesto
+          </Button>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy} onClick={onCopyLink}>
             <Link2 className="mr-1.5 h-3.5 w-3.5" /> Link
@@ -412,12 +555,15 @@ function CreateCobroDialog({
   const [amount, setAmount] = useState('')
   const [period, setPeriod] = useState(defaultPeriod)
   const [saving, setSaving] = useState(false)
+  const [linkedBudget, setLinkedBudget] = useState<BudgetOption | null>(null)
+  const [budgetPickerOpen, setBudgetPickerOpen] = useState(false)
 
   function reset() {
     setClientId('')
     setConcept('')
     setAmount('')
     setPeriod(defaultPeriod)
+    setLinkedBudget(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -431,7 +577,13 @@ function CreateCobroDialog({
       const res = await fetch('/api/cobros', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId, concept: concept.trim(), amount: Number(amount), periodMonth: period }),
+        body: JSON.stringify({
+          clientId,
+          concept: concept.trim(),
+          amount: Number(amount),
+          periodMonth: period,
+          budgetId: linkedBudget?.id ?? null,
+        }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) {
@@ -493,6 +645,29 @@ function CreateCobroDialog({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Presupuesto / trabajo (opcional)</label>
+            {linkedBudget ? (
+              <button
+                type="button"
+                onClick={() => setLinkedBudget(null)}
+                className="flex w-full items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-100"
+              >
+                <span className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" /> #{String(linkedBudget.budgetNumber).padStart(6, '0')} — {formatCurrency(linkedBudget.total)}
+                </span>
+                <X className="h-3.5 w-3.5 opacity-60" />
+              </button>
+            ) : (
+              <Button type="button" variant="outline" size="sm" className="w-full gap-1.5 text-muted-foreground" onClick={() => setBudgetPickerOpen(true)}>
+                <FileText className="h-3.5 w-3.5" /> Vincular a un presupuesto
+              </Button>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Si este cobro es el pago (total o parcial) de un trabajo puntual, vinculalo — así se descuenta de lo que falta cobrar en Documentos.
+            </p>
+          </div>
+
           <DialogFooter>
             <Button type="submit" disabled={saving} className="w-full">
               {saving ? 'Guardando...' : 'Crear cobro'}
@@ -500,6 +675,17 @@ function CreateCobroDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <LinkBudgetDialog
+        open={budgetPickerOpen}
+        onOpenChange={setBudgetPickerOpen}
+        onSelect={(budgetId) => {
+          setBudgetPickerOpen(false)
+          fetch(`/api/budgets/${budgetId}`)
+            .then((r) => r.json())
+            .then((b) => setLinkedBudget({ id: b.id, budgetNumber: b.budgetNumber, total: b.total, client: b.client }))
+        }}
+      />
     </Dialog>
   )
 }

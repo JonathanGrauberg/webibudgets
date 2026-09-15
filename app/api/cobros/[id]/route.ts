@@ -35,10 +35,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (data.amount !== undefined) updateData.amount = Number(data.amount)
     if (data.notes !== undefined) updateData.notes = data.notes || null
 
+    // 👇 nuevo — (des)vincular un presupuesto/trabajo. `null` explícito desvincula.
+    if (data.budgetId !== undefined) {
+      if (data.budgetId === null) {
+        updateData.budgetId = null
+      } else {
+        const budget = await prisma.budget.findFirst({ where: { id: data.budgetId, tenantId }, select: { id: true } })
+        if (!budget) {
+          return NextResponse.json({ error: 'El presupuesto no existe o no pertenece al tenant' }, { status: 404 })
+        }
+        updateData.budgetId = budget.id
+      }
+    }
+
     const cobro = await prisma.cobro.update({
       where: { id },
       data: updateData,
-      include: { client: { select: { id: true, name: true, company: true } } },
+      include: {
+        client: { select: { id: true, name: true, company: true } },
+        budget: { select: { id: true, budgetNumber: true, total: true } },
+      },
     })
 
     return NextResponse.json(cobro)

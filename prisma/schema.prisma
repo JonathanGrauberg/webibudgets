@@ -434,6 +434,13 @@ model Cobro {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
+  // 👇 nuevo — opcional: si viene cargado, este cobro es (total o
+  // parcialmente) el pago de un trabajo puntual, y suma a su "cobrado" en
+  // Documentos/Rendiciones. Si no, es un cargo recurrente sin presupuesto
+  // (el caso original del módulo).
+  budgetId String?
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
   cobroNumber Int
 
   concept  String
@@ -464,6 +471,7 @@ model Cobro {
   @@index([tenantId])
   @@index([clientId])
   @@index([periodMonth])
+  @@index([budgetId])
 }
 
 /* =========================
@@ -633,6 +641,7 @@ model Budget {
   attachConditionsPdf Boolean @default(true) // 👈 nuevo — se guarda por presupuesto, no solo en el form
 
   expenses Expense[] // 👈 nuevo
+  cobros   Cobro[]   // 👈 nuevo — cobros del módulo "Cobros" vinculados a este trabajo
 
   // 👇 nuevo — Cobro online con Mercado Pago (opcional, convive con el flujo normal)
   publicToken   String?  @unique // token random para el portal público /p/[token], regenerable sin tocar el id real

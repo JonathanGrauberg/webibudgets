@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     orderBy: [{ periodMonth: 'desc' }, { cobroNumber: 'desc' }],
     include: {
       client: { select: { id: true, name: true, company: true } },
+      budget: { select: { id: true, budgetNumber: true, total: true } },
     },
   })
 
@@ -46,6 +47,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cliente no encontrado o no pertenece al tenant' }, { status: 404 })
     }
 
+    // 👇 nuevo — vínculo opcional a un presupuesto/trabajo puntual
+    let budgetId: string | null = null
+    if (data.budgetId) {
+      const budget = await prisma.budget.findFirst({ where: { id: data.budgetId, tenantId }, select: { id: true } })
+      if (!budget) {
+        return NextResponse.json({ error: 'El presupuesto no existe o no pertenece al tenant' }, { status: 404 })
+      }
+      budgetId = budget.id
+    }
+
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { cobroSequence: true, currency: true } })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -58,6 +69,7 @@ export async function POST(request: Request) {
       data: {
         tenantId,
         clientId: data.clientId,
+        budgetId,
         cobroNumber,
         concept: String(data.concept).trim(),
         amount: Number(data.amount),
@@ -65,7 +77,10 @@ export async function POST(request: Request) {
         periodMonth: parsePeriodMonth(data.periodMonth),
         notes: data.notes || null,
       },
-      include: { client: { select: { id: true, name: true, company: true } } },
+      include: {
+        client: { select: { id: true, name: true, company: true } },
+        budget: { select: { id: true, budgetNumber: true, total: true } },
+      },
     })
 
     return NextResponse.json(cobro, { status: 201 })

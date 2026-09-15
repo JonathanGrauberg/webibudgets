@@ -18,7 +18,7 @@ export async function getCollectedByBudgetIds(budgetIds: string[]): Promise<Map<
   const map = new Map<string, number>()
   if (budgetIds.length === 0) return map
 
-  const [receipts, payments] = await Promise.all([
+  const [receipts, payments, cobros] = await Promise.all([
     prisma.receipt.findMany({
       // 👇 sourceBudgetPaymentId: null — un recibo generado desde "¿Crear
       // recibo de este pago?" es solo un comprobante imprimible, la plata
@@ -30,6 +30,12 @@ export async function getCollectedByBudgetIds(budgetIds: string[]): Promise<Map<
       where: { budgetId: { in: budgetIds }, status: 'approved' },
       select: { budgetId: true, amount: true },
     }),
+    // 👇 nuevo — un Cobro (módulo "Cobros") puede vincularse a un trabajo
+    // puntual; si ya está pagado, esa plata también cuenta como "cobrada".
+    prisma.cobro.findMany({
+      where: { budgetId: { in: budgetIds }, status: 'paid' },
+      select: { budgetId: true, amount: true },
+    }),
   ])
 
   for (const r of receipts) {
@@ -38,6 +44,10 @@ export async function getCollectedByBudgetIds(budgetIds: string[]): Promise<Map<
   }
   for (const p of payments) {
     map.set(p.budgetId, (map.get(p.budgetId) ?? 0) + Number(p.amount || 0))
+  }
+  for (const c of cobros) {
+    if (!c.budgetId) continue
+    map.set(c.budgetId, (map.get(c.budgetId) ?? 0) + Number(c.amount || 0))
   }
 
   return map

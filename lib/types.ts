@@ -182,6 +182,7 @@ export interface Budget {
   depositType?: 'percent' | 'fixed' | null
   depositValue?: number | null
   payments?: { id: string; amount: number; receipt: { id: string } | null }[] // 👈 solo los aprobados (ver app/api/budgets/route.ts)
+  cobros?: { id: string; amount: number }[] // 👈 nuevo — solo los pagados (ver app/api/budgets/route.ts)
 
   createdAt: Date
   updatedAt: Date

@@ -160,13 +160,16 @@ function DirectDocButton({
   )
 }
 
-// Componente para ver el Estado del Cobro / Saldo Pendiente
+// Componente para ver el Estado del Cobro / Saldo Pendiente. Si falta
+// cobrar algo, es clickeable — abre el recibo del faltante precargado.
 function PaymentStatusBadge({
   total,
   collected,
+  onClickFalta,
 }: {
   total: number
   collected: number
+  onClickFalta?: () => void
 }) {
   const pending = Math.max(0, total - collected)
 
@@ -180,21 +183,28 @@ function PaymentStatusBadge({
 
   if (collected > 0 && pending > 0) {
     return (
-      <div className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        onClick={onClickFalta}
+        className="flex flex-col items-start gap-0.5 text-left"
+        title="Generar el recibo del faltante"
+      >
         <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 font-medium gap-1 w-fit">
           <Clock className="h-3 w-3 text-amber-600" /> Falta {formatCurrency(pending)}
         </Badge>
         <span className="text-[10px] text-slate-500 font-normal">
           Cobrado: {formatCurrency(collected)}
         </span>
-      </div>
+      </button>
     )
   }
 
   return (
-    <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 font-medium gap-1">
-      <AlertCircle className="h-3 w-3 text-slate-400" /> Pendiente {formatCurrency(pending)}
-    </Badge>
+    <button type="button" onClick={onClickFalta} title="Generar recibo">
+      <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 font-medium gap-1">
+        <AlertCircle className="h-3 w-3 text-slate-400" /> Pendiente {formatCurrency(pending)}
+      </Badge>
+    </button>
   )
 }
 
@@ -344,6 +354,8 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('approved_completed')
   const [standaloneReceiptOpen, setStandaloneReceiptOpen] = useState(false) // 👈 nuevo
   const [showVoidedReceipts, setShowVoidedReceipts] = useState(false) //👈 nuevo
+  // 👇 nuevo — click en el badge "Falta $X" abre el recibo del faltante directo
+  const [quickReceiptBudget, setQuickReceiptBudget] = useState<Budget | null>(null)
   const { filterBudgets } = usePermissions()
 
   // Obtenemos presupuestos y todos los recibos
@@ -411,6 +423,11 @@ export default function DocumentsPage() {
     const mpAmount = (b.payments ?? []).reduce((acc, p) => acc + Number(p.amount || 0), 0)
     if (mpAmount > 0) {
       collectedMap[b.id] = (collectedMap[b.id] || 0) + mpAmount
+    }
+    // 👇 nuevo — cobros del módulo "Cobros" vinculados a este trabajo y ya pagados
+    const cobrosAmount = (b.cobros ?? []).reduce((acc, c) => acc + Number(c.amount || 0), 0)
+    if (cobrosAmount > 0) {
+      collectedMap[b.id] = (collectedMap[b.id] || 0) + cobrosAmount
     }
   })
 
@@ -623,7 +640,7 @@ export default function DocumentsPage() {
                         {formatCurrency(b.total || 0)}
                       </span>
                       {showsPaymentStatus(b.status) ? (
-                        <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                        <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
@@ -749,7 +766,7 @@ export default function DocumentsPage() {
                         </TableCell>
                         <TableCell>
                           {showsPaymentStatus(b.status) ? (
-                            <PaymentStatusBadge total={b.total || 0} collected={collected} />
+                            <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
                           ) : (
                             <span className="text-xs text-slate-400">—</span>
                           )}
@@ -778,6 +795,17 @@ export default function DocumentsPage() {
         onCreated={() => {
           mutateReceipts()
         }}
+      />
+
+      {/* 👇 nuevo — click en "Falta $X" abre este mismo modal, precargado con el faltante */}
+      <CreateReceiptModal
+        open={!!quickReceiptBudget}
+        onOpenChange={(open) => !open && setQuickReceiptBudget(null)}
+        budgetId={quickReceiptBudget?.id}
+        budgetTotal={quickReceiptBudget?.total}
+        alreadyCollected={quickReceiptBudget ? getCollectedAmount(quickReceiptBudget.id) : undefined}
+        budgetNumber={quickReceiptBudget?.budgetNumber ?? undefined}
+        onCreated={handleDocumentChange}
       />
     </div>
   )
