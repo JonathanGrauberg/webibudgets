@@ -8,6 +8,8 @@ import {
   getBudgetStatusStats,
   getTopRequestedProducts, // 👈 nuevo
   getTopClients,
+  getCobrosGastosSummary, // 👈 nuevo
+  getMonthlyCashflow, // 👈 nuevo
 } from '@/lib/dashboard-store'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 
@@ -30,6 +32,8 @@ export async function GET(request: Request) {
     const statusStats = await getBudgetStatusStats(tenantId)
     const topRequestedProducts = await getTopRequestedProducts(tenantId, 6)
     const topClients = await getTopClients(tenantId, 5)
+    const cobrosGastos = await getCobrosGastosSummary(tenantId, range) // 👈 nuevo
+    const monthlyCashflow = await getMonthlyCashflow(tenantId) // 👈 nuevo
 
     return NextResponse.json({
       stats,
@@ -39,6 +43,8 @@ export async function GET(request: Request) {
       statusStats,
       topRequestedProducts,
       topClients,
+      cobrosGastos,
+      monthlyCashflow,
     })
   } catch (error) {
     console.error('Dashboard API error:', error)

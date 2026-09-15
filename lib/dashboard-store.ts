@@ -42,22 +42,24 @@ export async function getDashboardStats(
     where: { tenantId, active: true },
   }) // 👈 sin filtro, a propósito
 
-  const totalBudgets = await prisma.budget.count({ where: { tenantId, ...dateFilter } })
+  // 👇 un presupuesto desactivado se maneja como si estuviera borrado — no
+  // debe influir en ningún número del dashboard, solo vuelve a contar si se reactiva.
+  const totalBudgets = await prisma.budget.count({ where: { tenantId, active: true, ...dateFilter } })
   const approvedBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'approved', ...dateFilter },
+    where: { tenantId, active: true, status: 'approved', ...dateFilter },
   })
   const draftBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'draft', ...dateFilter },
+    where: { tenantId, active: true, status: 'draft', ...dateFilter },
   })
   const sentBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'sent', ...dateFilter },
+    where: { tenantId, active: true, status: 'sent', ...dateFilter },
   })
   const rejectedBudgets = await prisma.budget.count({
-    where: { tenantId, status: 'rejected', ...dateFilter },
+    where: { tenantId, active: true, status: 'rejected', ...dateFilter },
   })
 
   const approvedRevenue = await prisma.budget.aggregate({
-    where: { tenantId, status: 'approved', ...dateFilter },
+    where: { tenantId, active: true, status: 'approved', ...dateFilter },
     _sum: { total: true },
   })
 
@@ -84,7 +86,7 @@ export interface CollectedStats {
 // el cobro parcial online.
 export async function getCollectedStats(tenantId: string): Promise<CollectedStats> {
   const budgets = await prisma.budget.findMany({
-    where: { tenantId, status: { in: PAYABLE_STATUSES } },
+    where: { tenantId, active: true, status: { in: PAYABLE_STATUSES } },
     select: { id: true, total: true },
   })
 
@@ -111,7 +113,7 @@ export async function getRecentBudgets(
   limit = 5
 ): Promise<RecentBudget[]> {
   const budgets = await prisma.budget.findMany({
-    where: { tenantId },
+    where: { tenantId, active: true },
     take: limit,
     orderBy: { createdAt: 'desc' },
     include: {
@@ -148,7 +150,7 @@ export async function getRecentBudgets(
 
 export async function getMonthlyRevenue(tenantId: string) {
   const approved = await prisma.budget.findMany({
-    where: { tenantId, status: 'approved' },
+    where: { tenantId, active: true, status: 'approved' },
     select: {
       total: true,
       createdAt: true,
@@ -176,7 +178,7 @@ export interface BudgetStatusCount {
 export async function getBudgetStatusStats(tenantId: string): Promise<BudgetStatusCount[]> {
   const grouped = await prisma.budget.groupBy({
     by: ['status'],
-    where: { tenantId },
+    where: { tenantId, active: true },
     _count: { status: true },
   })
 
@@ -200,7 +202,7 @@ export interface TopClient {
 export async function getTopClients(tenantId: string, limit = 5): Promise<TopClient[]> {
   const grouped = await prisma.budget.groupBy({
     by: ['clientId'],
-    where: { tenantId, status: { in: ['approved', 'completed'] } },
+    where: { tenantId, active: true, status: { in: ['approved', 'completed'] } },
     _sum: { total: true },
     _count: { clientId: true },
     orderBy: { _sum: { total: 'desc' } },
@@ -229,6 +231,154 @@ export async function getTopClients(tenantId: string, limit = 5): Promise<TopCli
     .filter((x): x is TopClient => x !== null)
 }
 
+export interface RecentCobro {
+  id: string
+  concept: string
+  amount: number
+  currency: string
+  status: string
+  periodMonth: Date
+  client: { name: string | null; company: string | null } | null
+}
+
+export interface RecentGasto {
+  id: string
+  description: string
+  amount: number
+  currency: string
+  date: Date
+  categoryName: string | null
+}
+
+export interface CobrosGastosSummary {
+  cobros: {
+    recent: RecentCobro[]
+    totalCobrado: number  // cobros con status=paid, paidAt dentro del período elegido
+    totalPendiente: number // cobros pending, periodMonth dentro del período elegido
+  }
+  gastos: {
+    recent: RecentGasto[]
+    total: number // suma de todos los gastos (generales + por trabajo) con date dentro del período elegido
+  }
+}
+
+// 👇 nuevo — "mostrar los recientes y lo que suman según el período
+// seleccionado": los "recientes" son siempre los últimos 5 (mismo criterio
+// que Presupuestos Recientes, no depende del selector de período), los
+// totales sí respetan el rango elegido en el dashboard.
+export async function getCobrosGastosSummary(
+  tenantId: string,
+  range?: { from: Date; to: Date }
+): Promise<CobrosGastosSummary> {
+  const [recentCobros, paidInRange, pendingInRange, recentGastos, gastosInRange] = await Promise.all([
+    prisma.cobro.findMany({
+      where: { tenantId },
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: { client: { select: { name: true, company: true } } },
+    }),
+    prisma.cobro.aggregate({
+      where: {
+        tenantId,
+        status: 'paid',
+        ...(range ? { paidAt: { gte: range.from, lte: range.to } } : {}),
+      },
+      _sum: { amount: true },
+    }),
+    prisma.cobro.aggregate({
+      where: {
+        tenantId,
+        status: 'pending',
+        ...(range ? { periodMonth: { gte: range.from, lte: range.to } } : {}),
+      },
+      _sum: { amount: true },
+    }),
+    prisma.expense.findMany({
+      where: { tenantId },
+      take: 5,
+      orderBy: { date: 'desc' },
+      include: { category: { select: { name: true } } },
+    }),
+    prisma.expense.aggregate({
+      where: {
+        tenantId,
+        ...(range ? { date: { gte: range.from, lte: range.to } } : {}),
+      },
+      _sum: { amount: true },
+    }),
+  ])
+
+  return {
+    cobros: {
+      recent: recentCobros.map((c) => ({
+        id: c.id,
+        concept: c.concept,
+        amount: c.amount,
+        currency: c.currency,
+        status: c.status,
+        periodMonth: c.periodMonth,
+        client: c.client ? { name: c.client.name ?? null, company: c.client.company ?? null } : null,
+      })),
+      totalCobrado: paidInRange._sum.amount ?? 0,
+      totalPendiente: pendingInRange._sum.amount ?? 0,
+    },
+    gastos: {
+      recent: recentGastos.map((e) => ({
+        id: e.id,
+        description: e.description,
+        amount: e.amount,
+        currency: e.currency,
+        date: e.date,
+        categoryName: e.category?.name ?? null,
+      })),
+      total: gastosInRange._sum.amount ?? 0,
+    },
+  }
+}
+
+export interface MonthlyCashflow {
+  month: string // 'YYYY-MM'
+  cobrado: number // Cobros pagados (status=paid), por mes de pago
+  gastado: number // Expenses, por mes de la fecha del gasto
+}
+
+// 👇 nuevo — evolución mensual de plata entrando (Cobros pagados) vs
+// saliendo (Gastos), para el gráfico de líneas de Business Intelligence.
+export async function getMonthlyCashflow(tenantId: string): Promise<MonthlyCashflow[]> {
+  const [cobros, gastos] = await Promise.all([
+    prisma.cobro.findMany({
+      where: { tenantId, status: 'paid', paidAt: { not: null } },
+      select: { amount: true, paidAt: true },
+    }),
+    prisma.expense.findMany({
+      where: { tenantId },
+      select: { amount: true, date: true },
+    }),
+  ])
+
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const map = new Map<string, { cobrado: number; gastado: number }>()
+
+  cobros.forEach((c) => {
+    if (!c.paidAt) return
+    const key = monthKey(c.paidAt)
+    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
+    cur.cobrado += c.amount
+    map.set(key, cur)
+  })
+
+  gastos.forEach((e) => {
+    const key = monthKey(e.date)
+    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
+    cur.gastado += e.amount
+    map.set(key, cur)
+  })
+
+  return Array.from(map.entries())
+    .map(([month, v]) => ({ month, ...v }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+}
+
 export interface TopRequestedProduct {
   productServiceId: string
   name: string
@@ -245,7 +395,7 @@ export async function getTopRequestedProducts(
     by: ['productServiceId'],
     where: {
       productServiceId: { not: null },
-      budget: { tenantId },
+      budget: { tenantId, active: true },
     },
     _count: { productServiceId: true },
     orderBy: { _count: { productServiceId: 'desc' } },

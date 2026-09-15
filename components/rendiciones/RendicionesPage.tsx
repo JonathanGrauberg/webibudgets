@@ -458,29 +458,56 @@ export default function RendicionesPage({
             <h2 className="text-sm font-semibold text-slate-900">Facturación por integrante</h2>
             <p className="text-xs text-slate-400">Cuánto facturó cada uno en trabajos saldados de este período</p>
           </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Integrante</TableHead>
-                  <TableHead className="text-right">Trabajos saldados</TableHead>
-                  <TableHead className="text-right">Total facturado</TableHead>
-                  <TableHead className="text-right">% del total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.facturacionPorIntegrante!.map((s) => (
-                  <TableRow key={s.sellerId}>
-                    <TableCell className="font-medium text-slate-800">{s.sellerName}</TableCell>
-                    <TableCell className="text-right text-sm text-slate-600">{s.cantidad}</TableCell>
-                    <TableCell className="text-right text-sm font-semibold text-slate-800">{formatCurrency(s.totalFacturado, currency)}</TableCell>
-                    <TableCell className="text-right text-sm text-slate-500">
-                      {data.totalFacturado > 0 ? formatPercent((s.totalFacturado / data.totalFacturado) * 100) : '—'}
-                    </TableCell>
+          <CardContent className="space-y-5 p-4 sm:p-5">
+            {/* Barras — un vistazo rápido de quién aportó más, antes del detalle en tabla */}
+            <div className="space-y-3">
+              {(() => {
+                const maxFacturado = Math.max(1, ...data.facturacionPorIntegrante!.map((s) => s.totalFacturado));
+                return data.facturacionPorIntegrante!.map((s) => (
+                  <div key={s.sellerId} className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-slate-800">{s.sellerName}</p>
+                        <span className="shrink-0 text-xs font-semibold text-slate-700">
+                          {formatCurrency(s.totalFacturado, currency)}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-blue-600"
+                          style={{ width: `${(s.totalFacturado / maxFacturado) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Integrante</TableHead>
+                    <TableHead className="text-right">Trabajos saldados</TableHead>
+                    <TableHead className="text-right">Total facturado</TableHead>
+                    <TableHead className="text-right">% del total</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data.facturacionPorIntegrante!.map((s) => (
+                    <TableRow key={s.sellerId}>
+                      <TableCell className="font-medium text-slate-800">{s.sellerName}</TableCell>
+                      <TableCell className="text-right text-sm text-slate-600">{s.cantidad}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-slate-800">{formatCurrency(s.totalFacturado, currency)}</TableCell>
+                      <TableCell className="text-right text-sm text-slate-500">
+                        {data.totalFacturado > 0 ? formatPercent((s.totalFacturado / data.totalFacturado) * 100) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

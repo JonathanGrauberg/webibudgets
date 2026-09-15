@@ -25,7 +25,9 @@ import {
   Sparkles,
   BarChart3,
   LayoutDashboard,
-  Wallet
+  Wallet,
+  CreditCard,
+  Receipt
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -33,6 +35,7 @@ import useSWR from 'swr'
 import { hasFeature } from '@/lib/features'
 import { StatusDonut } from '@/components/dashboard/status-donut'
 import { RevenueBarChart } from '@/components/dashboard/revenue-bar-chart'
+import { CashflowLineChart } from '@/components/dashboard/cashflow-line-chart'
 import { TopRequestedProducts } from '@/components/dashboard/top-requested-products'
 import { TopClients } from '@/components/dashboard/top-clients'
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
@@ -84,6 +87,33 @@ interface DashboardResponse {
     totalRevenue: number
     budgetCount: number
   }[]
+  cobrosGastos?: {
+    cobros: {
+      recent: {
+        id: string
+        concept: string
+        amount: number
+        currency: string
+        status: string
+        periodMonth: string
+        client: { name: string | null; company: string | null } | null
+      }[]
+      totalCobrado: number
+      totalPendiente: number
+    }
+    gastos: {
+      recent: {
+        id: string
+        description: string
+        amount: number
+        currency: string
+        date: string
+        categoryName: string | null
+      }[]
+      total: number
+    }
+  }
+  monthlyCashflow?: { month: string; cobrado: number; gastado: number }[]
 }
 
 function formatCurrency(amount: number, currency: string = 'ARS'): string {
@@ -458,6 +488,101 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                 )}
               </Card>
             )}
+
+            {/* 👇 nuevo — Cobros y Gastos recientes, con el total según el
+                período elegido arriba (mismo selector que el resto del dashboard) */}
+            {data.cobrosGastos && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card className="rounded-xl shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-emerald-600" />
+                        Cobros
+                      </CardTitle>
+                      <Link href="/cobros" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                        Ver todos <ArrowUpRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div className="flex items-center gap-4 pt-1">
+                      <div>
+                        <p className="text-lg font-bold text-emerald-600">{formatCurrency(data.cobrosGastos.cobros.totalCobrado, currency)}</p>
+                        <p className="text-[11px] text-muted-foreground">Cobrado en el período</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-amber-600">{formatCurrency(data.cobrosGastos.cobros.totalPendiente, currency)}</p>
+                        <p className="text-[11px] text-muted-foreground">Pendiente en el período</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {data.cobrosGastos.cobros.recent.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-muted-foreground">No hay cobros creados aún.</p>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {data.cobrosGastos.cobros.recent.map((c) => (
+                          <div key={c.id} className="flex items-center justify-between py-2.5 px-1">
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {c.client?.company || c.client?.name || c.concept}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{c.concept}</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2 pl-2">
+                              <Badge variant="outline" className={c.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>
+                                {c.status === 'paid' ? 'Pagado' : 'Pendiente'}
+                              </Badge>
+                              <span className="w-24 text-right text-sm font-semibold text-foreground">
+                                {formatCurrency(c.amount, c.currency)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-xl shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Receipt className="h-4 w-4 text-red-500" />
+                        Gastos
+                      </CardTitle>
+                      <Link href="/expenses" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                        Ver todos <ArrowUpRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-lg font-bold text-red-600">{formatCurrency(data.cobrosGastos.gastos.total, currency)}</p>
+                      <p className="text-[11px] text-muted-foreground">Gastado en el período</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {data.cobrosGastos.gastos.recent.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-muted-foreground">No hay gastos cargados aún.</p>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {data.cobrosGastos.gastos.recent.map((e) => (
+                          <div key={e.id} className="flex items-center justify-between py-2.5 px-1">
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">{e.description}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {e.categoryName ?? 'Sin categoría'} • {formatDate(e.date)}
+                              </p>
+                            </div>
+                            <span className="w-24 shrink-0 text-right text-sm font-semibold text-red-600">
+                              -{formatCurrency(e.amount, e.currency)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           {/* TAB 2: BUSINESS INTELLIGENCE & MÉTRICAS */}
@@ -546,6 +671,17 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* 👇 nuevo — evolución mensual de cobros vs gastos, en línea */}
+                  <Card className="rounded-xl shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Cobrado vs. Gastado por mes</CardTitle>
+                      <CardDescription className="text-xs">Plata que entró (Cobros pagados) contra plata que salió (Gastos), últimos 6 meses</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <CashflowLineChart data={data.monthlyCashflow ?? []} currency={currency} />
+                    </CardContent>
+                  </Card>
 
                   {/* Más Solicitados + Top Clientes */}
                   <div className="grid gap-6 lg:grid-cols-2">
