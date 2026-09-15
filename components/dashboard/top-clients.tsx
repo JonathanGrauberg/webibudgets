@@ -24,8 +24,11 @@ function formatCurrency(amount: number, currency: string) {
   }).format(amount)
 }
 
-export function TopClients({ clients, accentColor, currency = 'ARS' }: TopClientsProps) {
-  const accent = accentColor || '#0f172a'
+// 👇 un color distinto por fila en vez de un único accent (que sin marca
+// configurada caía en un gris casi negro y quedaba todo el ranking parejo/pálido).
+const BAR_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4']
+
+export function TopClients({ clients, currency = 'ARS' }: TopClientsProps) {
   const maxRevenue = useMemo(
     () => Math.max(1, ...clients.map((c) => c.totalRevenue)),
     [clients]
@@ -61,7 +64,7 @@ export function TopClients({ clients, accentColor, currency = 'ARS' }: TopClient
                 className="h-full rounded-full"
                 style={{
                   width: `${(c.totalRevenue / maxRevenue) * 100}%`,
-                  backgroundColor: accent,
+                  backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length],
                 }}
               />
             </div>

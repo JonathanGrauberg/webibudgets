@@ -16,8 +16,11 @@ interface TopRequestedProductsProps {
   accentColor?: string | null
 }
 
-export function TopRequestedProducts({ products, accentColor }: TopRequestedProductsProps) {
-  const accent = accentColor || '#0f172a'
+// 👇 un color distinto por fila en vez de un único accent (que sin marca
+// configurada caía en un gris casi negro y quedaba todo el ranking parejo/pálido).
+const BAR_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4']
+
+export function TopRequestedProducts({ products }: TopRequestedProductsProps) {
   const maxCount = useMemo(
     () => Math.max(1, ...products.map((p) => p.requestCount)),
     [products]
@@ -51,7 +54,7 @@ export function TopRequestedProducts({ products, accentColor }: TopRequestedProd
                 className="h-full rounded-full"
                 style={{
                   width: `${(p.requestCount / maxCount) * 100}%`,
-                  backgroundColor: accent,
+                  backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length],
                 }}
               />
             </div>

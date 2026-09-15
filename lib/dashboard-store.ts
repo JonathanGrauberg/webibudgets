@@ -1,7 +1,7 @@
 //lib\dashboard-store.ts
 import { prisma } from '@/lib/prisma'
 import type { ProductCategory, BudgetStatus } from '@prisma/client' // 👈 nuevo
-import { getCollectedByBudgetIds } from '@/lib/collected-amount'
+import { getCollectedByBudgetIds, isReceiptActive } from '@/lib/collected-amount'
 
 // Estados de presupuesto donde el cobro es una expectativa REAL, no una
 // suposición — un 'sent' todavía no lo aprobó el cliente, así que contarlo
@@ -347,7 +347,20 @@ export interface MonthlyCashflow {
 // 👇 nuevo — evolución mensual de plata entrando (Cobros pagados) vs
 // saliendo (Gastos), para el gráfico de líneas de Business Intelligence.
 export async function getMonthlyCashflow(tenantId: string): Promise<MonthlyCashflow[]> {
-  const [cobros, gastos] = await Promise.all([
+  // 👇 "cobrado" tiene que salir de las TRES fuentes de plata real — antes
+  // este gráfico solo miraba Cobros del módulo "Cobros" y por eso a la
+  // mayoría de los tenants (que cobran con recibos manuales o Mercado
+  // Pago, no con el módulo Cobros) el gráfico les salía casi vacío. Mismo
+  // criterio que lib/collected-amount.ts en todos lados.
+  const [receipts, payments, cobros, gastos] = await Promise.all([
+    prisma.receipt.findMany({
+      where: { tenantId, sourceBudgetPaymentId: null },
+      select: { amount: true, status: true, issueDate: true },
+    }),
+    prisma.budgetPayment.findMany({
+      where: { tenantId, status: 'approved' },
+      select: { amount: true, createdAt: true },
+    }),
     prisma.cobro.findMany({
       where: { tenantId, status: 'paid', paidAt: { not: null } },
       select: { amount: true, paidAt: true },
@@ -360,6 +373,21 @@ export async function getMonthlyCashflow(tenantId: string): Promise<MonthlyCashf
 
   const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   const map = new Map<string, { cobrado: number; gastado: number }>()
+
+  receipts.forEach((r) => {
+    if (!isReceiptActive(r.status)) return
+    const key = monthKey(r.issueDate)
+    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
+    cur.cobrado += Number(r.amount || 0)
+    map.set(key, cur)
+  })
+
+  payments.forEach((p) => {
+    const key = monthKey(p.createdAt)
+    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
+    cur.cobrado += Number(p.amount || 0)
+    map.set(key, cur)
+  })
 
   cobros.forEach((c) => {
     if (!c.paidAt) return
