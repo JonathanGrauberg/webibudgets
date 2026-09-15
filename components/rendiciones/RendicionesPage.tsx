@@ -61,10 +61,17 @@ export interface TenantUser {
   role: "admin" | "seller";
 }
 
+export interface FacturacionPorIntegranteRow {
+  sellerId: string;
+  sellerName: string;
+  totalFacturado: number;
+  cantidad: number;
+}
+
 export interface RendicionData {
   id: string;
-  periodStart: string; 
-  periodEnd: string; 
+  periodStart: string;
+  periodEnd: string;
   presupuestosCompletados: number;
   totalFacturado: number;
   totalCosto: number;
@@ -72,6 +79,7 @@ export interface RendicionData {
   totalGastosGenerales: number; // 👈 nuevo — gastos generales del período, ya descontados de totalGanancia
   margenPromedio: number;
   sellers: RendicionSellerRow[];
+  facturacionPorIntegrante?: FacturacionPorIntegranteRow[]; // 👈 nuevo — cuánto facturó cada uno, sin depender de reparto manual
   budgets: RendicionBudgetRow[]; // 👈 ahora representa trabajos SALDADOS, no solo "completados"
   budgetsNoLongerCompleted?: RendicionBudgetRow[]; // trabajos que estaban saldados al generar la rendición pero dejaron de estarlo (ej: se anuló un recibo)
   tenantUsers?: TenantUser[];
@@ -440,6 +448,41 @@ export default function RendicionesPage({
       {/* 👇 nuevo — Tu saldo, solo si sabemos quién está mirando la pantalla */}
       {currentUserId && (
         <MiSaldoCard monto={miSaldo} currency={currency} periodStart={data.periodStart} periodEnd={data.periodEnd} />
+      )}
+
+      {/* 👇 nuevo — cuánto facturó cada integrante este período, sin necesidad
+          de configurar ningún reparto manual. Funciona para 1, 2 o N dueños/vendedores. */}
+      {(data.facturacionPorIntegrante?.length ?? 0) > 0 && (
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="pb-2">
+            <h2 className="text-sm font-semibold text-slate-900">Facturación por integrante</h2>
+            <p className="text-xs text-slate-400">Cuánto facturó cada uno en trabajos saldados de este período</p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Integrante</TableHead>
+                  <TableHead className="text-right">Trabajos saldados</TableHead>
+                  <TableHead className="text-right">Total facturado</TableHead>
+                  <TableHead className="text-right">% del total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.facturacionPorIntegrante!.map((s) => (
+                  <TableRow key={s.sellerId}>
+                    <TableCell className="font-medium text-slate-800">{s.sellerName}</TableCell>
+                    <TableCell className="text-right text-sm text-slate-600">{s.cantidad}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold text-slate-800">{formatCurrency(s.totalFacturado, currency)}</TableCell>
+                    <TableCell className="text-right text-sm text-slate-500">
+                      {data.totalFacturado > 0 ? formatPercent((s.totalFacturado / data.totalFacturado) * 100) : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Resumen + Distribución — panel activo de trabajo, no se colapsa */}

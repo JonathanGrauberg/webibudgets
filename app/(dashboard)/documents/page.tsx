@@ -380,7 +380,9 @@ export default function DocumentsPage() {
     }
   }
 
-  const budgets = filterBudgets(budgetsRaw)
+  // 👇 los presupuestos desactivados no deben aparecer en Documentos — se
+  // desactivan justamente para sacarlos de circulación (ver budgets/page.tsx).
+  const budgets = filterBudgets(budgetsRaw).filter((b) => b.active !== false)
 
   const { data: branding, isLoading: isLoadingBranding } = useSWR('/api/tenants', fetcher)
   const hasVouchersFeature = hasFeature({ plan: branding?.plan, features: branding?.features }, 'vouchers') // 👈 agregado plan

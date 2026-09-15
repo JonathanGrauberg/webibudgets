@@ -55,7 +55,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       where: {
         budgetId: { not: null },
         createdAt: { gte: periodStart, lte: periodEnd },
-        budget: { tenantId, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+        budget: { tenantId, active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
       },
       select: { budgetId: true, status: true },
     }),
@@ -64,7 +64,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
         tenantId,
         status: 'approved',
         createdAt: { gte: periodStart, lte: periodEnd },
-        budget: { status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
       },
       select: { budgetId: true },
     }),
@@ -92,7 +92,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
   }
 
   const candidateBudgets = await prisma.budget.findMany({
-    where: { id: { in: candidateBudgetIds }, tenantId },
+    where: { id: { in: candidateBudgetIds }, tenantId, active: true },
     include: {
       client: { select: { name: true, company: true } },
       seller: { select: { name: true, lastName: true } },

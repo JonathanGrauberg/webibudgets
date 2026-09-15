@@ -66,7 +66,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   })
 
-  const budgetRowsAll = rendicion.budgets.map(({ budget: b }) => {
+  // 👇 los presupuestos desactivados no se muestran en Rendiciones, aunque
+  // hayan quedado vinculados a una rendición ya generada antes de desactivarlos.
+  const budgetRowsAll = rendicion.budgets
+    .filter(({ budget: b }) => b.active !== false)
+    .map(({ budget: b }) => {
     let cost = 0
     for (const item of b.items) {
       const itemCost = item.cost ?? item.productService?.cost ?? 0
@@ -87,6 +91,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       id: b.id,
       clienteName: b.client?.company || b.client?.name || '—',
       vendedorName: b.seller ? `${b.seller.name} ${b.seller.lastName}` : 'Sin asignar',
+      sellerId: b.sellerId ?? null,
       budgetNumber: b.budgetNumber ?? 0,
       fecha: b.createdAt.toISOString(),
       estado: b.status,
@@ -167,6 +172,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     margenPromedio: data.facturado > 0 ? (data.ganancia / data.facturado) * 100 : 0
   })).sort((a, b) => b.ganancia - a.ganancia)
 
+  // 👇 nuevo — "¿cuánto facturó cada uno este mes?" — a diferencia de
+  // "sellers" de arriba (que depende de que alguien haya guardado un reparto
+  // manual de ganancias por presupuesto), esto sale directo de quién es el
+  // vendedor/dueño cargado en cada presupuesto saldado. Sirve para 1, 2 o N
+  // integrantes sin configurar nada. Se muestra siempre (no requiere PRO
+  // "commissions" — es una lectura simple, no un reparto de ganancias).
+  const facturacionPorIntegrante = (() => {
+    const acc: Record<string, { sellerName: string; totalFacturado: number; cantidad: number }> = {}
+    budgetRows.forEach((b) => {
+      const key = b.sellerId ?? 'sin_asignar'
+      if (!acc[key]) acc[key] = { sellerName: b.vendedorName, totalFacturado: 0, cantidad: 0 }
+      acc[key].totalFacturado += b.total
+      acc[key].cantidad += 1
+    })
+    return Object.entries(acc)
+      .map(([sellerId, v]) => ({ sellerId, ...v }))
+      .sort((a, b) => b.totalFacturado - a.totalFacturado)
+  })()
+
   return NextResponse.json({
     id: rendicion.id,
     periodStart: rendicion.periodStart.toISOString(),
@@ -179,6 +203,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     totalGastosGenerales,
     margenPromedio,
     sellers: canSeeDistribution ? sellersRows : [],
+    facturacionPorIntegrante,
     budgets: budgetRows,
     budgetsNoLongerCompleted: budgetRowsNoLongerCompleted,
     tenantUsers: canSeeDistribution ? tenantUsers : [],

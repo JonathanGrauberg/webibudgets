@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import {
@@ -53,6 +53,9 @@ export function CreateReceiptModal({
   // rechazado/vencido que Documentos no muestra) y traer sus datos como
   // atajo. No los vincula formalmente — sigue siendo un recibo standalone.
   const { data: allBudgets = [] } = useSWR(isStandalone && open ? '/api/budgets' : null, fetcher)
+  // 👇 para poder calcular el saldo pendiente real al elegir un presupuesto
+  // desde el buscador (allBudgets no trae los recibos, solo pagos de MP).
+  const { data: allReceipts = [] } = useSWR(isStandalone && open ? '/api/receipts' : null, fetcher)
   const [budgetSearch, setBudgetSearch] = useState('')
 
   const budgetMatches = useMemo(() => {
@@ -68,7 +71,21 @@ export function CreateReceiptModal({
   }, [budgetSearch, allBudgets])
 
   const [clientId, setClientId] = useState('')
-  const [amount, setAmount] = useState(budgetTotal ? String(budgetTotal) : '')
+  const [amount, setAmount] = useState(
+    budgetTotal !== undefined ? String(Math.max(0, budgetTotal - (alreadyCollected ?? 0))) : ''
+  )
+
+  // 👇 el modal no se desmonta entre aperturas (solo cambia `open`), así que
+  // el useState inicial de arriba no alcanza si se abre para presupuestos
+  // distintos en la misma sesión — recalculamos el importe faltante cada
+  // vez que se abre, sin pisar lo que el usuario ya haya escrito a mano.
+  useEffect(() => {
+    if (open && !isStandalone) {
+      const remaining = budgetTotal !== undefined ? Math.max(0, budgetTotal - (alreadyCollected ?? 0)) : 0
+      setAmount(remaining ? String(remaining) : '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const [paymentMethod, setPaymentMethod] = useState('efectivo')
   const [paymentReference, setPaymentReference] = useState('')
   const [issuePlace, setIssuePlace] = useState('')
@@ -86,9 +103,20 @@ export function CreateReceiptModal({
       ? Math.max(0, budgetTotal - (alreadyCollected ?? 0) - parsedAmount)
       : null
 
+  const INACTIVE_RECEIPT_STATUSES = new Set(['cancelled', 'anulado', 'voided', 'void', 'annulled'])
+
   function applyBudget(b: any) {
+    const collectedFromReceipts = allReceipts
+      .filter((r: any) => {
+        const bId = r.budgetId ?? r.budget_id ?? r.budget?.id
+        return String(bId) === String(b.id) && !INACTIVE_RECEIPT_STATUSES.has(r.status) && !r.sourceBudgetPaymentId
+      })
+      .reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0)
+    const collectedFromMp = (b.payments ?? []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0)
+    const remaining = Math.max(0, (b.total ?? 0) - collectedFromReceipts - collectedFromMp)
+
     setClientId(b.clientId ?? b.client?.id ?? '')
-    setAmount(b.total ? String(b.total) : '')
+    setAmount(remaining ? String(remaining) : '')
     setConcept(`Presupuesto #${String(b.budgetNumber ?? 0).padStart(6, '0')}`)
     setBudgetSearch('')
   }
