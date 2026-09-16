@@ -6,7 +6,7 @@ import {
   Users, Package, Palette, Share2, HelpCircle,
   ChevronDown, LayoutGrid, UserCheck,
   Layers, User, CheckCircle, Clock, LogOut, UsersRound,
-  Instagram, Facebook,
+  Instagram, Facebook, GraduationCap, BookOpen, Library,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react' // 👈 nuevo
@@ -235,6 +235,55 @@ export function LandingSections({
 
       {/* ── FEATURES GRID ── */}
       <FeaturesGrid />
+
+      {/* ── CAMPUS .budgets ── */}
+      <section id="campus" className="px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden rounded-[2.5rem] border border-border bg-background p-8 shadow-sm lg:grid-cols-2 lg:p-14">
+          <div className="pointer-events-none absolute -left-32 top-1/2 hidden h-[560px] w-[560px] -translate-y-1/2 rounded-full bg-[#fcc107]/10 blur-3xl lg:block" />
+
+          <div className="relative z-10">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#fcc107]">Campus .budgets</p>
+            <h2 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+              Aprendé y ponete al día, no solo uses el sistema
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Un espacio gratis con glosario de términos de negocios y tecnología, y guías prácticas de venta
+              y estrategia — sin vueltas, con ejemplos reales. Sirve para cualquiera, seas cliente de .budgets
+              o no.
+            </p>
+            <Link
+              href="/campus"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98]"
+            >
+              Conocé el Campus
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+
+          <div className="relative z-10 hidden lg:block">
+            <div className="relative overflow-hidden rounded-3xl bg-neutral-950 p-10 text-neutral-50">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#fcc107]/10 blur-2xl" />
+              <GraduationCap className="relative h-10 w-10 text-[#fcc107]" />
+              <div className="relative mt-8 space-y-5">
+                <div className="flex items-start gap-3">
+                  <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-[#fcc107]" />
+                  <div>
+                    <p className="text-sm font-semibold">Glosario PyME</p>
+                    <p className="mt-0.5 text-sm text-neutral-400">Jerga de negocios explicada en criollo, con ejemplo real cada una.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Library className="mt-0.5 h-5 w-5 shrink-0 text-[#fcc107]" />
+                  <div>
+                    <p className="text-sm font-semibold">Guías con capítulos</p>
+                    <p className="mt-0.5 text-sm text-neutral-400">Contenido práctico para profundizar en venta, precios y estrategia.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* PRICING */}
 <section id="pricing" className="px-4 py-24 sm:px-6 lg:px-8">
@@ -494,7 +543,7 @@ export function LandingSections({
               </div>
             </div>
             {[
-              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Manual de uso', '/manual']] },
+              { title: 'Producto', links: [['Funciones', '#features'], ['Precios', '#pricing'], ['Manual de uso', '/manual'], ['Campus', '/campus']] },
               { title: 'Empresa', links: [['Blog', '#'], ['Nosotros', '#'], ['Contacto', '#'], ['Revendedores', '/revendedores'], ['Trabajá con nosotros', '/manual#revendedores']] },
               { title: 'Legal', links: [['Privacidad', '/privacidad'], ['Términos', '/terminos']] },
             ].map((col) => (
