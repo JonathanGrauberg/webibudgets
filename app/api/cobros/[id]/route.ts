@@ -33,6 +33,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updateData: Record<string, unknown> = {}
     if (data.concept !== undefined) updateData.concept = String(data.concept).trim()
     if (data.alias !== undefined) updateData.alias = data.alias ? String(data.alias).trim() : null
+    if (data.mpSurchargePercent !== undefined) {
+      if (data.mpSurchargePercent === null) {
+        updateData.mpSurchargePercent = null
+      } else {
+        const pct = Number(data.mpSurchargePercent)
+        if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+          return NextResponse.json({ error: 'El recargo por Mercado Pago debe ser un % entre 0 y 100' }, { status: 400 })
+        }
+        updateData.mpSurchargePercent = pct
+      }
+    }
     if (data.amount !== undefined) updateData.amount = Number(data.amount)
     if (data.notes !== undefined) updateData.notes = data.notes || null
 

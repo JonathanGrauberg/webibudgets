@@ -54,6 +54,7 @@ type Cobro = {
   cobroNumber: number
   concept: string
   alias: string | null
+  mpSurchargePercent: number | null
   amount: number
   currency: string
   status: 'pending' | 'paid'
@@ -328,6 +329,9 @@ export default function CobrosPage() {
                                 <Landmark className="h-3 w-3" /> {c.alias}
                               </span>
                             )}
+                            {c.mpSurchargePercent != null && (
+                              <span className="ml-1.5 text-xs text-muted-foreground/60">· MP +{c.mpSurchargePercent}%</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             {c.budget ? (
@@ -501,6 +505,7 @@ function CobroCard({
             {cobro.alias && (
               <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground/70">
                 <Landmark className="h-3 w-3" /> {cobro.alias}
+                {cobro.mpSurchargePercent != null && ` · MP +${cobro.mpSurchargePercent}%`}
               </p>
             )}
           </div>
@@ -566,6 +571,7 @@ function CreateCobroDialog({
   const [clientId, setClientId] = useState('')
   const [concept, setConcept] = useState('')
   const [alias, setAlias] = useState('')
+  const [mpSurchargePercent, setMpSurchargePercent] = useState('')
   const [amount, setAmount] = useState('')
   const [period, setPeriod] = useState(defaultPeriod)
   const [saving, setSaving] = useState(false)
@@ -576,6 +582,7 @@ function CreateCobroDialog({
     setClientId('')
     setConcept('')
     setAlias('')
+    setMpSurchargePercent('')
     setAmount('')
     setPeriod(defaultPeriod)
     setLinkedBudget(null)
@@ -596,6 +603,7 @@ function CreateCobroDialog({
           clientId,
           concept: concept.trim(),
           alias: alias.trim() || null,
+          mpSurchargePercent: mpSurchargePercent.trim() ? Number(mpSurchargePercent) : null,
           amount: Number(amount),
           periodMonth: period,
           budgetId: linkedBudget?.id ?? null,
@@ -646,6 +654,26 @@ function CreateCobroDialog({
             <Input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: empresa.mp" />
             <p className="text-[11px] text-muted-foreground">
               Si lo cargás, se lo mostramos al cliente en la pantalla de pago como alternativa a Mercado Pago — para que pueda transferir directo y evitarse la comisión.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Recargo si paga por Mercado Pago (opcional)</label>
+            <div className="relative">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="any"
+                value={mpSurchargePercent}
+                onChange={(e) => setMpSurchargePercent(e.target.value)}
+                placeholder="Ej: 6.6"
+                className="pr-8"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Se le suma a este monto SOLO si el cliente paga con el botón de Mercado Pago — si transfiere por el alias de arriba, paga el monto sin recargo.
             </p>
           </div>
 

@@ -448,6 +448,11 @@ model Cobro {
   amount   Float
   currency String @default("ARS")
 
+  // 👇 nuevo — recargo opcional que se le suma a `amount` SOLO si paga vía
+  // Mercado Pago (para trasladarle al cliente la comisión que MP te cobra a
+  // vos). Si transfiere por el alias de arriba, paga el `amount` sin recargo.
+  mpSurchargePercent Float?
+
   // Siempre el día 1 del mes que corresponde — agrupa las métricas
   // mensuales sin tener que parsear fechas de vencimiento.
   periodMonth DateTime

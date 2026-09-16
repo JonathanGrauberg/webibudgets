@@ -41,6 +41,12 @@ export async function POST(request: Request) {
     if (!data.periodMonth) {
       return NextResponse.json({ error: 'Falta el período (mes)' }, { status: 400 })
     }
+    if (data.mpSurchargePercent !== undefined && data.mpSurchargePercent !== null) {
+      const pct = Number(data.mpSurchargePercent)
+      if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+        return NextResponse.json({ error: 'El recargo por Mercado Pago debe ser un % entre 0 y 100' }, { status: 400 })
+      }
+    }
 
     const client = await prisma.client.findFirst({ where: { id: data.clientId, tenantId } })
     if (!client) {
@@ -73,6 +79,7 @@ export async function POST(request: Request) {
         cobroNumber,
         concept: String(data.concept).trim(),
         alias: data.alias ? String(data.alias).trim() : null,
+        mpSurchargePercent: data.mpSurchargePercent !== undefined && data.mpSurchargePercent !== null ? Number(data.mpSurchargePercent) : null,
         amount: Number(data.amount),
         currency: data.currency || tenant.currency,
         periodMonth: parsePeriodMonth(data.periodMonth),

@@ -29,6 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         amount: cobro.amount,
         currency: cobro.currency,
         client: cobro.client,
+        mpSurchargePercent: cobro.mpSurchargePercent,
       },
       publicToken: token,
       origin: req.nextUrl.origin,

@@ -14,6 +14,8 @@ type PublicCobroData = {
   concept: string
   alias: string | null
   amount: number
+  mpAmount: number
+  mpSurchargePercent: number | null
   currency: string
   status: 'pending' | 'paid'
   periodMonth: string
@@ -165,15 +167,25 @@ export function CobroPortalClient({ token }: { token: string }) {
                     className="mt-6 w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-60"
                     style={{ backgroundColor: '#0038ff' }}
                   >
-                    {paying ? 'Generando link de pago...' : 'Pagar con Mercado Pago'}
+                    {paying
+                      ? 'Generando link de pago...'
+                      : data.mpSurchargePercent
+                      ? `Pagar con Mercado Pago — ${formatCurrency(data.mpAmount, data.currency)} (+${data.mpSurchargePercent}%)`
+                      : 'Pagar con Mercado Pago'}
                   </button>
                 )}
 
-                {/* 👇 nuevo — alias de transferencia, alternativa a MP sin la comisión */}
+                {/* 👇 nuevo — alias de transferencia, alternativa a MP sin el recargo */}
                 {data.alias && (
                   <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-left">
-                    <p className="text-xs font-medium text-slate-500">¿Preferís transferir?</p>
-                    <p className="mt-0.5 text-sm font-semibold text-slate-800">Alias: {data.alias}</p>
+                    <p className="text-xs font-medium text-slate-500">
+                      {data.mpSurchargePercent
+                        ? `¿Preferís transferir y ahorrarte el ${data.mpSurchargePercent}%?`
+                        : '¿Preferís transferir?'}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                      Alias: {data.alias} {data.mpSurchargePercent ? `· ${formatCurrency(data.amount, data.currency)}` : ''}
+                    </p>
                   </div>
                 )}
               </>

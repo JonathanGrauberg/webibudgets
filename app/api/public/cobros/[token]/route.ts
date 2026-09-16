@@ -12,11 +12,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: 'Cobro no encontrado' }, { status: 404 })
   }
 
+  // 👇 nuevo — si hay recargo por MP, el cliente paga esto por MP (no el
+  // `amount` nominal) — se muestra en el botón para que sepa cuánto es antes de tocarlo.
+  const surchargePct = cobro.mpSurchargePercent ?? 0
+  const mpAmount = surchargePct > 0
+    ? Math.round(cobro.amount * (1 + surchargePct / 100) * 100) / 100
+    : cobro.amount
+
   return NextResponse.json({
     cobroNumber: cobro.cobroNumber,
     concept: cobro.concept,
     alias: cobro.alias, // 👈 nuevo — alias de transferencia, alternativa a pagar por MP
     amount: cobro.amount,
+    mpAmount, // 👈 nuevo
+    mpSurchargePercent: surchargePct > 0 ? surchargePct : null, // 👈 nuevo
     currency: cobro.currency,
     status: cobro.status,
     periodMonth: cobro.periodMonth,

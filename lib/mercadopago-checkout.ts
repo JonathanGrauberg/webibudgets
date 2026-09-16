@@ -172,6 +172,7 @@ type CobroForPreference = {
   amount: number
   currency: string
   client: { name: string; company: string | null } | null
+  mpSurchargePercent?: number | null // 👈 nuevo — % que se le suma SOLO si paga vía MP
 }
 
 // Mismo mecanismo que createBudgetPaymentPreference, pero para un Cobro
@@ -192,15 +193,26 @@ export async function createCobroPaymentPreference(params: {
   const expiresTo = new Date(now.getTime() + PREFERENCE_VALID_DAYS * 24 * 60 * 60 * 1000)
 
   const clientLabel = cobro.client?.company || cobro.client?.name || 'Cliente'
+
+  // 👇 nuevo — si el tenant cargó un % de recargo para pago por MP, el
+  // cliente paga ESE monto a través de MP (no el `amount` nominal del
+  // cobro) — así se traslada la comisión que MP le cobra al tenant. Si
+  // transfiere por el alias en vez de usar este botón, paga el monto sin
+  // recargo (eso vive aparte, no pasa por acá).
+  const surchargePct = cobro.mpSurchargePercent ?? 0
+  const chargeAmount = surchargePct > 0
+    ? Math.round(cobro.amount * (1 + surchargePct / 100) * 100) / 100
+    : cobro.amount
+
   const isFree = !isProPlan(tenant.plan)
-  const commissionAmount = isFree ? Math.round(cobro.amount * FREE_PLAN_COMMISSION_RATE * 100) / 100 : 0
+  const commissionAmount = isFree ? Math.round(chargeAmount * FREE_PLAN_COMMISSION_RATE * 100) / 100 : 0
 
   const body: Record<string, unknown> = {
     items: [
       {
         title: `${cobro.concept} — ${clientLabel}`.slice(0, 250),
         quantity: 1,
-        unit_price: cobro.amount,
+        unit_price: chargeAmount,
         currency_id: cobro.currency || 'ARS',
       },
     ],
