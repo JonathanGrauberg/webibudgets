@@ -103,6 +103,21 @@ export async function getCollectedStats(tenantId: string): Promise<CollectedStat
     totalCollected += Math.min(collectedByBudget.get(b.id) ?? 0, b.total)
   }
 
+  // 👇 nuevo — Cobros del módulo "Cobros" que NO están vinculados a ningún
+  // presupuesto (ej: una cuota mensual suelta) eran invisibles para estas
+  // cuentas — "Cobrado"/"Por Cobrar" solo miraban Documentos. Un Cobro
+  // vinculado a un presupuesto no se suma acá de nuevo (ya lo cuenta
+  // getCollectedByBudgetIds arriba si está pagado, y si está pendiente ya
+  // forma parte del saldo pendiente de ESE presupuesto) — solo los sueltos.
+  const standaloneCobros = await prisma.cobro.findMany({
+    where: { tenantId, budgetId: null },
+    select: { amount: true, status: true },
+  })
+  for (const c of standaloneCobros) {
+    totalApprovedValue += c.amount
+    if (c.status === 'paid') totalCollected += c.amount
+  }
+
   return {
     totalCollected,
     totalApprovedValue,
