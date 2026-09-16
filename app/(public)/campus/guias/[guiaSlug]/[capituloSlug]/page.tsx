@@ -13,6 +13,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getCapitulo } from '@/lib/guias-data'
 import { MarginMatrix } from '@/components/campus/margin-matrix'
+import { DiagnosticRanges } from '@/components/campus/diagnostic-ranges'
 
 export async function generateMetadata({
   params,
@@ -129,6 +130,45 @@ export default async function CapituloPage({
                       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{bloque.numero}</p>
                       <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{bloque.titulo}</h2>
                       <MarginMatrix cuadrantes={bloque.cuadrantes} />
+                    </section>
+                  )
+                }
+                if (bloque.tipo === 'formula') {
+                  return (
+                    <section key={i}>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{bloque.numero}</p>
+                      <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{bloque.titulo}</h2>
+                      {bloque.intro && (
+                        <div className="mt-4 space-y-3 text-base leading-relaxed text-foreground/90">
+                          {bloque.intro.map((p, j) => (
+                            <p key={j}>{p}</p>
+                          ))}
+                        </div>
+                      )}
+                      <div className="mt-4 rounded-xl bg-primary/5 px-5 py-4 text-center font-mono text-sm font-semibold text-primary sm:text-base">
+                        {bloque.formula}
+                      </div>
+                      <div className="mt-4 space-y-2 rounded-xl border border-border bg-muted/30 px-5 py-4 text-sm text-foreground/90">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ejemplo de aplicación</p>
+                        {bloque.ejemplo.map((p, j) => (
+                          <p key={j} className={j > 0 ? 'font-mono' : ''}>{p}</p>
+                        ))}
+                      </div>
+                      {bloque.nota && (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                          <span className="font-semibold text-foreground/80">Nota técnica: </span>
+                          {bloque.nota}
+                        </p>
+                      )}
+                    </section>
+                  )
+                }
+                if (bloque.tipo === 'rangos') {
+                  return (
+                    <section key={i}>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{bloque.numero}</p>
+                      <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{bloque.titulo}</h2>
+                      <DiagnosticRanges formula={bloque.formula} rangos={bloque.rangos} />
                     </section>
                   )
                 }

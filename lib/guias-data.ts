@@ -22,10 +22,24 @@ export interface MatrizCuadrante {
   color: string // hex
 }
 
+export interface DiagnosticoRango {
+  etiqueta: string // ej. "Superior al 80%"
+  diagnostico: string
+  accion: string
+  color: string // hex
+}
+
 export type GuiaBloque =
   | { tipo: 'texto'; numero: string; titulo: string; parrafos: string[] }
   | { tipo: 'pasos'; numero: string; titulo: string; pasos: GuiaPaso[] }
   | { tipo: 'matriz'; numero: string; titulo: string; cuadrantes: MatrizCuadrante[] }
+  // 👇 fórmula destacada — evitamos notación LaTeX (no hay renderer de
+  // matemática instalado, y tampoco hace falta: el público busca entender,
+  // no ver una fórmula de libro de texto), va en texto plano legible.
+  | { tipo: 'formula'; numero: string; titulo: string; intro?: string[]; formula: string; ejemplo: string[]; nota?: string }
+  // 👇 tarjetas de diagnóstico por rango — mismo lenguaje visual que la
+  // Matriz de Margen, para tablas de "según tu número, hacé esto".
+  | { tipo: 'rangos'; numero: string; titulo: string; formula?: string; rangos: DiagnosticoRango[] }
 
 export interface GuiaCapitulo {
   slug: string
@@ -235,6 +249,180 @@ export const GUIAS: Guia[] = [
           },
         ],
         notaFinal: 'Este material forma parte del programa de desarrollo para PyMEs de Campus .budgets.',
+      },
+    ],
+  },
+  {
+    slug: 'gestion-de-costos-y-cotizaciones',
+    titulo: 'Gestión de Costos y Cotizaciones Operativas',
+    subtitulo: 'Material de consulta empresarial',
+    descripcionCorta: 'Cómo calcular un precio de venta que realmente cubra tu estructura, cómo armar una cotización que no genere problemas después, y qué hacer cuando te piden descuento.',
+    descripcionLarga:
+      'Tres capítulos sobre el corazón de cualquier negocio que cotiza: cómo fijar un precio de venta con margen real (no "costo x 2"), qué tiene que llevar sí o sí una propuesta comercial para no generar fricción en el cobro, y cómo responder al pedido de descuento sin resignar rentabilidad.',
+    capitulos: [
+      {
+        slug: 'precio-de-venta-y-costos',
+        titulo: 'Determinación del Precio de Venta y Análisis de Costos',
+        minutosLectura: 5,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '1.1',
+            titulo: 'La distorsión del "costo x 2"',
+            parrafos: [
+              'Un hábito extendido en la gestión PyME consiste en fijar el precio de venta multiplicando el costo directo de compra por un factor arbitrario (por ejemplo, duplicar el valor de costo). Este enfoque ignora la estructura de costos fijos de la organización, la tasa de absorción operativa y la variabilidad en los plazos de cobranza.',
+              'Para determinar un precio sostenible, la estructura debe considerar la totalidad de las erogaciones asociadas al funcionamiento del negocio, clasificadas según su naturaleza financiera.',
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '1.2',
+            titulo: 'Clasificación estructural de costos',
+            pasos: [
+              {
+                titulo: 'Costos Directos de Provisión (Variables)',
+                contenido: [
+                  'Son aquellos vinculados directamente a la generación del producto o servicio comercializado:',
+                  'Materia prima e insumos: mercadería o insumos utilizados en la ejecución.',
+                  'Mano de obra directa: horas operativas o liquidaciones asociadas a la producción/prestación específica.',
+                  'Comisiones y costos transaccionales: tarifas por procesamiento de pagos, retenciones impositivas y comisiones de venta.',
+                ],
+              },
+              {
+                titulo: 'Costos de Estructura (Fijos)',
+                contenido: [
+                  'Erogaciones indispensables para mantener la operativa abierta, independientemente del volumen de ventas del mes:',
+                  'Alquileres, servicios públicos y seguros.',
+                  'Sueldos administrativos y cargas sociales asociadas.',
+                  'Licencias de software, conectividad y amortización de equipamiento.',
+                ],
+              },
+            ],
+          },
+          {
+            tipo: 'formula',
+            numero: '1.3',
+            titulo: 'Cálculo del margen de contribución real',
+            intro: [
+              'El cálculo del precio de venta debe realizarse sobre el margen sobre precio final (markup de venta) y no sobre el costo simple, para evitar la pérdida sistemática de margen operativo:',
+            ],
+            formula: 'Precio de Venta = Costo Directo Unitario ÷ (1 − % Margen deseado)',
+            ejemplo: [
+              'Si un bien registra un costo directo de $10.000 y la empresa requiere un margen bruto del 35% para absorber estructura y generar utilidad:',
+              'Precio de Venta = 10.000 ÷ (1 − 0,35) = 10.000 ÷ 0,65 = $15.384,61',
+            ],
+            nota: 'Calcular el 35% directamente sobre los $10.000 fijaría un precio de $13.500 — una pérdida sistemática del 13,8% del margen proyectado en cada transacción.',
+          },
+        ],
+      },
+      {
+        slug: 'estructura-del-presupuesto',
+        titulo: 'Estructura y Presentación del Presupuesto Comercial',
+        minutosLectura: 4,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '2.1',
+            titulo: 'El presupuesto como documento legal y operativo',
+            parrafos: [
+              'La propuesta comercial no es un mero listado de precios; constituye el marco de referencia que delimita las expectativas del cliente y los compromisos de la empresa. Un presupuesto ambiguo o incompleto deriva en objeciones en la cobranza, solicitudes de trabajo adicional no facturado y desgaste operativo.',
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '2.2',
+            titulo: 'Componentes indispensables de la propuesta',
+            pasos: [
+              {
+                titulo: 'Desglose clarificado de ítems (alcance)',
+                contenido: [
+                  'Descripción detallada de los bienes entregables o servicios a prestar, evitando términos genéricos como "mantenimiento general" o "insumos varios".',
+                  'Unidades de medida explícitas (horas, metros, unidades, módulos).',
+                ],
+              },
+              {
+                titulo: 'Período de validez de la oferta',
+                contenido: [
+                  'En entornos con fluctuación de costos, cada cotización debe incluir una cláusula explícita de vigencia.',
+                  'Plazo estándar: 5 a 15 días corridos desde la fecha de emisión.',
+                  'Cláusula de reajuste: condición de actualización de valores en caso de variaciones en las listas de precios de los proveedores de origen antes de la aprobación formal.',
+                ],
+              },
+              {
+                titulo: 'Condiciones y métodos de pago',
+                contenido: [
+                  'Porcentaje de anticipo requerido para el inicio de tareas (mínimo recomendado para PyMEs: 30% a 50%).',
+                  'Esquema de hitos de facturación para trabajos de larga duración (ejemplo: 40% anticipo, 40% contra avance, 20% contra entrega final).',
+                  'Medios de pago aceptados y especificación de recargos o bonificaciones aplicables por instrumento financiero.',
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        slug: 'negociacion-y-descuentos',
+        titulo: 'Negociación, Descuentos y Cierre de Cotizaciones',
+        minutosLectura: 5,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '3.1',
+            titulo: 'La política comercial frente al pedido de descuento',
+            parrafos: [
+              'El pedido de descuento es una constante en las transacciones B2B y comerciales. Ceder porcentaje de precio sin ajustar el alcance de la provisión erosiona directamente la utilidad neta de la empresa, dado que los costos fijos y variables permanecen inalterados.',
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '3.2',
+            titulo: 'Estrategias de compensación comercial',
+            pasos: [
+              {
+                titulo: 'Flexibilización asimétrica (quitar alcance)',
+                contenido: [
+                  'Frente a la solicitud de reducción de precio, la respuesta operativa consiste en redefinir la propuesta: "Podemos ajustar el monto final a su presupuesto mediante la reducción del volumen de entrega o la modificación de los plazos de ejecución."',
+                  'Esta postura protege el valor unitario de la hora o del insumo y evita la devaluación percibida del servicio.',
+                ],
+              },
+              {
+                titulo: 'Bonificación por volumen o pronto pago',
+                contenido: [
+                  'Los descuentos únicamente deben otorgarse a cambio de una contraprestación financiera tangible para la caja.',
+                  'Pronto pago: descuento financiero a cambio de la cancelación inmediata en efectivo o transferencia, reduciendo el costo de financiamiento propio.',
+                  'Escala por lote: bonificación porcentual supeditada al incremento en las cantidades físicas contratadas en una misma orden.',
+                ],
+              },
+            ],
+          },
+          {
+            tipo: 'rangos',
+            numero: '3.3',
+            titulo: 'Análisis de tasa de conversión de cotizaciones',
+            formula: 'Tasa de Aprobación = (Presupuestos Aprobados ÷ Presupuestos Emitidos) × 100',
+            rangos: [
+              {
+                etiqueta: 'Superior al 80%',
+                diagnostico: 'Precios fijados por debajo del valor de mercado.',
+                accion: 'Incrementar márgenes gradualmente — se está sacrificando utilidad.',
+                color: '#DC3545',
+              },
+              {
+                etiqueta: 'Inferior al 30%',
+                diagnostico: 'Desacople entre propuesta de valor, target o claridad.',
+                accion: 'Revisar el perfil de clientes abordados y el formato de presentación.',
+                color: '#FFC107',
+              },
+              {
+                etiqueta: '50% a 65% (óptimo)',
+                diagnostico: 'Equilibrio sano entre competitividad y margen.',
+                accion: 'Mantener la estrategia y monitorear variaciones de costos.',
+                color: '#28A745',
+              },
+            ],
+          },
+        ],
+        notaFinal: 'Este material forma parte del programa de desarrollo empresarial de Campus .budgets.',
       },
     ],
   },
