@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { Copy, Check } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 
 type PublicCobroData = {
@@ -45,6 +46,7 @@ export function CobroPortalClient({ token }: { token: string }) {
   const [notFound, setNotFound] = useState(false)
   const [paying, setPaying] = useState(false)
   const [polling, setPolling] = useState(pagoParam === 'exito' || pagoParam === 'pendiente')
+  const [aliasCopied, setAliasCopied] = useState(false)
   const pollCount = useRef(0)
 
   useEffect(() => {
@@ -74,6 +76,17 @@ export function CobroPortalClient({ token }: { token: string }) {
     }, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [polling, token])
+
+  async function handleCopyAlias() {
+    if (!data?.alias) return
+    try {
+      await navigator.clipboard.writeText(data.alias)
+      setAliasCopied(true)
+      setTimeout(() => setAliasCopied(false), 2000)
+    } catch {
+      // clipboard no disponible (http sin TLS, permisos, etc.) — no rompemos nada, el alias sigue visible para copiar a mano
+    }
+  }
 
   async function handlePay() {
     setPaying(true)
@@ -183,9 +196,26 @@ export function CobroPortalClient({ token }: { token: string }) {
                         ? `¿Preferís transferir y ahorrarte el ${data.mpSurchargePercent}%?`
                         : '¿Preferís transferir?'}
                     </p>
-                    <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                      Alias: {data.alias} {data.mpSurchargePercent ? `· ${formatCurrency(data.amount, data.currency)}` : ''}
-                    </p>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-800">
+                        Alias: {data.alias} {data.mpSurchargePercent ? `· ${formatCurrency(data.amount, data.currency)}` : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleCopyAlias}
+                        className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100"
+                      >
+                        {aliasCopied ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" /> Copiado
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" /> Copiar
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
               </>

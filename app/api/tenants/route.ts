@@ -25,6 +25,7 @@ export async function GET(request: Request) {
       currency: true,
       cuit: true,          // 👈 nuevo
       condicionIva: true,  // 👈 nuevo
+      defaultTransferAlias: true, // 👈 nuevo
 
       logoUrl: true,
       faviconUrl: true,
@@ -92,6 +93,7 @@ export async function PUT(request: NextRequest) {
     'currency',
     'cuit',          // 👈 nuevo
     'condicionIva',  // 👈 nuevo
+    'defaultTransferAlias', // 👈 nuevo
 
     'logoUrl',
     'faviconUrl',

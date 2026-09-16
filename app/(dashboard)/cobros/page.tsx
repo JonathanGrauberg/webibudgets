@@ -9,7 +9,7 @@
 // mensuales, separado a propósito de Presupuestos y Documentos para no
 // mezclar "lo presupuestado" con "lo que se cobra todos los meses".
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/page-header'
@@ -98,6 +98,7 @@ export default function CobrosPage() {
 
   const { data: cobros, isLoading } = useSWR<Cobro[]>(`/api/cobros?period=${period}`, fetcher)
   const { data: clients } = useSWR<Client[]>('/api/clients', fetcher)
+  const { data: tenant } = useSWR<{ defaultTransferAlias: string | null }>('/api/tenants', fetcher)
 
   const summary = useMemo(() => {
     const list = cobros ?? []
@@ -396,6 +397,7 @@ export default function CobrosPage() {
         onOpenChange={setCreateOpen}
         clients={clients ?? []}
         defaultPeriod={period}
+        defaultAlias={tenant?.defaultTransferAlias ?? ''}
         onCreated={() => mutate(`/api/cobros?period=${period}`)}
       />
 
@@ -560,17 +562,19 @@ function CreateCobroDialog({
   onOpenChange,
   clients,
   defaultPeriod,
+  defaultAlias,
   onCreated,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   clients: Client[]
   defaultPeriod: string
+  defaultAlias: string
   onCreated: () => void
 }) {
   const [clientId, setClientId] = useState('')
   const [concept, setConcept] = useState('')
-  const [alias, setAlias] = useState('')
+  const [alias, setAlias] = useState(defaultAlias)
   const [mpSurchargePercent, setMpSurchargePercent] = useState('')
   const [amount, setAmount] = useState('')
   const [period, setPeriod] = useState(defaultPeriod)
@@ -581,12 +585,19 @@ function CreateCobroDialog({
   function reset() {
     setClientId('')
     setConcept('')
-    setAlias('')
+    setAlias(defaultAlias)
     setMpSurchargePercent('')
     setAmount('')
     setPeriod(defaultPeriod)
     setLinkedBudget(null)
   }
+
+  // 👇 el diálogo no se desmonta entre aperturas (solo cambia `open`), y el
+  // alias por defecto puede tardar en llegar de /api/tenants — sincronizamos
+  // cada vez que se abre, sin pisar si el usuario ya escribió algo distinto.
+  useEffect(() => {
+    if (open) setAlias((prev) => (prev ? prev : defaultAlias))
+  }, [open, defaultAlias])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

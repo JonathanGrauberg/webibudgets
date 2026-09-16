@@ -56,6 +56,7 @@ type CompanyInfo = {
   currency: string
   cuit: string
   condicionIva: string
+  defaultTransferAlias: string
 }
 
 type BrandingAssets = {
@@ -277,6 +278,7 @@ export default function CompanyBrandingSettingsClient({
       currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
       cuit: (initialBranding as any)?.cuit ?? '',
       condicionIva: (initialBranding as any)?.condicionIva ?? '',
+      defaultTransferAlias: (initialBranding as any)?.defaultTransferAlias ?? '',
     }
   })
 
@@ -361,6 +363,7 @@ export default function CompanyBrandingSettingsClient({
       currency: (initialBranding as any)?.currency ?? DEFAULT_CURRENCY,
       cuit: (initialBranding as any)?.cuit ?? '',
       condicionIva: (initialBranding as any)?.condicionIva ?? '',
+      defaultTransferAlias: (initialBranding as any)?.defaultTransferAlias ?? '',
     })
   })
 
@@ -442,6 +445,7 @@ export default function CompanyBrandingSettingsClient({
       currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
       cuit: (initialBranding as any).cuit ?? '',
       condicionIva: (initialBranding as any).condicionIva ?? '',
+      defaultTransferAlias: (initialBranding as any).defaultTransferAlias ?? '',
     })
 
     if (incomingCompanySerialized !== lastSeenCompanyPropsRef.current) {
@@ -455,6 +459,7 @@ export default function CompanyBrandingSettingsClient({
         currency: (initialBranding as any).currency ?? DEFAULT_CURRENCY,
         cuit: (initialBranding as any).cuit ?? '',
         condicionIva: (initialBranding as any).condicionIva ?? '',
+        defaultTransferAlias: (initialBranding as any).defaultTransferAlias ?? '',
       })
       setSavedCompanySnapshot(incomingCompanySerialized)
       setSavedName(eff.name ?? '')
@@ -477,6 +482,7 @@ export default function CompanyBrandingSettingsClient({
       currency: companyInfo.currency,
       cuit: companyInfo.cuit,
       condicionIva: companyInfo.condicionIva,
+      defaultTransferAlias: companyInfo.defaultTransferAlias,
     }) !== savedCompanySnapshot
 
   const previewLogo = brandingAssets.logo || brandingAssets.sidebarIcon
@@ -667,6 +673,7 @@ export default function CompanyBrandingSettingsClient({
       currency: companyInfo.currency,
       cuit: companyInfo.cuit || null,
       condicionIva: companyInfo.condicionIva || null,
+      defaultTransferAlias: companyInfo.defaultTransferAlias || null,
     }
 
     try {
@@ -880,6 +887,22 @@ export default function CompanyBrandingSettingsClient({
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Alias de transferencia por defecto
+                      </label>
+                      <input
+                        type="text"
+                        value={companyInfo.defaultTransferAlias}
+                        onChange={(e) => updateCompanyInfo('defaultTransferAlias', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-slate-900 dark:text-slate-50"
+                        placeholder="Ej: empresa.mp"
+                      />
+                      <p className="text-xs text-slate-400">
+                        Se precarga solo (podés cambiarlo) al crear un nuevo Cobro, como alternativa a Mercado Pago en la pantalla de pago.
+                      </p>
                     </div>
 
                     <div className="space-y-2 md:col-span-2">

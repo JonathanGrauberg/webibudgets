@@ -192,9 +192,10 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   currency String @default("ARS") 
-  cuit         String?  
-  condicionIva String?  
-  receiptSequence Int @default(1) 
+  cuit         String?
+  condicionIva String?
+  defaultTransferAlias String? // 👈 nuevo — alias bancario por defecto, prellena "alias de transferencia" en Cobros
+  receiptSequence Int @default(1)
   receiptSequenceStandalone Int @default(1) // 👈 nuevo — serie separada para recibos sin presupuesto
   deliveryNoteSequence Int @default(1) // 👈 nuevo
   receipts     Receipt[] 
