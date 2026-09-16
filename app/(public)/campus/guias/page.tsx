@@ -5,6 +5,7 @@ import { Instagram, Facebook, ArrowLeft, ArrowRight, Library } from 'lucide-reac
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { GUIAS } from '@/lib/guias-data'
+import { BlobBackground } from '@/components/campus/blob-background'
 
 export const metadata: Metadata = {
   title: 'Guías para dueños de PyME | Campus .budgets',
@@ -36,25 +37,30 @@ export default async function GuiasIndexPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-14">
-        <Link href="/campus" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Campus
-        </Link>
+      <div className="relative overflow-hidden">
+        <BlobBackground variant="compact" />
+        <div className="relative mx-auto max-w-3xl px-6 pb-4 pt-10">
+          <Link href="/campus" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Campus
+          </Link>
 
-        <div className="mt-6 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Library className="h-6 w-6" />
+          <div className="mt-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Library className="h-6 w-6" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guías</p>
+            <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+              Para cuando querés profundizar en algo puntual
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
+              Contenido en capítulos, sin exámenes ni obligación — leé el que te sirva, cuando te sirva.
+            </p>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guías</p>
-          <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Para cuando querés profundizar en algo puntual
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-            Contenido en capítulos, sin exámenes ni obligación — leé el que te sirva, cuando te sirva.
-          </p>
         </div>
+      </div>
 
-        <div className="mt-12 space-y-5">
+      <div className="mx-auto max-w-3xl px-6 pb-14">
+        <div className="mt-4 space-y-5">
           {GUIAS.map((guia) => (
             <Link
               key={guia.slug}

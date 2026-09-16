@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Instagram, Facebook, GraduationCap, BookOpen, Library, ArrowRight } from 'lucide-react'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { BlobBackground } from '@/components/campus/blob-background'
 
 export const metadata: Metadata = {
   title: 'Campus | .budgets',
@@ -38,22 +39,27 @@ export default async function CampusHubPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-6 py-14">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <GraduationCap className="h-6 w-6" />
+      <div className="relative overflow-hidden">
+        <BlobBackground />
+        <div className="relative mx-auto max-w-4xl px-6 pb-4 pt-16 sm:pt-20">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Campus</p>
+            <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+              Para entender el negocio, no solo para usar el sistema
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
+              Contenido gratis para dueños de PyME y emprendedores — de la jerga del día a día a cómo encarar
+              decisiones más grandes de venta y equipo.
+            </p>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Campus</p>
-          <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Para entender el negocio, no solo para usar el sistema
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-            Contenido gratis para dueños de PyME y emprendedores — de la jerga del día a día a cómo encarar
-            decisiones más grandes de venta y equipo.
-          </p>
         </div>
+      </div>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2">
+      <div className="mx-auto max-w-4xl px-6 pb-14">
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <Link
             href="/campus/glosario"
             className="group rounded-[2rem] border border-border bg-card p-8 transition hover:border-primary/40 hover:shadow-sm"
