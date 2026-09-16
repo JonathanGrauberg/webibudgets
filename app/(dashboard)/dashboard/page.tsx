@@ -112,8 +112,19 @@ interface DashboardResponse {
       }[]
       total: number
     }
+    documentos: {
+      recent: {
+        id: string
+        clientName: string | null
+        amount: number
+        currency: string
+        date: string
+        source: string
+      }[]
+      total: number
+    }
   }
-  monthlyCashflow?: { month: string; cobrado: number; gastado: number }[]
+  dailyCashflow?: { date: string; cobrado: number; recibos: number; gastado: number }[]
 }
 
 function formatCurrency(amount: number, currency: string = 'ARS'): string {
@@ -489,10 +500,47 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
               </Card>
             )}
 
-            {/* 👇 nuevo — Cobros y Gastos recientes, con el total según el
-                período elegido arriba (mismo selector que el resto del dashboard) */}
+            {/* 👇 nuevo — Documentos, Cobros y Gastos recientes, con el total según
+                el período elegido arriba (mismo selector que el resto del dashboard) */}
             {data.cobrosGastos && (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card className="rounded-xl shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        Documentos
+                      </CardTitle>
+                      <Link href="/documents" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                        Ver todos <ArrowUpRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-lg font-bold text-blue-600">{formatCurrency(data.cobrosGastos.documentos.total, currency)}</p>
+                      <p className="text-[11px] text-muted-foreground">Cobrado según recibos, en el período</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {data.cobrosGastos.documentos.recent.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-muted-foreground">No hay recibos generados aún.</p>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {data.cobrosGastos.documentos.recent.map((r) => (
+                          <div key={r.id} className="flex items-center justify-between py-2.5 px-1">
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">{r.clientName ?? 'Sin cliente'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{formatDate(r.date)}</p>
+                            </div>
+                            <span className="w-24 shrink-0 text-right text-sm font-semibold text-blue-600">
+                              {formatCurrency(r.amount, r.currency)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <Card className="rounded-xl shadow-sm">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
@@ -675,11 +723,11 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                   {/* 👇 nuevo — evolución mensual de cobros vs gastos, en línea */}
                   <Card className="rounded-xl shadow-sm">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Cobrado vs. Gastado por mes</CardTitle>
-                      <CardDescription className="text-xs">Plata que entró (Cobros pagados) contra plata que salió (Gastos), últimos 6 meses</CardDescription>
+                      <CardTitle className="text-sm font-semibold">Movimientos por día</CardTitle>
+                      <CardDescription className="text-xs">Cobros, Documentos y Gastos día por día, últimos 30 días — para ver en qué momentos del mes se concentra cada uno</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <CashflowLineChart data={data.monthlyCashflow ?? []} currency={currency} />
+                      <CashflowLineChart data={data.dailyCashflow ?? []} currency={currency} />
                     </CardContent>
                   </Card>
 

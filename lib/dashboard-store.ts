@@ -328,6 +328,15 @@ export interface RecentGasto {
   categoryName: string | null
 }
 
+export interface RecentDocumentoCobro {
+  id: string
+  clientName: string | null
+  amount: number
+  currency: string
+  date: Date
+  source: 'receipt' | 'mercado_pago'
+}
+
 export interface CobrosGastosSummary {
   cobros: {
     recent: RecentCobro[]
@@ -337,6 +346,12 @@ export interface CobrosGastosSummary {
   gastos: {
     recent: RecentGasto[]
     total: number // suma de todos los gastos (generales + por trabajo) con date dentro del período elegido
+  }
+  // 👇 nuevo — lo cobrado vía Documentos (recibos manuales + Mercado Pago),
+  // mismo criterio que ya usa la pantalla de Documentos ("Cobrado (recibos + Mercado Pago)")
+  documentos: {
+    recent: RecentDocumentoCobro[]
+    total: number
   }
 }
 
@@ -348,7 +363,7 @@ export async function getCobrosGastosSummary(
   tenantId: string,
   range?: { from: Date; to: Date }
 ): Promise<CobrosGastosSummary> {
-  const [recentCobros, paidInRange, pendingInRange, recentGastos, gastosInRange] = await Promise.all([
+  const [recentCobros, paidInRange, pendingInRange, recentGastos, gastosInRange, recentReceipts, receiptsInRange] = await Promise.all([
     prisma.cobro.findMany({
       where: { tenantId },
       take: 5,
@@ -391,7 +406,31 @@ export async function getCobrosGastosSummary(
       },
       _sum: { amount: true },
     }),
+    // 👇 nuevo — "Documentos" = lo cobrado vía recibos (Receipt), sin mezclar
+    // con Cobros ni Mercado Pago — es específicamente lo que pidió Jonathan.
+    prisma.receipt.findMany({
+      where: { tenantId, sourceBudgetPaymentId: null },
+      take: 5,
+      orderBy: { issueDate: 'desc' },
+      select: {
+        id: true, amount: true, currency: true, issueDate: true, status: true,
+        client: { select: { name: true, company: true } },
+        budget: { select: { client: { select: { name: true, company: true } } } },
+      },
+    }),
+    prisma.receipt.findMany({
+      where: {
+        tenantId,
+        sourceBudgetPaymentId: null,
+        ...(range ? { issueDate: { gte: range.from, lte: range.to } } : {}),
+      },
+      select: { amount: true, status: true },
+    }),
   ])
+
+  const documentosTotal = receiptsInRange
+    .filter((r) => isReceiptActive(r.status))
+    .reduce((acc, r) => acc + Number(r.amount || 0), 0)
 
   return {
     cobros: {
@@ -418,78 +457,93 @@ export async function getCobrosGastosSummary(
       })),
       total: gastosInRange._sum.amount ?? 0,
     },
+    documentos: {
+      recent: recentReceipts
+        .filter((r) => isReceiptActive(r.status))
+        .map((r) => ({
+          id: r.id,
+          clientName: r.client?.company || r.client?.name || r.budget?.client?.company || r.budget?.client?.name || null,
+          amount: r.amount,
+          currency: r.currency,
+          date: r.issueDate,
+          source: 'receipt' as const,
+        })),
+      total: documentosTotal,
+    },
   }
 }
 
-export interface MonthlyCashflow {
-  month: string // 'YYYY-MM'
-  cobrado: number // Cobros pagados (status=paid), por mes de pago
-  gastado: number // Expenses, por mes de la fecha del gasto
+export interface DailyCashflow {
+  date: string // 'YYYY-MM-DD'
+  cobrado: number // Cobros pagados (módulo "Cobros"), por día de pago — mismo criterio que la card "Cobros"
+  recibos: number // Recibos activos (Documentos), por día de emisión — mismo criterio que la card "Documentos"
+  gastado: number // Expenses, por día del gasto — mismo criterio que la card "Gastos"
 }
 
-// 👇 nuevo — evolución mensual de plata entrando (Cobros pagados) vs
-// saliendo (Gastos), para el gráfico de líneas de Business Intelligence.
-export async function getMonthlyCashflow(tenantId: string): Promise<MonthlyCashflow[]> {
-  // 👇 "cobrado" tiene que salir de las TRES fuentes de plata real — antes
-  // este gráfico solo miraba Cobros del módulo "Cobros" y por eso a la
-  // mayoría de los tenants (que cobran con recibos manuales o Mercado
-  // Pago, no con el módulo Cobros) el gráfico les salía casi vacío. Mismo
-  // criterio que lib/collected-amount.ts en todos lados.
-  const [receipts, payments, cobros, gastos] = await Promise.all([
-    prisma.receipt.findMany({
-      where: { tenantId, sourceBudgetPaymentId: null },
-      select: { amount: true, status: true, issueDate: true },
-    }),
-    prisma.budgetPayment.findMany({
-      where: { tenantId, status: 'approved' },
-      select: { amount: true, createdAt: true },
-    }),
+const DAILY_CASHFLOW_WINDOW_DAYS = 30
+
+// 👇 nuevo — antes era por mes; pasado a día para que se puedan ver patrones
+// dentro del mes (ej: "los días 1 y 15 se concentran los gastos") — un
+// resumen mensual aplana justo esa información. Últimos 30 días, no todo el
+// histórico día por día (esto no es un ERP contable).
+export async function getDailyCashflow(tenantId: string): Promise<DailyCashflow[]> {
+  const since = new Date()
+  since.setDate(since.getDate() - (DAILY_CASHFLOW_WINDOW_DAYS - 1))
+  since.setHours(0, 0, 0, 0)
+
+  const [cobros, receipts, gastos] = await Promise.all([
     prisma.cobro.findMany({
-      where: { tenantId, status: 'paid', paidAt: { not: null } },
+      where: { tenantId, status: 'paid', paidAt: { gte: since } },
       select: { amount: true, paidAt: true },
     }),
+    prisma.receipt.findMany({
+      where: { tenantId, sourceBudgetPaymentId: null, issueDate: { gte: since } },
+      select: { amount: true, status: true, issueDate: true },
+    }),
     prisma.expense.findMany({
-      where: { tenantId },
+      where: { tenantId, date: { gte: since } },
       select: { amount: true, date: true },
     }),
   ])
 
-  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  const map = new Map<string, { cobrado: number; gastado: number }>()
+  const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const map = new Map<string, { cobrado: number; recibos: number; gastado: number }>()
 
-  receipts.forEach((r) => {
-    if (!isReceiptActive(r.status)) return
-    const key = monthKey(r.issueDate)
-    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
-    cur.cobrado += Number(r.amount || 0)
-    map.set(key, cur)
-  })
-
-  payments.forEach((p) => {
-    const key = monthKey(p.createdAt)
-    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
-    cur.cobrado += Number(p.amount || 0)
-    map.set(key, cur)
-  })
+  // Pre-sembramos todos los días del rango en $0 — si no, un día sin
+  // movimientos simplemente no aparecería en el gráfico, dejando un hueco
+  // en vez de mostrar la caída a cero.
+  for (let i = 0; i < DAILY_CASHFLOW_WINDOW_DAYS; i++) {
+    const d = new Date(since)
+    d.setDate(d.getDate() + i)
+    map.set(dayKey(d), { cobrado: 0, recibos: 0, gastado: 0 })
+  }
 
   cobros.forEach((c) => {
     if (!c.paidAt) return
-    const key = monthKey(c.paidAt)
-    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
-    cur.cobrado += c.amount
+    const key = dayKey(c.paidAt)
+    const cur = map.get(key) ?? { cobrado: 0, recibos: 0, gastado: 0 }
+    cur.cobrado += Number(c.amount || 0)
+    map.set(key, cur)
+  })
+
+  receipts.forEach((r) => {
+    if (!isReceiptActive(r.status)) return
+    const key = dayKey(r.issueDate)
+    const cur = map.get(key) ?? { cobrado: 0, recibos: 0, gastado: 0 }
+    cur.recibos += Number(r.amount || 0)
     map.set(key, cur)
   })
 
   gastos.forEach((e) => {
-    const key = monthKey(e.date)
-    const cur = map.get(key) ?? { cobrado: 0, gastado: 0 }
-    cur.gastado += e.amount
+    const key = dayKey(e.date)
+    const cur = map.get(key) ?? { cobrado: 0, recibos: 0, gastado: 0 }
+    cur.gastado += Number(e.amount || 0)
     map.set(key, cur)
   })
 
   return Array.from(map.entries())
-    .map(([month, v]) => ({ month, ...v }))
-    .sort((a, b) => a.month.localeCompare(b.month))
+    .map(([date, v]) => ({ date, ...v }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 }
 
 export interface TopRequestedProduct {
