@@ -15,6 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   return NextResponse.json({
     cobroNumber: cobro.cobroNumber,
     concept: cobro.concept,
+    alias: cobro.alias, // 👈 nuevo — nombre corto opcional para mostrar en vez del concepto interno
     amount: cobro.amount,
     currency: cobro.currency,
     status: cobro.status,

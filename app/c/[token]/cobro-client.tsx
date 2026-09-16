@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/format'
 type PublicCobroData = {
   cobroNumber: number
   concept: string
+  alias: string | null
   amount: number
   currency: string
   status: 'pending' | 'paid'
@@ -135,7 +136,10 @@ export function CobroPortalClient({ token }: { token: string }) {
             <p className="text-xs uppercase tracking-wide text-slate-400">
               {data.client?.company || data.client?.name || 'Cliente'}
             </p>
-            <p className="mt-1 text-base font-medium text-slate-800">{data.concept}</p>
+            <p className="mt-1 text-base font-medium text-slate-800">{data.alias || data.concept}</p>
+            {data.alias && (
+              <p className="mt-0.5 text-xs text-slate-400">{data.concept}</p>
+            )}
             <p className="mt-4 text-3xl font-bold" style={{ color: primary }}>
               {formatCurrency(data.amount, data.currency)}
             </p>

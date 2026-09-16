@@ -444,6 +444,7 @@ model Cobro {
   cobroNumber Int
 
   concept  String
+  alias    String? // 👈 nuevo — nombre corto opcional para mostrar en el portal público de pago, en vez del concepto interno
   amount   Float
   currency String @default("ARS")
 

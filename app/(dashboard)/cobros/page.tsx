@@ -53,6 +53,7 @@ type Cobro = {
   id: string
   cobroNumber: number
   concept: string
+  alias: string | null
   amount: number
   currency: string
   status: 'pending' | 'paid'
@@ -320,7 +321,16 @@ export default function CobrosPage() {
                       {cobros.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.client?.company || c.client?.name || '—'}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{c.concept}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {c.alias ? (
+                              <span>
+                                {c.alias}
+                                <span className="ml-1.5 text-xs text-muted-foreground/60">({c.concept})</span>
+                              </span>
+                            ) : (
+                              c.concept
+                            )}
+                          </TableCell>
                           <TableCell>
                             {c.budget ? (
                               <button
@@ -489,7 +499,9 @@ function CobroCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-medium">{cobro.client?.company || cobro.client?.name || '—'}</p>
-            <p className="text-xs text-muted-foreground">{cobro.concept}</p>
+            <p className="text-xs text-muted-foreground">
+              {cobro.alias ? `${cobro.alias} (${cobro.concept})` : cobro.concept}
+            </p>
           </div>
           <Badge className={cobro.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
             {cobro.status === 'paid' ? 'Pagado' : 'Pendiente'}
@@ -552,6 +564,7 @@ function CreateCobroDialog({
 }) {
   const [clientId, setClientId] = useState('')
   const [concept, setConcept] = useState('')
+  const [alias, setAlias] = useState('')
   const [amount, setAmount] = useState('')
   const [period, setPeriod] = useState(defaultPeriod)
   const [saving, setSaving] = useState(false)
@@ -561,6 +574,7 @@ function CreateCobroDialog({
   function reset() {
     setClientId('')
     setConcept('')
+    setAlias('')
     setAmount('')
     setPeriod(defaultPeriod)
     setLinkedBudget(null)
@@ -580,6 +594,7 @@ function CreateCobroDialog({
         body: JSON.stringify({
           clientId,
           concept: concept.trim(),
+          alias: alias.trim() || null,
           amount: Number(amount),
           periodMonth: period,
           budgetId: linkedBudget?.id ?? null,
@@ -623,6 +638,14 @@ function CreateCobroDialog({
           <div className="space-y-2">
             <label className="text-sm font-medium">Concepto</label>
             <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Ej: Marketing mensual" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Alias (opcional)</label>
+            <Input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: Cuota de septiembre" />
+            <p className="text-[11px] text-muted-foreground">
+              Si lo cargás, esto es lo que ve el cliente en la pantalla de pago — en vez del concepto interno.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

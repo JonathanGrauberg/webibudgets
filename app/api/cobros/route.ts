@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         budgetId,
         cobroNumber,
         concept: String(data.concept).trim(),
+        alias: data.alias ? String(data.alias).trim() : null,
         amount: Number(data.amount),
         currency: data.currency || tenant.currency,
         periodMonth: parsePeriodMonth(data.periodMonth),
