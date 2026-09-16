@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet, FileText, X } from 'lucide-react'
+import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet, FileText, X, Landmark } from 'lucide-react'
 import { buildWhatsappLink } from '@/lib/whatsapp'
 import { formatCurrency } from '@/lib/format'
 
@@ -322,13 +322,11 @@ export default function CobrosPage() {
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.client?.company || c.client?.name || '—'}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {c.alias ? (
-                              <span>
-                                {c.alias}
-                                <span className="ml-1.5 text-xs text-muted-foreground/60">({c.concept})</span>
+                            <span>{c.concept}</span>
+                            {c.alias && (
+                              <span className="ml-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground/60">
+                                <Landmark className="h-3 w-3" /> {c.alias}
                               </span>
-                            ) : (
-                              c.concept
                             )}
                           </TableCell>
                           <TableCell>
@@ -499,9 +497,12 @@ function CobroCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-medium">{cobro.client?.company || cobro.client?.name || '—'}</p>
-            <p className="text-xs text-muted-foreground">
-              {cobro.alias ? `${cobro.alias} (${cobro.concept})` : cobro.concept}
-            </p>
+            <p className="text-xs text-muted-foreground">{cobro.concept}</p>
+            {cobro.alias && (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground/70">
+                <Landmark className="h-3 w-3" /> {cobro.alias}
+              </p>
+            )}
           </div>
           <Badge className={cobro.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
             {cobro.status === 'paid' ? 'Pagado' : 'Pendiente'}
@@ -641,10 +642,10 @@ function CreateCobroDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Alias (opcional)</label>
-            <Input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: Cuota de septiembre" />
+            <label className="text-sm font-medium">Alias de transferencia (opcional)</label>
+            <Input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: empresa.mp" />
             <p className="text-[11px] text-muted-foreground">
-              Si lo cargás, esto es lo que ve el cliente en la pantalla de pago — en vez del concepto interno.
+              Si lo cargás, se lo mostramos al cliente en la pantalla de pago como alternativa a Mercado Pago — para que pueda transferir directo y evitarse la comisión.
             </p>
           </div>
 
@@ -652,6 +653,17 @@ function CreateCobroDialog({
             <div className="space-y-2">
               <label className="text-sm font-medium">Monto</label>
               <Input type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <p className="text-[11px] text-muted-foreground">
+                Mercado Pago descuenta su comisión (según tu plazo de acreditación configurado, ronda 1,5%-6,6%) antes de girarte la plata. Si querés cobrar este monto neto, sumaselo vos al cargarlo. Para configurar o revisar tu %,{' '}
+                <a
+                  href="https://www.mercadopago.com.ar/costs-section/merchant-svcs/processing/options"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-muted-foreground/40 underline-offset-2 hover:text-foreground"
+                >
+                  entrá acá
+                </a>.
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Período</label>

@@ -136,10 +136,7 @@ export function CobroPortalClient({ token }: { token: string }) {
             <p className="text-xs uppercase tracking-wide text-slate-400">
               {data.client?.company || data.client?.name || 'Cliente'}
             </p>
-            <p className="mt-1 text-base font-medium text-slate-800">{data.alias || data.concept}</p>
-            {data.alias && (
-              <p className="mt-0.5 text-xs text-slate-400">{data.concept}</p>
-            )}
+            <p className="mt-1 text-base font-medium text-slate-800">{data.concept}</p>
             <p className="mt-4 text-3xl font-bold" style={{ color: primary }}>
               {formatCurrency(data.amount, data.currency)}
             </p>
@@ -170,6 +167,14 @@ export function CobroPortalClient({ token }: { token: string }) {
                   >
                     {paying ? 'Generando link de pago...' : 'Pagar con Mercado Pago'}
                   </button>
+                )}
+
+                {/* 👇 nuevo — alias de transferencia, alternativa a MP sin la comisión */}
+                {data.alias && (
+                  <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-left">
+                    <p className="text-xs font-medium text-slate-500">¿Preferís transferir?</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">Alias: {data.alias}</p>
+                  </div>
                 )}
               </>
             )}
