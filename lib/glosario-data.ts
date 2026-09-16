@@ -1,6 +1,6 @@
 // lib/glosario-data.ts
 //
-// Contenido del "Glosario PyME" (/academia) — términos de negocios/tecnología
+// Contenido del "Glosario PyME" (/campus) — términos de negocios/tecnología
 // explicados en criollo, con ejemplo real, para dueños de PyME y
 // emprendedores que se cruzan con esta jerga y no tienen por qué saberla.
 // Cada término tiene un slug propio (id de ancla) para poder linkearlo

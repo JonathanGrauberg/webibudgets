@@ -1,4 +1,4 @@
-// app/(public)/academia/guias/[guiaSlug]/page.tsx
+// app/(public)/campus/guias/[guiaSlug]/page.tsx
 //
 // Portada de una guía — qué vas a aprender, lista de capítulos.
 import type { Metadata } from 'next'
@@ -55,36 +55,39 @@ export default async function GuiaPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-6 py-14">
-        <Link href="/academia/guias" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
+      <div className="mx-auto max-w-4xl px-6 py-14">
+        <Link href="/campus/guias" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" /> Guías
         </Link>
 
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guía · {guia.capitulos.length} capítulos</p>
-          <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{guia.titulo}</h1>
-          <p className="mt-4 text-base text-muted-foreground">{guia.descripcionLarga}</p>
+        <div className="mt-8 max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">{guia.subtitulo}</p>
+          <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-5xl">{guia.titulo}</h1>
+          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{guia.descripcionLarga}</p>
+          <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {guia.capitulos.length} capítulos
+          </p>
         </div>
 
-        <div className="mt-10 space-y-3">
+        <div className="mt-12 space-y-3">
           {guia.capitulos.map((cap, i) => (
             <Link
               key={cap.slug}
-              href={`/academia/guias/${guia.slug}/${cap.slug}`}
-              className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-sm"
+              href={`/campus/guias/${guia.slug}/${cap.slug}`}
+              className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-6 transition hover:border-primary/40 hover:shadow-sm"
             >
-              <div className="flex items-center gap-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+              <div className="flex items-center gap-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">
                   {i + 1}
                 </span>
                 <div>
-                  <h2 className="text-sm font-bold">{cap.titulo}</h2>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <h2 className="text-base font-bold">{cap.titulo}</h2>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" /> {cap.minutosLectura} min de lectura
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+              <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
             </Link>
           ))}
         </div>

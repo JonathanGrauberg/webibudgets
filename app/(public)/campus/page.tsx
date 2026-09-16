@@ -1,6 +1,6 @@
-// app/(public)/academia/page.tsx
+// app/(public)/campus/page.tsx
 //
-// Hub de Academia — enlaza al Glosario (rápido, casual) y a las Guías
+// Hub de Campus — enlaza al Glosario (rápido, casual) y a las Guías
 // (más largas, tono más serio). Separados a propósito para no mezclar tonos.
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -9,12 +9,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export const metadata: Metadata = {
-  title: 'Academia | .budgets',
+  title: 'Campus | .budgets',
   description:
-    'Academia de .budgets: el Glosario PyME (jerga de negocios y tecnología explicada en criollo) y Guías prácticas de venta, liderazgo y estrategia para dueños de PyME.',
+    'Campus .budgets: el Glosario PyME (jerga de negocios y tecnología explicada en criollo) y Guías prácticas de venta, liderazgo y estrategia para dueños de PyME.',
 }
 
-export default async function AcademiaHubPage() {
+export default async function CampusHubPage() {
   const session = await getServerSession(authOptions).catch(() => null)
 
   return (
@@ -43,7 +43,7 @@ export default async function AcademiaHubPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <GraduationCap className="h-6 w-6" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Academia</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Campus</p>
           <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
             Para entender el negocio, no solo para usar el sistema
           </h1>
@@ -55,7 +55,7 @@ export default async function AcademiaHubPage() {
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2">
           <Link
-            href="/academia/glosario"
+            href="/campus/glosario"
             className="group rounded-[2rem] border border-border bg-card p-8 transition hover:border-primary/40 hover:shadow-sm"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -72,7 +72,7 @@ export default async function AcademiaHubPage() {
           </Link>
 
           <Link
-            href="/academia/guias"
+            href="/campus/guias"
             className="group rounded-[2rem] border border-border bg-card p-8 transition hover:border-primary/40 hover:shadow-sm"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">

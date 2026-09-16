@@ -1,4 +1,4 @@
-// app/(public)/academia/guias/page.tsx
+// app/(public)/campus/guias/page.tsx
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Instagram, Facebook, ArrowLeft, ArrowRight, Library } from 'lucide-react'
@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth'
 import { GUIAS } from '@/lib/guias-data'
 
 export const metadata: Metadata = {
-  title: 'Guías para dueños de PyME | Academia .budgets',
+  title: 'Guías para dueños de PyME | Campus .budgets',
   description:
     'Guías prácticas en capítulos sobre estrategia B2B, ventas y crecimiento para dueños de PyME y emprendedores — contenido gratis de .budgets.',
 }
@@ -37,8 +37,8 @@ export default async function GuiasIndexPage() {
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-14">
-        <Link href="/academia" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Academia
+        <Link href="/campus" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> Campus
         </Link>
 
         <div className="mt-6 text-center">
@@ -58,7 +58,7 @@ export default async function GuiasIndexPage() {
           {GUIAS.map((guia) => (
             <Link
               key={guia.slug}
-              href={`/academia/guias/${guia.slug}`}
+              href={`/campus/guias/${guia.slug}`}
               className="group block rounded-[2rem] border border-border bg-card p-8 transition hover:border-primary/40 hover:shadow-sm"
             >
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

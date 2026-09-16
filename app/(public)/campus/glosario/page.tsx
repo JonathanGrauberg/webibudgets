@@ -1,9 +1,9 @@
-// app/(public)/academia/glosario/page.tsx
+// app/(public)/campus/glosario/page.tsx
 //
 // "Glosario PyME" — un solo instructivo público (sin login) con jerga de
 // negocios/tecnología explicada en criollo, pensado para SEO (cada término
-// tiene su propio ancla, ej. /academia/glosario#roi) y para compartir un
-// solo link. Vive dentro de /academia (el hub), separado de las Guías para
+// tiene su propio ancla, ej. /campus/glosario#roi) y para compartir un
+// solo link. Vive dentro de /campus (el hub), separado de las Guías para
 // no mezclar el tono rápido/casual de acá con el tono más largo de esas.
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -64,8 +64,8 @@ export default async function GlosarioPage() {
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-14">
-        <Link href="/academia" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Academia
+        <Link href="/campus" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> Campus
         </Link>
 
         {/* Hero */}

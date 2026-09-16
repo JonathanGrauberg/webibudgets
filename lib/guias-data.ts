@@ -1,35 +1,45 @@
 // lib/guias-data.ts
 //
-// Contenido de "Academia > Guías" — piezas más largas y de tono más serio
-// que el Glosario, organizadas en guías con capítulos. Cada capítulo es su
-// propia página (mejor SEO: cada uno apunta a su propia búsqueda) y sus
-// "pasos" se muestran colapsados por default (se abren al tocarlos), para
-// que la guía no se vea como una pared de texto de entrada.
-//
-// Nunca incluir nombres propios de clientes ni información sensible acá —
-// todo el contenido tiene que valer para cualquier PyME, en general.
+// Contenido de "Campus > Guías" — material de consulta más largo y de
+// tono más formal que el Glosario, organizado en guías con capítulos.
+// Cada capítulo es un array de "bloques" (texto / pasos-en-acordeón / matriz
+// visual) para poder armar estructuras distintas por capítulo sin forzar un
+// esquema único. Nada de nombres propios de clientes ni información
+// sensible — todo el contenido vale para cualquier PyME, en general, y no
+// está escrito "para clientes de .budgets" sino para cualquier visitante.
 
 export interface GuiaPaso {
   titulo: string
-  contenido: string[] // uno o más párrafos/bullets — se muestran al expandir
+  contenido: string[]
 }
+
+export interface MatrizCuadrante {
+  numero: number
+  nombre: string
+  volumen: 'Alto' | 'Bajo'
+  margen: 'Alto' | 'Bajo'
+  funcion: string
+  color: string // hex
+}
+
+export type GuiaBloque =
+  | { tipo: 'texto'; numero: string; titulo: string; parrafos: string[] }
+  | { tipo: 'pasos'; numero: string; titulo: string; pasos: GuiaPaso[] }
+  | { tipo: 'matriz'; numero: string; titulo: string; cuadrantes: MatrizCuadrante[] }
 
 export interface GuiaCapitulo {
   slug: string
   titulo: string
   minutosLectura: number
-  intro: string[] // siempre visible, antes de los pasos colapsables
-  pasosIntro?: string // frase corta antes de la lista de pasos, ej. "Los 3 pasos para..."
-  pasos: GuiaPaso[]
-  cierre?: string[] // párrafo(s) de cierre, siempre visible, después de los pasos
-  ctaTitulo: string // conexión con la plataforma, real — no un módulo inventado
-  ctaTexto: string
+  bloques: GuiaBloque[]
+  notaFinal?: string // solo en el último capítulo de la guía — crédito discreto, sin caja destacada
 }
 
 export interface Guia {
   slug: string
   titulo: string
-  descripcionCorta: string // para la card en /academia/guias
+  subtitulo: string
+  descripcionCorta: string // para la card en /campus/guias
   descripcionLarga: string // para la portada de la guía
   capitulos: GuiaCapitulo[]
 }
@@ -37,123 +47,194 @@ export interface Guia {
 export const GUIAS: Guia[] = [
   {
     slug: 'estrategia-b2b-y-crecimiento',
-    titulo: 'Estrategia B2B y Crecimiento',
-    descripcionCorta: 'Cómo conseguir clientes grandes, convertir ventas sueltas en ingresos recurrentes, y saber qué de tu catálogo te da plata de verdad.',
+    titulo: 'Estrategia B2B y Crecimiento Operativo',
+    subtitulo: 'Material de consulta empresarial',
+    descripcionCorta: 'Prospección de cuentas grandes, cómo estructurar ingresos recurrentes, y cómo diagnosticar qué parte del catálogo da rentabilidad real.',
     descripcionLarga:
-      'Tres capítulos pensados para PyMEs que venden a otras empresas: cómo apuntar a clientes grandes sin presupuesto de marketing millonario, cómo dejar de depender de vender "de cero" cada mes, y cómo identificar qué productos o servicios realmente te dejan ganancia.',
+      'Tres capítulos para empresas que venden a otras empresas: cómo dirigir el esfuerzo comercial a cuentas estratégicas en vez de captación masiva, cómo institucionalizar la relación con los clientes activos para ganar previsibilidad financiera, y cómo clasificar el catálogo según su contribución marginal real.',
     capitulos: [
       {
         slug: 'abm-simplificado',
-        titulo: 'Account-Based Marketing (ABM) simplificado para PyMEs',
-        minutosLectura: 4,
-        intro: [
-          'El marketing tradicional funciona como una red de pesca: tirás la red (anuncios masivos, publicaciones, folletos) y ves qué cae. El Account-Based Marketing (ABM) funciona al revés, como la pesca con arpón: elegís de antemano a un puñado de empresas puntuales a las que te interesa venderle, investigás quién decide ahí adentro, y armás una propuesta pensada específicamente para esa empresa.',
-          'No hace falta presupuesto de agencia para aplicarlo — es más una forma de ordenar el esfuerzo comercial que ya hacés, apuntándolo mejor.',
+        titulo: 'Fundamentos de Prospección B2B: el modelo ABM',
+        minutosLectura: 5,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '1.1',
+            titulo: 'Introducción al Marketing Basado en Cuentas',
+            parrafos: [
+              'En el ámbito comercial B2B (Business-to-Business), las estrategias masivas de atracción suelen generar un volumen elevado de consultas con baja tasa de conversión. El modelo Account-Based Marketing (ABM) propone un cambio de paradigma: reemplazar la captación abierta por una estrategia de precisión dirigida explícitamente a empresas objetivo predefinidas.',
+              'Mientras que el marketing tradicional opera como una red de captura amplia, el ABM concentra los recursos comerciales en identificar, mapear y abordar un número acotado de cuentas estratégicas cuya escala justifica un proceso de venta consultivo.',
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '1.2',
+            titulo: 'Etapas de ejecución en la PyME',
+            pasos: [
+              {
+                titulo: 'Definición del Perfil de Cliente Ideal (ICP)',
+                contenido: [
+                  'El Perfil de Cliente Ideal no se limita a variables demográficas; contempla parámetros operativos y financieros precisos.',
+                  'Criterios estructurales: volumen de facturación estimada, dotación de personal y estructura del área de compras.',
+                  'Criterios operativos: metodología de aprovisionamiento, frecuencia de emisión de órdenes de pago y nivel de digitalización interna.',
+                ],
+              },
+              {
+                titulo: 'Mapeo del Centro Comprador',
+                contenido: [
+                  'En operaciones B2B, la decisión de compra no recae en un único individuo. Es fundamental identificar las distintas figuras que componen el comité de decisión.',
+                  'El Usuario Operativo: responsable del área que utilizará el insumo o servicio. Su prioridad radica en la eficiencia, los tiempos de entrega y la simplicidad técnica.',
+                  'El Evaluador Financiero: responsable de administración o gerencia. Su análisis se enfoca en las condiciones de crédito, facturación, márgenes y retorno de inversión.',
+                  'El Decisor Final: socio o director con potestad para autorizar la partida presupuestaria.',
+                ],
+              },
+              {
+                titulo: 'Elaboración de propuestas de valor asimétricas',
+                contenido: [
+                  'El abordaje a cada cuenta clave requiere abandonar la presentación de catálogos genéricos. La propuesta comercial debe estructurarse en función de la problemática específica detectada en la fase de prospección, detallando:',
+                  'Alcance de la provisión y plazos de entrega garantizados.',
+                  'Esquema de costos transparente y previsibilidad en el ajuste de precios.',
+                  'Plan de contingencia y soporte operativo tras la venta.',
+                ],
+              },
+            ],
+          },
         ],
-        pasosIntro: 'Los 3 pasos para ejecutar ABM sin presupuesto millonario:',
-        pasos: [
-          {
-            titulo: 'Definir el Perfil de Cliente Ideal (ICP)',
-            contenido: [
-              'No alcanza con algo genérico como "empresas que necesiten insumos". Cuanto más específico, mejor apuntás.',
-              'Ejemplo concreto: "Ferreterías industriales con más de 3 vendedores, que hoy tardan más de 24 horas en mandar un presupuesto a sus clientes."',
-              'Con un perfil así de puntual, sabés exactamente a quién buscar y qué dolor resolverle.',
-            ],
-          },
-          {
-            titulo: 'Mapear a los decisores de compra',
-            contenido: [
-              'En ventas B2B casi nunca decide una sola persona. Conviene identificar al menos dos roles:',
-              '• El Comprador Operativo: encargado de compras o jefe de depósito. Le importa la velocidad y que no haya problemas.',
-              '• El Comprador Financiero: dueño o gerente administrativo. Le importa la rentabilidad y la claridad en la facturación.',
-              'Tu propuesta le tiene que hablar a los dos, no solo al que te contesta el mail.',
-            ],
-          },
-          {
-            titulo: 'Crear una propuesta hiper-personalizada',
-            contenido: [
-              'Olvidate de mandar un catálogo genérico en PDF. Un presupuesto con ítems bien desglosados, tiempos de entrega concretos y métodos de pago flexibles vende mucho más que una lista de precios.',
-              'La personalización no tiene que ver con diseño gráfico — tiene que ver con que la otra empresa sienta que entendiste su problema puntual, no que le mandaste lo mismo que a todos.',
-            ],
-          },
-        ],
-        ctaTitulo: 'Presupuestos armados a medida, sin perder tiempo',
-        ctaTexto: 'En .budgets armás cada presupuesto con ítems desglosados, condiciones y tiempos de entrega — la propuesta personalizada del Paso 3 se arma en minutos, no en Word desde cero cada vez.',
       },
       {
         slug: 'ingresos-recurrentes',
-        titulo: 'De presupuestos ocasionales a ingresos recurrentes',
-        minutosLectura: 4,
-        intro: [
-          'Muchas PyMEs sufren meses con picos altos de facturación seguidos de semanas vacías — la típica venta B2B "serrucho". Pasa porque cada presupuesto se trata como una venta aislada, en vez de construir un acuerdo comercial que siga en el tiempo.',
-          'La clave para un crecimiento más predecible no es necesariamente salir a buscar clientes nuevos todos los días, sino transformar los presupuestos que ya aprobaste en acuerdos que se repiten.',
+        titulo: 'Recurrencia Comercial y Estructuración de Ingresos',
+        minutosLectura: 5,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '2.1',
+            titulo: 'La vulnerabilidad de la venta intermitente',
+            parrafos: [
+              'Un problema persistente en las pequeñas y medianas empresas es la fluctuación drástica en la facturación mensual. Este fenómeno ocurre cuando el modelo de ingresos depende exclusivamente de transacciones puntuales (ad-hoc), obligando a la fuerza de ventas a reiniciar el ciclo de captación al comienzo de cada período.',
+              'La previsibilidad financiera no se logra aumentando indefinidamente la base de clientes ocasionales, sino institucionalizando la relación comercial con los clientes activos para transformarlos en cuentas recurrentes.',
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '2.2',
+            titulo: 'Mecanismos de fidelización financiera',
+            pasos: [
+              {
+                titulo: 'El Acuerdo Marco de Provisión (Contrato Marco)',
+                contenido: [
+                  'Es un instrumento legal y comercial que fija las pautas generales para futuras operaciones entre las partes sin necesidad de renegociar términos en cada pedido individual.',
+                  'Beneficios operativos: se establecen previamente las condiciones de pago, los tiempos de reposición, las listas de precios de referencia y los márgenes de tolerancia de entrega.',
+                  'Resultado: el cliente agiliza sus órdenes de compra internas y se reducen los tiempos de emisión administrativa.',
+                ],
+              },
+              {
+                titulo: 'Modelos de adhesión y cuenta corriente estructurada',
+                contenido: [
+                  'Para asegurar la continuidad del flujo de caja, la empresa debe reducir la fricción en la cobranza habitual.',
+                  'Cobros programados: automatización de liquidaciones periódicas para abonos, mantenimiento o provisión recurrente.',
+                  'Líneas de crédito vinculadas a cumplimiento: definición clara de cupos en cuenta corriente con plazos estrictos y bonificaciones por pronto pago, evitando el desgaste de la gestión manual de cobranza.',
+                ],
+              },
+              {
+                titulo: 'Esquemas de reserva de capacidad',
+                contenido: [
+                  'Consiste en garantizar al cliente una cuota prioritaria de stock o de horas operativas dentro de la planificación de la empresa, a cambio de un compromiso formal de compra mensual.',
+                  'Este modelo blinda la cuenta ante intentos de captación por parte de competidores directos.',
+                ],
+              },
+            ],
+          },
         ],
-        pasosIntro: 'Las 3 estrategias para convertir presupuestos esporádicos en ingresos recurrentes:',
-        pasos: [
-          {
-            titulo: 'El modelo de "Contrato Marco" (acuerdo de provisión)',
-            contenido: [
-              'En vez de cotizar cada pedido chico desde cero, negociá un volumen estimado trimestral o anual con tus mejores clientes.',
-              'Acordás precios por escala y condiciones de entrega ya preaprobadas. El cliente no pierde tiempo pidiendo presupuestos a la competencia cada vez que necesita algo — directamente emite la orden de compra bajo el acuerdo que ya tienen.',
-            ],
-          },
-          {
-            titulo: 'Facilidad de pago automatizada',
-            contenido: [
-              'La fricción para cobrar frena la recompra. Si el cliente tiene que hacer una transferencia manual y mandarte el comprobante cada vez, la venta se retrasa — a veces se cae directamente.',
-              'Un link de pago recurrente para mantenimiento, servicios periódicos o reposición automática de stock saca esa fricción del medio. Cuando el pago se acredita solo, el flujo operativo no se detiene.',
-            ],
-          },
-          {
-            titulo: 'Garantía de stock reservado',
-            contenido: [
-              'Ofrecésela a tu 20% de clientes más importantes: "te garantizamos stock reservado de tus insumos críticos, a cambio de un compromiso de compra mensual".',
-              'Para la empresa que te compra, tener disponibilidad inmediata suele valer más que un pequeño descuento — es una forma de fidelizar que no pasa solo por el precio.',
-            ],
-          },
-        ],
-        ctaTitulo: 'Cobros recurrentes, sin perseguir transferencias',
-        ctaTexto: 'El módulo de Cobros de .budgets te deja cargar un cargo mensual con link de pago por Mercado Pago — el cliente paga solo, sin que tengas que acordarte de pedirle el comprobante cada mes.',
       },
       {
         slug: 'matriz-de-margen',
-        titulo: 'La Matriz de Margen: qué te da plata y qué te la saca',
-        minutosLectura: 5,
-        intro: [
-          'Facturar más no siempre significa ganar más. Es común que una empresa aumente sus ventas un 30% y, aun así, termine el mes con menos caja disponible.',
-          'Pasa por el "margen fantasma": productos o servicios que en el papel parecen rentables, pero cuyos costos ocultos (flete, roturas, tiempo de armado, comisiones, almacenamiento) se comen la ganancia real.',
+        titulo: 'Diagnóstico de Rentabilidad: la Matriz de Margen Operativo',
+        minutosLectura: 6,
+        bloques: [
+          {
+            tipo: 'texto',
+            numero: '3.1',
+            titulo: 'Distorsión entre facturación bruta y utilidad neta',
+            parrafos: [
+              'En la gestión comercial suele registrarse un error recurrente: evaluar el éxito de un ejercicio analizando únicamente el volumen de facturación. Un incremento en las ventas brutas puede derivar en un deterioro de la caja si los productos o servicios comercializados presentan un margen de contribución insuficiente para absorber los costos operativos no asignados (logística, roturas, tiempo de gestión, gastos financieros por cobranza diferida).',
+            ],
+          },
+          {
+            tipo: 'matriz',
+            numero: '3.2',
+            titulo: 'Clasificación del catálogo por contribución marginal',
+            cuadrantes: [
+              {
+                numero: 1,
+                nombre: 'Bienes Kern (Estrella)',
+                volumen: 'Alto',
+                margen: 'Alto',
+                funcion: 'Núcleo de rentabilidad. Absorben costos fijos y generan caja pura.',
+                color: '#28A745',
+              },
+              {
+                numero: 2,
+                nombre: 'Bienes Gancho',
+                volumen: 'Alto',
+                margen: 'Bajo',
+                funcion: 'Insumos de alta rotación para captación y absorción de estructura.',
+                color: '#FFC107',
+              },
+              {
+                numero: 3,
+                nombre: 'Soluciones de Especialidad',
+                volumen: 'Bajo',
+                margen: 'Alto',
+                funcion: 'Prestaciones a medida con alta valoración técnica por el cliente.',
+                color: '#17A2B8',
+              },
+              {
+                numero: 4,
+                nombre: 'Insumos Parásito',
+                volumen: 'Bajo',
+                margen: 'Bajo',
+                funcion: 'Alto costo de oportunidad y margen nulo o negativo.',
+                color: '#DC3545',
+              },
+            ],
+          },
+          {
+            tipo: 'pasos',
+            numero: '3.3',
+            titulo: 'Plan de acción por cuadrante',
+            pasos: [
+              {
+                titulo: 'Bienes Kern (alta rotación / alto margen)',
+                contenido: [
+                  'Representan la fortaleza financiera de la organización. Requieren un monitoreo continuo de stock para evitar quiebres y deben formar parte de la oferta principal en toda negociación B2B.',
+                ],
+              },
+              {
+                titulo: 'Bienes Gancho (alta rotación / bajo margen)',
+                contenido: [
+                  'Cumplen un rol táctico para abrir cuentas o competir con precios de mercado.',
+                  'Regla operativa: se debe aplicar una política estricta de cross-selling (venta cruzada). Una propuesta comercial nunca debe consolidarse únicamente con artículos de este segmento, ya que el costo logístico de despacho neutraliza la utilidad.',
+                ],
+              },
+              {
+                titulo: 'Soluciones de Especialidad (baja rotación / alto margen)',
+                contenido: [
+                  'Comprende servicios técnicos, piezas complejas o trabajos a medida. Dado que el cliente prioriza la resolución del problema por sobre la tarifa, deben cotizarse bajo el criterio de valor percibido, evitando la competencia por descuentos.',
+                ],
+              },
+              {
+                titulo: 'Insumos Parásito (baja rotación / bajo margen)',
+                contenido: [
+                  'Generan un costo de oportunidad elevado al inmovilizar capital de trabajo en depósito y consumir horas de gestión administrativa.',
+                  'Acción requerida: reestructuración de precios, paso a modalidad de provisión bajo pedido (sin stock propio en depósito), o retiro definitivo de la cartera activa.',
+                ],
+              },
+            ],
+          },
         ],
-        pasosIntro: 'Cómo clasificar tu catálogo en 4 cuadrantes:',
-        pasos: [
-          {
-            titulo: 'Productos Estrella (alto margen, alto volumen)',
-            contenido: [
-              'Son el motor financiero del negocio. Tienen que tener prioridad de stock y aparecer primero en tus cotizaciones — son lo que más te conviene vender.',
-            ],
-          },
-          {
-            titulo: 'Productos Gancho (bajo margen, alto volumen)',
-            contenido: [
-              'Artículos estándar que la competencia también vende, y a precios ajustados. No dejan ganancia pura, pero sirven para "abrir la puerta" con un cliente nuevo.',
-              'Regla de oro: nunca mandes un presupuesto que tenga SOLO productos gancho — combinalos siempre con algo de mayor margen.',
-            ],
-          },
-          {
-            titulo: 'Productos Especializados (alto margen, bajo volumen)',
-            contenido: [
-              'Soluciones a medida, servicios técnicos, o ítems difíciles de conseguir. Cotizalos a precio de especialista — quien los busca no está comparando centavos, busca que le resuelvas un problema puntual.',
-            ],
-          },
-          {
-            titulo: 'Productos Parásito (bajo margen, bajo volumen)',
-            contenido: [
-              'Insumos que vendés poco, ocupan espacio en el depósito, o exigen una logística cara para lo que dejan.',
-              'Acción concreta: o les actualizás el precio con decisión, o los sacás directamente de tu catálogo comercial — están usando capital de trabajo que podría estar en otro lado.',
-            ],
-          },
-        ],
-        ctaTitulo: 'Vé el margen real de cada producto, no el de memoria',
-        ctaTexto: 'En Productos y Servicios cargás el costo de cada ítem junto al precio de venta, y en cada Presupuesto aprobado ves la columna de Margen — así identificás tus Productos Estrella (y tus Parásito) con datos, no a ojo.',
+        notaFinal: 'Este material forma parte del programa de desarrollo para PyMEs de Campus .budgets.',
       },
     ],
   },
