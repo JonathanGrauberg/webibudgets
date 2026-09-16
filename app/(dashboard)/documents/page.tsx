@@ -471,19 +471,17 @@ export default function DocumentsPage() {
   )
   const totalAmount = totalApproved.reduce((acc, b) => acc + (b.total || 0), 0)
 
-  // Suma total cobrada: recibos activos (que no sean "espejo" de un pago de
-  // MP ya contado abajo) + pagos de Mercado Pago aprobados
-  const totalCollectedReceipts = receipts.reduce((acc: number, r: any) => {
-    if (isReceiptActive(r.status) && !r.sourceBudgetPaymentId) {
-      return acc + Number(r.amount || 0)
-    }
-    return acc
-  }, 0)
-  const totalCollectedMp = budgets.reduce(
-    (acc, b) => acc + (b.payments ?? []).reduce((a, p) => a + Number(p.amount || 0), 0),
+  // 👇 antes esto sumaba TODOS los recibos/pagos del tenant sin importar a
+  // qué presupuesto pertenecían (incluso de presupuestos "enviados" o de
+  // otros períodos, fuera de este filtro) — contra `totalAmount`, que solo
+  // suma los aprobados/completados de la lista actual. Esa mezcla podía dar
+  // "cobrado" mayor a "aprobado" y el saldo pendiente se clampeaba a $0
+  // aunque hubiera plata real por cobrar. Ahora usa collectedMap, la misma
+  // fuente que ya usa cada fila, y solo de los presupuestos de totalApproved.
+  const totalCollected = totalApproved.reduce(
+    (acc, b) => acc + Math.min(getCollectedAmount(b.id), b.total || 0),
     0
   )
-  const totalCollected = totalCollectedReceipts + totalCollectedMp
 
   const totalPending = Math.max(0, totalAmount - totalCollected)
 
