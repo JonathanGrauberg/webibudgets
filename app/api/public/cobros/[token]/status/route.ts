@@ -12,5 +12,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: 'Cobro no encontrado' }, { status: 404 })
   }
 
-  return NextResponse.json({ status: cobro.status })
+  return NextResponse.json({ status: cobro.status, paymentMethod: cobro.paymentMethod })
 }

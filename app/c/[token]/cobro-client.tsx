@@ -17,6 +17,7 @@ type PublicCobroData = {
   amount: number
   mpAmount: number
   mpSurchargePercent: number | null
+  paymentMethod: string | null
   currency: string
   status: 'pending' | 'paid'
   periodMonth: string
@@ -69,7 +70,7 @@ export function CobroPortalClient({ token }: { token: string }) {
       const res = await fetch(`/api/public/cobros/${token}/status`).catch(() => null)
       if (res?.ok) {
         const status = await res.json()
-        setData((prev) => (prev ? { ...prev, status: status.status } : prev))
+        setData((prev) => (prev ? { ...prev, status: status.status, paymentMethod: status.paymentMethod } : prev))
         if (status.status === 'paid') setPolling(false)
       }
       if (pollCount.current >= POLL_MAX_ATTEMPTS) setPolling(false)
@@ -159,6 +160,12 @@ export function CobroPortalClient({ token }: { token: string }) {
             {data.status === 'paid' ? (
               <div className="mt-6 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                 ✓ Ya está pagado — ¡gracias!
+                {/* 👇 nuevo — si pagó por MP con recargo, aclaramos el monto real cobrado (no el nominal de arriba) */}
+                {data.paymentMethod === 'mercado_pago' && data.mpSurchargePercent && (
+                  <p className="mt-1 text-xs font-normal text-emerald-600">
+                    Pagaste {formatCurrency(data.mpAmount, data.currency)} por Mercado Pago (incluye el {data.mpSurchargePercent}% de recargo).
+                  </p>
+                )}
               </div>
             ) : (
               <>

@@ -26,6 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     amount: cobro.amount,
     mpAmount, // 👈 nuevo
     mpSurchargePercent: surchargePct > 0 ? surchargePct : null, // 👈 nuevo
+    paymentMethod: cobro.paymentMethod, // 👈 nuevo — para saber si el "pagado" fue vía MP (y mostrar el monto real cobrado, con recargo)
     currency: cobro.currency,
     status: cobro.status,
     periodMonth: cobro.periodMonth,
