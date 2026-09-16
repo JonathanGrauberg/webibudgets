@@ -1,7 +1,7 @@
 //lib\dashboard-store.ts
 import { prisma } from '@/lib/prisma'
 import type { ProductCategory, BudgetStatus } from '@prisma/client' // 👈 nuevo
-import { getCollectedByBudgetIds, isReceiptActive } from '@/lib/collected-amount'
+import { isReceiptActive } from '@/lib/collected-amount'
 
 // Estados de presupuesto donde el cobro es una expectativa REAL, no una
 // suposición — un 'sent' todavía no lo aprobó el cliente, así que contarlo
@@ -86,42 +86,103 @@ export interface CollectedStats {
 // se cobró. totalRevenue mezclaba "lo que valen los presupuestos aprobados"
 // con "lo que entró de verdad", que dejaron de ser lo mismo apenas existió
 // el cobro parcial online.
-export async function getCollectedStats(tenantId: string): Promise<CollectedStats> {
+//
+// 👇 "Cobrado" y "Por Cobrar" tienen naturalezas distintas y no deben
+// depender del mismo filtro de fecha de la misma forma:
+// - "Cobrado" es un FLUJO — tiene sentido que respete el período elegido
+//   arriba (Este mes/Este año/Histórico). Antes ignoraba `range` del todo,
+//   por eso "Cobrado" con "Este mes" seleccionado mostraba plata que en
+//   realidad había entrado en meses anteriores.
+// - "Por Cobrar" es un SALDO (como una cuenta corriente) — lo que falta
+//   cobrar HOY no depende de qué mes estés mirando, así que se calcula
+//   siempre con el histórico completo, sin importar `range`.
+export async function getCollectedStats(
+  tenantId: string,
+  range?: { from: Date; to: Date }
+): Promise<CollectedStats> {
   const budgets = await prisma.budget.findMany({
     where: { tenantId, active: true, status: { in: PAYABLE_STATUSES } },
     select: { id: true, total: true },
   })
+  const budgetIds = budgets.map((b) => b.id)
 
-  const collectedByBudget = await getCollectedByBudgetIds(budgets.map((b) => b.id))
+  const [receipts, payments, linkedCobros, standaloneCobros] = await Promise.all([
+    prisma.receipt.findMany({
+      where: { budgetId: { in: budgetIds }, sourceBudgetPaymentId: null },
+      select: { budgetId: true, amount: true, status: true, issueDate: true },
+    }),
+    prisma.budgetPayment.findMany({
+      where: { budgetId: { in: budgetIds }, status: 'approved' },
+      select: { budgetId: true, amount: true, createdAt: true },
+    }),
+    prisma.cobro.findMany({
+      where: { budgetId: { in: budgetIds }, status: 'paid' },
+      select: { budgetId: true, amount: true, paidAt: true },
+    }),
+    prisma.cobro.findMany({
+      where: { tenantId, budgetId: null },
+      select: { amount: true, status: true, paidAt: true },
+    }),
+  ])
 
-  let totalCollected = 0
+  const inRange = (d: Date | null) => !range || (d != null && d >= range.from && d <= range.to)
+  const add = (map: Map<string, number>, id: string | null, amount: number) => {
+    if (!id) return
+    map.set(id, (map.get(id) ?? 0) + amount)
+  }
+
+  // Dos mapas por presupuesto: todo lo cobrado alguna vez (para el saldo
+  // pendiente real) y solo lo cobrado dentro del período elegido (para
+  // mostrar "Cobrado").
+  const collectedAllTimeByBudget = new Map<string, number>()
+  const collectedInRangeByBudget = new Map<string, number>()
+
+  for (const r of receipts) {
+    if (!isReceiptActive(r.status)) continue
+    const amount = Number(r.amount || 0)
+    add(collectedAllTimeByBudget, r.budgetId, amount)
+    if (inRange(r.issueDate)) add(collectedInRangeByBudget, r.budgetId, amount)
+  }
+  for (const p of payments) {
+    const amount = Number(p.amount || 0)
+    add(collectedAllTimeByBudget, p.budgetId, amount)
+    if (inRange(p.createdAt)) add(collectedInRangeByBudget, p.budgetId, amount)
+  }
+  for (const c of linkedCobros) {
+    const amount = Number(c.amount || 0)
+    add(collectedAllTimeByBudget, c.budgetId, amount)
+    if (inRange(c.paidAt)) add(collectedInRangeByBudget, c.budgetId, amount)
+  }
+
+  let totalCollected = 0 // dentro del período elegido — esto es lo que se muestra
+  let totalCollectedAllTime = 0 // histórico completo — solo para calcular el saldo pendiente real
   let totalApprovedValue = 0
   for (const b of budgets) {
     totalApprovedValue += b.total
     // Math.min por las dudas — si alguien pagó de más por error, no
     // queremos mostrar "cobrado" mayor a lo presupuestado.
-    totalCollected += Math.min(collectedByBudget.get(b.id) ?? 0, b.total)
+    totalCollectedAllTime += Math.min(collectedAllTimeByBudget.get(b.id) ?? 0, b.total)
+    totalCollected += Math.min(collectedInRangeByBudget.get(b.id) ?? 0, b.total)
   }
 
-  // 👇 nuevo — Cobros del módulo "Cobros" que NO están vinculados a ningún
+  // 👇 Cobros del módulo "Cobros" que NO están vinculados a ningún
   // presupuesto (ej: una cuota mensual suelta) eran invisibles para estas
   // cuentas — "Cobrado"/"Por Cobrar" solo miraban Documentos. Un Cobro
-  // vinculado a un presupuesto no se suma acá de nuevo (ya lo cuenta
-  // getCollectedByBudgetIds arriba si está pagado, y si está pendiente ya
-  // forma parte del saldo pendiente de ESE presupuesto) — solo los sueltos.
-  const standaloneCobros = await prisma.cobro.findMany({
-    where: { tenantId, budgetId: null },
-    select: { amount: true, status: true },
-  })
+  // vinculado a un presupuesto no se suma acá de nuevo (ya está arriba), y
+  // si está pendiente ya forma parte del saldo pendiente de ESE
+  // presupuesto — acá solo entran los sueltos.
   for (const c of standaloneCobros) {
     totalApprovedValue += c.amount
-    if (c.status === 'paid') totalCollected += c.amount
+    if (c.status === 'paid') {
+      totalCollectedAllTime += c.amount
+      if (inRange(c.paidAt)) totalCollected += c.amount
+    }
   }
 
   return {
     totalCollected,
     totalApprovedValue,
-    totalPending: Math.max(totalApprovedValue - totalCollected, 0),
+    totalPending: Math.max(totalApprovedValue - totalCollectedAllTime, 0),
   }
 }
 

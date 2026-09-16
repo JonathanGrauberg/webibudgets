@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       : undefined
 
     const stats = await getDashboardStats(tenantId, range) // 👈 range agregado
-    const collectedStats = await getCollectedStats(tenantId) // 👈 nuevo — plata real, sin filtro de rango (es una foto de hoy)
+    const collectedStats = await getCollectedStats(tenantId, range) // 👈 "Cobrado" respeta el rango, "Por Cobrar" no (ver comentario en dashboard-store.ts)
     const recentBudgets = await getRecentBudgets(tenantId, 5)
     const revenue = await getMonthlyRevenue(tenantId)
     const statusStats = await getBudgetStatusStats(tenantId)
