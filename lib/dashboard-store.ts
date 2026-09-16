@@ -367,7 +367,14 @@ export async function getCobrosGastosSummary(
       where: {
         tenantId,
         status: 'pending',
-        ...(range ? { periodMonth: { gte: range.from, lte: range.to } } : {}),
+        // 👇 periodMonth siempre se guarda como el día 1 del mes en UTC puro
+        // (ver lib/cobro-period.ts) — comparar contra `range.from` tal cual
+        // (medianoche LOCAL, ej. 00:00 ART = 03:00 UTC) lo dejaba afuera del
+        // "gte", porque 00:00 UTC del día 1 es "menor" que esas 03:00 UTC.
+        // Hay que redondear `range.from` para abajo, al inicio UTC de su mes.
+        ...(range
+          ? { periodMonth: { gte: new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), 1)), lte: range.to } }
+          : {}),
       },
       _sum: { amount: true },
     }),
