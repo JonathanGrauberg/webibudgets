@@ -154,6 +154,7 @@ export async function getTenantBranding(tenantId: string) {
       currency: true,
       cuit: true,
       condicionIva: true,
+      defaultTransferAlias: true, // 👈 fix — faltaba, por esto no persistía visualmente al volver a entrar
       logoUrl: true,
       faviconUrl: true,
       watermarkUrl: true,

@@ -70,6 +70,24 @@ export interface FacturacionPorIntegranteRow {
   cantidad: number;
 }
 
+// 👇 nuevo — cobros del módulo "Cobros" pagados SIN presupuesto vinculado
+// (ej: cuota mensual recurrente), agrupados en un único bloque repartible.
+export interface CobroSueltoItem {
+  id: string;
+  clientName: string;
+  concept: string;
+  amount: number;
+  currency: string;
+  paidAt: string;
+}
+
+export interface CobrosSueltosData {
+  id: string; // clave sintética usada como "budgetId" en el reparto
+  total: number;
+  count: number;
+  items: CobroSueltoItem[];
+}
+
 export interface RendicionData {
   id: string;
   periodStart: string;
@@ -85,7 +103,8 @@ export interface RendicionData {
   budgets: RendicionBudgetRow[]; // 👈 trabajos con ALGO cobrado (total o parcial) — ver RendicionBudgetRow.collected/pctCobrado
   tenantUsers?: TenantUser[];
   asignacionesGuardadas?: AsignacionConfirmada[];
-  currency?: string; 
+  cobrosSueltos?: CobrosSueltosData | null; // 👈 nuevo
+  currency?: string;
 }
 
 interface RendicionesPageProps {
@@ -330,13 +349,15 @@ export default function RendicionesPage({
       return;
     }
 
+    const esCobrosSueltos = selectedBudget.id === data.cobrosSueltos?.id;
+
     const nuevasAsignaciones: AsignacionConfirmada[] = Object.entries(distribucionDraft)
       .filter(([_, pct]) => pct > 0)
       .map(([userId, pct]) => {
         const usuario = tenantUsers.find(u => u.id === userId);
         return {
           budgetId: selectedBudget.id,
-          budgetNumber: String(selectedBudget.budgetNumber).padStart(6, "0"),
+          budgetNumber: esCobrosSueltos ? "COBROS" : String(selectedBudget.budgetNumber).padStart(6, "0"),
           vendedorId: userId,
           vendedorName: usuario?.name ?? "Desconocido",
           role: usuario?.role ?? "seller",
@@ -417,6 +438,33 @@ export default function RendicionesPage({
       .filter((a) => a.vendedorId === currentUserId)
       .reduce((acc, a) => acc + a.gananciaAsignada, 0);
   }, [asignacionesGuardadas, currentUserId]);
+
+  // 👇 nuevo — bloque de cobros sueltos (sin presupuesto) como una fila
+  // "virtual" compatible con RendicionBudgetRow, para reusar el mismo panel
+  // de distribución por % que ya existe para los presupuestos.
+  const cobrosSueltosRow: RendicionBudgetRow | null = useMemo(() => {
+    if (!data.cobrosSueltos || data.cobrosSueltos.total <= 0) return null;
+    return {
+      id: data.cobrosSueltos.id,
+      clienteName: "Cobros pagados (sin presupuesto)",
+      vendedorName: "",
+      budgetNumber: 0,
+      fecha: data.periodEnd,
+      estado: "completed",
+      total: data.cobrosSueltos.total,
+      collected: data.cobrosSueltos.total,
+      pctCobrado: 100,
+      costo: 0,
+      gananciaTotal: data.cobrosSueltos.total,
+      ganancia: data.cobrosSueltos.total,
+      margen: 100,
+      gastosAsociados: 0,
+    };
+  }, [data.cobrosSueltos, data.periodEnd]);
+
+  const cobrosSueltosRepartoStatus = cobrosSueltosRow
+    ? getRepartoStatus(cobrosSueltosRow.id, asignacionesGuardadas)
+    : "pendiente";
 
   return (
     <div className="space-y-6">
@@ -572,7 +620,9 @@ export default function RendicionesPage({
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
                 {selectedBudget
-                  ? `Rendición de Presupuesto N° ${String(selectedBudget.budgetNumber).padStart(6, "0")}`
+                  ? selectedBudget.id === data.cobrosSueltos?.id
+                    ? "Rendición de Cobros Pagados (sin presupuesto)"
+                    : `Rendición de Presupuesto N° ${String(selectedBudget.budgetNumber).padStart(6, "0")}`
                   : "Distribución de ganancias"
                 }
               </h2>
@@ -782,6 +832,53 @@ export default function RendicionesPage({
           <Info className="h-3.5 w-3.5" /> Se incluye cualquier trabajo con algo cobrado (total o parcial). La ganancia repartible es proporcional a lo cobrado — si un trabajo se paga en cuotas, se reparte a medida que entra cada una.
         </p>
       </CollapsibleCard>
+
+      {/* 👇 nuevo — cobros pagados del módulo "Cobros" sin presupuesto
+          vinculado (ej: cuotas mensuales recurrentes). Van aparte porque no
+          tienen costo ni vendedor conocido — se reparten como un solo bloque. */}
+      {cobrosSueltosRow && (
+        <CollapsibleCard
+          defaultOpen={false}
+          accentClassName="border-t-4 border-t-violet-500"
+          icon={<Wallet className="h-5 w-5 text-violet-600 shrink-0" />}
+          title="Ingresos de cobros pagos"
+          subtitle="Cobros recurrentes pagados sin presupuesto vinculado — no suman a ningún trabajo puntual"
+          headerRight={<RepartoStatusBadge status={cobrosSueltosRepartoStatus} />}
+        >
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Concepto</TableHead>
+                  <TableHead>Fecha de pago</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.cobrosSueltos!.items.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium text-slate-800">{c.clientName}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{c.concept}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{formatDate(c.paidAt)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium text-slate-700">{formatCurrency(c.amount, c.currency)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectBudget(cobrosSueltosRow)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSelectBudget(cobrosSueltosRow); }}
+            className={`flex cursor-pointer items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm transition-colors hover:bg-violet-50/60 sm:px-5 ${selectedBudget?.id === cobrosSueltosRow.id ? "bg-violet-50/70" : ""}`}
+          >
+            <span className="text-slate-500">Click para repartir esta ganancia entre integrantes</span>
+            <span className="font-semibold text-violet-700">{formatCurrency(cobrosSueltosRow.ganancia, currency)}</span>
+          </div>
+        </CollapsibleCard>
+      )}
 
       {/* Historial de Ganancias Distribuidas */}
       {asignacionesGuardadas.length > 0 && (

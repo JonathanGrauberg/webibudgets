@@ -16,6 +16,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const paymentMethod = VALID_METHODS.includes(data.paymentMethod) ? data.paymentMethod : 'efectivo'
 
+    // 👇 nuevo — fecha real del pago (relevante sobre todo para pagos por
+    // alias/transferencia, que se marcan a mano días después de que
+    // efectivamente entró la plata). Si no viene o es inválida, usamos ahora.
+    let paidAt = new Date()
+    if (data.paidAt) {
+      const parsed = new Date(data.paidAt)
+      if (!isNaN(parsed.getTime())) paidAt = parsed
+    }
+
     const existing = await prisma.cobro.findFirst({ where: { id, tenantId } })
     if (!existing) {
       return NextResponse.json({ error: 'Cobro no encontrado' }, { status: 404 })
@@ -26,7 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const cobro = await prisma.cobro.update({
       where: { id },
-      data: { status: 'paid', paidAt: new Date(), paymentMethod },
+      data: { status: 'paid', paidAt, paymentMethod },
       include: { client: { select: { id: true, name: true, company: true } } },
     })
 

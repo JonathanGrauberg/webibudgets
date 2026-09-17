@@ -39,9 +39,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet, FileText, X, Landmark } from 'lucide-react'
+import { Plus, Link2, MessageCircle, Repeat, Trash2, Loader2, Wallet, FileText, X, Landmark, Package } from 'lucide-react'
 import { buildWhatsappLink } from '@/lib/whatsapp'
 import { formatCurrency } from '@/lib/format'
+import { ProductPicker } from '@/components/budget/product-picker'
+import type { ProductService } from '@/lib/types'
 
 async function fetcher(url: string) {
   const res = await fetch(url)
@@ -95,10 +97,13 @@ export default function CobrosPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [linkDialogCobro, setLinkDialogCobro] = useState<Cobro | null>(null)
+  const [markPaidCobro, setMarkPaidCobro] = useState<Cobro | null>(null)
 
   const { data: cobros, isLoading } = useSWR<Cobro[]>(`/api/cobros?period=${period}`, fetcher)
   const { data: clients } = useSWR<Client[]>('/api/clients', fetcher)
   const { data: tenant } = useSWR<{ defaultTransferAlias: string | null }>('/api/tenants', fetcher)
+  const { data: allProducts } = useSWR<ProductService[]>('/api/products', fetcher)
+  const products = useMemo(() => (allProducts ?? []).filter((p) => p.active), [allProducts])
 
   const summary = useMemo(() => {
     const list = cobros ?? []
@@ -152,14 +157,13 @@ export default function CobrosPage() {
     }
   }
 
-  async function handleMarkPaid(id: string) {
-    if (!confirm('¿Marcar este cobro como pagado (efectivo/transferencia)?')) return
+  async function handleConfirmMarkPaid(id: string, paymentMethod: string, paidAt: string) {
     setBusyId(id)
     try {
       const res = await fetch(`/api/cobros/${id}/mark-paid`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: 'efectivo' }),
+        body: JSON.stringify({ paymentMethod, paidAt }),
       })
       if (!res.ok) {
         const json = await res.json().catch(() => null)
@@ -167,6 +171,7 @@ export default function CobrosPage() {
         return
       }
       toast.success('Cobro marcado como pagado')
+      setMarkPaidCobro(null)
       mutate(`/api/cobros?period=${period}`)
     } finally {
       setBusyId(null)
@@ -295,7 +300,7 @@ export default function CobrosPage() {
                   busy={busyId === c.id}
                   onCopyLink={() => handleCopyLink(c.id)}
                   onWhatsapp={() => handleSendWhatsapp(c)}
-                  onMarkPaid={() => handleMarkPaid(c.id)}
+                  onMarkPaid={() => setMarkPaidCobro(c)}
                   onDuplicate={() => handleDuplicate(c.id)}
                   onDelete={() => handleDelete(c.id)}
                   onLinkBudget={() => setLinkDialogCobro(c)}
@@ -367,7 +372,7 @@ export default function CobrosPage() {
                                 <MessageCircle className="h-4 w-4" />
                               </Button>
                               {c.status === 'pending' && (
-                                <Button variant="outline" size="sm" disabled={busyId === c.id} onClick={() => handleMarkPaid(c.id)} title="Marcar como pagado">
+                                <Button variant="outline" size="sm" disabled={busyId === c.id} onClick={() => setMarkPaidCobro(c)} title="Marcar como pagado">
                                   <Wallet className="h-4 w-4" />
                                 </Button>
                               )}
@@ -396,6 +401,7 @@ export default function CobrosPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         clients={clients ?? []}
+        products={products}
         defaultPeriod={period}
         defaultAlias={tenant?.defaultTransferAlias ?? ''}
         onCreated={() => mutate(`/api/cobros?period=${period}`)}
@@ -407,6 +413,15 @@ export default function CobrosPage() {
         onSelect={(budgetId) => {
           if (linkDialogCobro) handleLinkBudget(linkDialogCobro.id, budgetId)
           setLinkDialogCobro(null)
+        }}
+      />
+
+      <MarkPaidDialog
+        cobro={markPaidCobro}
+        busy={busyId === markPaidCobro?.id}
+        onOpenChange={(o) => !o && setMarkPaidCobro(null)}
+        onConfirm={(paymentMethod, paidAt) => {
+          if (markPaidCobro) handleConfirmMarkPaid(markPaidCobro.id, paymentMethod, paidAt)
         }}
       />
     </div>
@@ -471,6 +486,91 @@ function LinkBudgetDialog({
             )}
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'tarjeta', label: 'Tarjeta' },
+  { value: 'otro', label: 'Otro' },
+]
+
+function todayLocalDate() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10)
+}
+
+// 👇 nuevo — al marcar un cobro pagado a mano (no vía Mercado Pago), pedimos
+// el método y la fecha real en que entró la plata. Importa sobre todo para
+// pagos por alias/transferencia, que a veces se cargan acá días después de
+// que efectivamente se cobraron — sin esto, `paidAt` quedaba siempre "ahora",
+// distorsionando las métricas del período en que realmente entró el pago.
+function MarkPaidDialog({
+  cobro,
+  busy,
+  onOpenChange,
+  onConfirm,
+}: {
+  cobro: Cobro | null
+  busy: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: (paymentMethod: string, paidAt: string) => void
+}) {
+  const [paymentMethod, setPaymentMethod] = useState('efectivo')
+  const [paidAt, setPaidAt] = useState(todayLocalDate())
+
+  useEffect(() => {
+    if (cobro) {
+      setPaymentMethod('efectivo')
+      setPaidAt(todayLocalDate())
+    }
+  }, [cobro])
+
+  return (
+    <Dialog open={!!cobro} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Marcar como pagado</DialogTitle>
+        </DialogHeader>
+        {cobro && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {cobro.concept} — <span className="font-medium text-foreground">{formatCurrency(cobro.amount, cobro.currency)}</span>
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Método de pago</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha en que se cobró</label>
+              <Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+              <p className="text-[11px] text-muted-foreground">Si transfirió por alias hace unos días, poné la fecha real del pago — así queda bien en las métricas.</p>
+            </div>
+            <DialogFooter>
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={() => onConfirm(paymentMethod, paidAt)}
+              >
+                {busy ? 'Guardando...' : 'Confirmar pago'}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -561,6 +661,7 @@ function CreateCobroDialog({
   open,
   onOpenChange,
   clients,
+  products,
   defaultPeriod,
   defaultAlias,
   onCreated,
@@ -568,6 +669,7 @@ function CreateCobroDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
   clients: Client[]
+  products: ProductService[]
   defaultPeriod: string
   defaultAlias: string
   onCreated: () => void
@@ -577,6 +679,7 @@ function CreateCobroDialog({
   const [alias, setAlias] = useState(defaultAlias)
   const [mpSurchargePercent, setMpSurchargePercent] = useState('')
   const [amount, setAmount] = useState('')
+  const [productId, setProductId] = useState('')
   const [period, setPeriod] = useState(defaultPeriod)
   const [saving, setSaving] = useState(false)
   const [linkedBudget, setLinkedBudget] = useState<BudgetOption | null>(null)
@@ -588,6 +691,7 @@ function CreateCobroDialog({
     setAlias(defaultAlias)
     setMpSurchargePercent('')
     setAmount('')
+    setProductId('')
     setPeriod(defaultPeriod)
     setLinkedBudget(null)
   }
@@ -687,6 +791,24 @@ function CreateCobroDialog({
               Se le suma a este monto SOLO si el cliente paga con el botón de Mercado Pago — si transfiere por el alias de arriba, paga el monto sin recargo.
             </p>
           </div>
+
+          {products.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                <Package className="h-3 w-3" /> Traer monto de un producto/servicio (opcional)
+              </label>
+              <ProductPicker
+                products={products}
+                value={productId}
+                onChange={(id) => {
+                  setProductId(id)
+                  const product = products.find((p) => p.id === id)
+                  if (product) setAmount(String(product.price))
+                }}
+                placeholder="Buscar producto o servicio..."
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

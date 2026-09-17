@@ -45,6 +45,17 @@ function computeBudgetMetrics(budget: BudgetForRendicion) {
 }
 
 export async function generateRendicionData(tenantId: string, periodStart: Date, periodEnd: Date) {
+  // 🌟 Cobros sueltos — cargos del módulo "Cobros" pagados SIN presupuesto
+  // vinculado (ej: cuota mensual recurrente). No tienen costo ni vendedor
+  // conocido, así que entran 100% como ganancia del período — se calcula
+  // antes del early-return de abajo para que sumen aunque no haya ningún
+  // presupuesto con movimiento este período.
+  const cobrosSueltosPagados = await prisma.cobro.findMany({
+    where: { tenantId, status: 'paid', budgetId: null, paidAt: { gte: periodStart, lte: periodEnd } },
+    select: { amount: true },
+  })
+  const totalCobrosSueltos = cobrosSueltosPagados.reduce((acc, c) => acc + Number(c.amount || 0), 0)
+
   // 🌟 Un presupuesto entra como "candidato" si tuvo ALGÚN movimiento de
   // cobro dentro de este rango — cobro total o parcial, da igual (antes acá
   // exigíamos que el cobro completara el 100% del presupuesto para que
@@ -94,14 +105,15 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
   if (candidateBudgetIds.length === 0) {
     return {
       presupuestosCompletados: 0,
-      totalFacturado: 0,
+      totalFacturado: totalCobrosSueltos,
       totalCosto: 0,
-      totalGanancia: 0,
+      totalGanancia: totalCobrosSueltos,
       totalGastosGenerales: 0, // 👈 nuevo
-      margenPromedio: 0,
+      margenPromedio: totalCobrosSueltos > 0 ? 100 : 0,
       anyMissingCost: false,
       sellerShares: [],
       budgetRows: [],
+      totalCobrosSueltos,
     }
   }
 
@@ -220,6 +232,11 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
 
   totalGanancia -= totalGastosGenerales // 👈 nuevo — los gastos generales bajan el total del período, no ninguna fila puntual
 
+  // 👇 cobros sueltos (sin presupuesto) suman al total del período — 100%
+  // ganancia, sin costo conocido.
+  totalFacturado += totalCobrosSueltos
+  totalGanancia += totalCobrosSueltos
+
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
   const perfBySeller = new Map<string, { count: number; facturado: number; ganancia: number }>()
@@ -255,6 +272,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
     totalCosto,
     totalGanancia,
     totalGastosGenerales, // 👈 nuevo
+    totalCobrosSueltos, // 👈 nuevo
     margenPromedio,
     anyMissingCost,
     sellerShares,

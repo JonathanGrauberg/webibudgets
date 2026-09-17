@@ -137,9 +137,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   })
   const totalGastosGenerales = generalExpenses.reduce((acc, e) => acc + e.amount, 0)
 
-  const totalFacturado = budgetRows.reduce((acc, b) => acc + b.collected, 0)
+  // 🌟 Cobros sueltos — cargos de "Cobros" pagados SIN presupuesto vinculado
+  // (ej: cuota mensual recurrente). No tienen costo ni vendedor conocido:
+  // entran 100% como ganancia del período, y se muestran/reparten aparte
+  // en su propio bloque ("Ingresos de cobros pagos"), con el mismo mecanismo
+  // de reparto por % que un presupuesto (ver RendicionAsignacion.budgetId,
+  // que es un string libre sin FK — reusamos ese campo con una clave
+  // sintética en vez de un budgetId real).
+  const cobrosSueltosPagados = await prisma.cobro.findMany({
+    where: {
+      tenantId,
+      status: 'paid',
+      budgetId: null,
+      paidAt: { gte: rendicion.periodStart, lte: rendicion.periodEnd },
+    },
+    include: { client: { select: { name: true, company: true } } },
+    orderBy: { paidAt: 'desc' },
+  })
+  const cobrosSueltosKey = `cobros_sueltos:${rendicion.id}`
+  const cobrosSueltosTotal = cobrosSueltosPagados.reduce((acc, c) => acc + Number(c.amount || 0), 0)
+  const cobrosSueltosItems = cobrosSueltosPagados.map((c) => ({
+    id: c.id,
+    clientName: c.client?.company || c.client?.name || '—',
+    concept: c.concept,
+    amount: c.amount,
+    currency: c.currency,
+    paidAt: (c.paidAt ?? c.periodMonth).toISOString(),
+  }))
+
+  const totalFacturado = budgetRows.reduce((acc, b) => acc + b.collected, 0) + cobrosSueltosTotal
   const totalCosto = budgetRows.reduce((acc, b) => acc + b.costo * (b.pctCobrado / 100), 0)
-  const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0) - totalGastosGenerales
+  const totalGanancia = budgetRows.reduce((acc, b) => acc + b.ganancia, 0) - totalGastosGenerales + cobrosSueltosTotal
   const margenPromedio = totalFacturado > 0 ? (totalGanancia / totalFacturado) * 100 : 0
 
   const budgetById = new Map(budgetRowsAll.map((b) => [b.id, b]))
@@ -182,6 +210,30 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
+  // 👇 reparto de los cobros sueltos — a diferencia de los presupuestos, la
+  // clave (cobrosSueltosKey) ya incluye el rendicionId, así que alcanza con
+  // buscar en ESTA rendición.
+  const asignacionesCobrosSueltos = cobrosSueltosTotal > 0
+    ? await prisma.rendicionAsignacion.findMany({ where: { budgetId: cobrosSueltosKey, rendicionId: rendicion.id } })
+    : []
+  const asignacionesCobrosSueltosMapped = asignacionesCobrosSueltos
+    .map((a) => {
+      const u = userBySellerId.get(a.sellerId)
+      if (!u) return null
+      return {
+        budgetId: a.budgetId,
+        budgetNumber: 'COBROS',
+        vendedorId: u.id,
+        vendedorName: u.name,
+        role: u.role,
+        porcentaje: a.percentage,
+        gananciaAsignada: a.monto,
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  asignacionesGuardadas.push(...asignacionesCobrosSueltosMapped)
+
   const acumuladoUsuarios: Record<string, { name: string; presupuestos: Set<string>; facturado: number; ganancia: number }> = {}
 
   tenantUsers.forEach(u => {
@@ -190,8 +242,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   asignacionesGuardadas.forEach((a) => {
     const acc = acumuladoUsuarios[a.vendedorId]
+    if (!acc) return
+    if (a.budgetId === cobrosSueltosKey) {
+      acc.ganancia += a.gananciaAsignada
+      acc.facturado += cobrosSueltosTotal * (a.porcentaje / 100)
+      acc.presupuestos.add(a.budgetId)
+      return
+    }
     const b = budgetById.get(a.budgetId)
-    if (!acc || !b) return
+    if (!b) return
     acc.ganancia += a.gananciaAsignada
     acc.facturado += b.collected * (a.porcentaje / 100)
     acc.presupuestos.add(a.budgetId)
@@ -242,6 +301,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     budgets: budgetRows,
     tenantUsers: canSeeDistribution ? tenantUsers : [],
     asignacionesGuardadas: canSeeDistribution ? asignacionesGuardadas : [],
+    cobrosSueltos: cobrosSueltosTotal > 0
+      ? { id: cobrosSueltosKey, total: cobrosSueltosTotal, count: cobrosSueltosItems.length, items: cobrosSueltosItems }
+      : null,
     currency: 'ARS',
   })
 }
