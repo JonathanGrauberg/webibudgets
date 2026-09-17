@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 import { hasFeature } from '@/lib/features'
+import { findCandidateBudgetIds } from '@/lib/rendicion-engine'
+
+const BUDGET_INCLUDE_FOR_RENDICION = {
+  client: { select: { name: true, company: true } },
+  seller: { select: { name: true, lastName: true, userId: true } },
+  items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
+  receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
+  payments: { select: { amount: true, status: true } },
+  cobros: { select: { amount: true, status: true } },
+  expenses: { select: { amount: true } },
+} as const
 
 const INACTIVE_RECEIPT_STATUSES = new Set(['cancelled', 'anulado', 'voided', 'void', 'annulled'])
 
@@ -26,17 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     include: {
       budgets: {
         include: {
-          budget: {
-            include: {
-              client: { select: { name: true, company: true } },
-              seller: { select: { name: true, lastName: true, userId: true } },
-              items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-              receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
-              payments: { select: { amount: true, status: true } },
-              cobros: { select: { amount: true, status: true } },
-              expenses: { select: { amount: true } },
-            },
-          },
+          budget: { include: BUDGET_INCLUDE_FOR_RENDICION },
         },
       },
     },
@@ -44,6 +45,31 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   if (!rendicion) {
     return NextResponse.json({ error: 'Rendición no encontrada' }, { status: 404 })
+  }
+
+  // 🌟 nuevo — auto-descubrimiento de presupuestos nuevos: antes, un
+  // recibo/pago cargado DESPUÉS de generar la rendición no aparecía hasta que
+  // alguien volvía a tocar "Generar rendición" a mano (lo único que corría
+  // esta búsqueda). Ahora cada lectura vuelve a buscar candidatos del mismo
+  // período y los vincula solos — una rendición cerrada es un snapshot
+  // congelado, así que esto solo corre mientras sigue en borrador.
+  let rendicionBudgets = rendicion.budgets
+  if (rendicion.status !== 'closed') {
+    const candidateIds = await findCandidateBudgetIds(tenantId, rendicion.periodStart, rendicion.periodEnd)
+    const yaVinculados = new Set(rendicionBudgets.map((rb) => rb.budgetId))
+    const nuevos = candidateIds.filter((bid) => !yaVinculados.has(bid))
+
+    if (nuevos.length > 0) {
+      await prisma.rendicionBudget.createMany({
+        data: nuevos.map((budgetId) => ({ rendicionId: rendicion.id, budgetId })),
+        skipDuplicates: true,
+      })
+      const nuevosBudgets = await prisma.rendicionBudget.findMany({
+        where: { rendicionId: rendicion.id, budgetId: { in: nuevos } },
+        include: { budget: { include: BUDGET_INCLUDE_FOR_RENDICION } },
+      })
+      rendicionBudgets = [...rendicionBudgets, ...nuevosBudgets]
+    }
   }
 
   const users = await prisma.user.findMany({
@@ -74,7 +100,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // grande pagado en cuotas debe poder repartirse a medida que entra cada
   // cuota, no recién cuando termina de pagarse del todo (ver
   // lib/rendicion-engine.ts, mismo criterio al generar una rendición nueva).
-  const budgetRowsAll = rendicion.budgets
+  const budgetRowsAll = rendicionBudgets
     .filter(({ budget: b }) => b.active !== false)
     .map(({ budget: b }) => {
       let cost = 0

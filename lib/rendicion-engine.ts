@@ -25,6 +25,52 @@ function isReceiptActive(status?: string | null) {
   return !INACTIVE_RECEIPT_STATUSES.has(status)
 }
 
+// 👇 nuevo — extraído para reusar en la lectura (GET /api/rendiciones/[id]):
+// antes, una vez creada/vinculada la rendición, un recibo/pago nuevo dentro
+// del mismo período no aparecía hasta que alguien volvía a tocar "Generar
+// rendición" (lo único que corría esta búsqueda). Ahora el GET la vuelve a
+// correr en cada lectura, así que un recibo cargado hoy entra solo, sin
+// necesidad de regenerar nada.
+export async function findCandidateBudgetIds(tenantId: string, periodStart: Date, periodEnd: Date): Promise<string[]> {
+  const [receiptsInPeriod, paymentsInPeriod, cobrosInPeriod] = await Promise.all([
+    prisma.receipt.findMany({
+      where: {
+        budgetId: { not: null },
+        createdAt: { gte: periodStart, lte: periodEnd },
+        budget: { tenantId, active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true, status: true },
+    }),
+    prisma.budgetPayment.findMany({
+      where: {
+        tenantId,
+        status: 'approved',
+        createdAt: { gte: periodStart, lte: periodEnd },
+        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true },
+    }),
+    prisma.cobro.findMany({
+      where: {
+        tenantId,
+        status: 'paid',
+        budgetId: { not: null },
+        paidAt: { gte: periodStart, lte: periodEnd },
+        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
+      },
+      select: { budgetId: true },
+    }),
+  ])
+
+  return Array.from(
+    new Set([
+      ...receiptsInPeriod.filter((r) => r.budgetId && isReceiptActive(r.status)).map((r) => r.budgetId as string),
+      ...paymentsInPeriod.map((p) => p.budgetId),
+      ...cobrosInPeriod.map((c) => c.budgetId as string),
+    ])
+  )
+}
+
 function computeBudgetMetrics(budget: BudgetForRendicion) {
   let cost = 0
   let hasMissingCost = false
@@ -64,43 +110,7 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
   // recibo manual (Receipt), pago online (BudgetPayment, Mercado Pago) o un
   // Cobro del módulo "Cobros" vinculado a este presupuesto — las tres
   // cuentan igual.
-  const [receiptsInPeriod, paymentsInPeriod, cobrosInPeriod] = await Promise.all([
-    prisma.receipt.findMany({
-      where: {
-        budgetId: { not: null },
-        createdAt: { gte: periodStart, lte: periodEnd },
-        budget: { tenantId, active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
-      },
-      select: { budgetId: true, status: true },
-    }),
-    prisma.budgetPayment.findMany({
-      where: {
-        tenantId,
-        status: 'approved',
-        createdAt: { gte: periodStart, lte: periodEnd },
-        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
-      },
-      select: { budgetId: true },
-    }),
-    prisma.cobro.findMany({
-      where: {
-        tenantId,
-        status: 'paid',
-        budgetId: { not: null },
-        paidAt: { gte: periodStart, lte: periodEnd },
-        budget: { active: true, status: { notIn: Array.from(NO_PAYMENT_STATUSES) } },
-      },
-      select: { budgetId: true },
-    }),
-  ])
-
-  const candidateBudgetIds = Array.from(
-    new Set([
-      ...receiptsInPeriod.filter((r) => r.budgetId && isReceiptActive(r.status)).map((r) => r.budgetId as string),
-      ...paymentsInPeriod.map((p) => p.budgetId),
-      ...cobrosInPeriod.map((c) => c.budgetId as string),
-    ])
-  )
+  const candidateBudgetIds = await findCandidateBudgetIds(tenantId, periodStart, periodEnd)
 
   if (candidateBudgetIds.length === 0) {
     return {
