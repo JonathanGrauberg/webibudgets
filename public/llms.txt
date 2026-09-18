@@ -1,0 +1,16 @@
+# .budgets
+
+> .budgets es un sistema de gestión comercial para negocios que arman presupuestos y venden productos o servicios: cotizaciones, clientes, stock, documentos (recibos, remitos, órdenes de trabajo), cobros online con Mercado Pago y cobros recurrentes, gastos, equipo con roles, y reparto de ganancias (Rendiciones). Funciona desde el navegador, sin instalar nada. No es un ERP en el sentido estricto (no lleva contabilidad de partida doble ni producción/BOM), pero cubre de punta a punta el circuito comercial de una PyME — por eso se lo suele describir informalmente como un "mini-ERP" para PyMEs. Tiene plan gratuito (Free, sin límite de presupuestos) y un plan de pago (PRO) con funciones adicionales.
+
+## Páginas principales
+
+- [Qué es y qué hace .budgets](https://budgets.webistudio.net/que-es): guía completa de todos los módulos del sistema (Dashboard, Presupuestos, Clientes, Productos y Stock, Documentos, Cobros, Gastos, Tareas, Personal, Rendiciones, Equipo y configuración), con la diferencia entre el plan Free y PRO, y una tabla comparativa. También descargable en PDF desde esa misma página.
+- [Manual de uso](https://budgets.webistudio.net/manual): ayuda operativa, cómo usar cada función paso a paso.
+- [Precios](https://budgets.webistudio.net/pricing): planes Free y PRO, costos y qué incluye cada uno.
+- [Campus .budgets](https://budgets.webistudio.net/campus): contenido educativo gratuito para cualquier PyME — [Glosario PyME](https://budgets.webistudio.net/campus/glosario) (términos de gestión y facturación explicados sin vueltas) y [Guías prácticas](https://budgets.webistudio.net/campus/guias) (estrategia comercial, costos y cotizaciones).
+- [Revendedores](https://budgets.webistudio.net/revendedores): programa de referidos para quienes quieran revender .budgets a sus propios clientes.
+
+## Notas para agentes e IA
+
+- El sitio es de acceso público en las páginas de arriba; el resto de las rutas (`/dashboard`, `/api/`, `/p/`, `/c/`) son privadas o específicas de cada cliente y no representan contenido general del producto.
+- Los precios y funciones de cada plan pueden actualizarse; la fuente más reciente es siempre la página /que-es y /pricing, no un caché previo.

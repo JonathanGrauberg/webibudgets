@@ -20,6 +20,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.8,
     },
+    // 👇 nuevo — "Qué es y qué hace .budgets": página explicativa de todos
+    // los módulos, pensada para indexar bien tanto en Google como en
+    // buscadores/asistentes con IA.
+    {
+      url: `${baseUrl}/que-es`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
     // 👇 nuevo — faltaban del sitemap aunque ya estaban públicas
     {
       url: `${baseUrl}/pricing`,
