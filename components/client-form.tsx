@@ -22,6 +22,8 @@ import {
 import { HelpCircle, MapPin } from 'lucide-react'
 import type { Client } from '@/lib/types'
 import { WhatsappPhoneInput } from '@/components/whatsapp-phone-input'
+import { CityAutocomplete } from '@/components/city-autocomplete'
+import { PROVINCIAS_ARGENTINA, findProvinciaByNombre } from '@/lib/argentina-provincias'
 
 interface ClientFormProps {
   client?: Client | null
@@ -35,6 +37,14 @@ const onlyDigits = (s: string) => s.replace(/\D/g, '')
 
 export function ClientForm({ client, existingClients = [], onSelectExisting, onSuccess, onCancel }: ClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // 👇 nuevo — id de provincia (Georef) que maneja el <select> y filtra la
+  // búsqueda de ciudad; `formData.province` sigue guardando el NOMBRE, que
+  // es lo que espera el modelo. Si el cliente ya tenía provincia cargada
+  // como texto libre (antes de este cambio), intentamos matchearla.
+  const [provinciaId, setProvinciaId] = useState<string>(
+    () => findProvinciaByNombre((client as any)?.province || '')?.id || ''
+  )
 
   const [formData, setFormData] = useState({
   name: client?.name || '',
@@ -297,24 +307,37 @@ export function ClientForm({ client, existingClients = [], onSelectExisting, onS
           />
         </div>
 
-        {/* 🆕 Ciudad y Provincia */}
+        {/* 🆕 Provincia y Ciudad — provincia es un select fijo (24, no cambian);
+            ciudad se busca contra Georef filtrando por esa provincia, pero
+            sigue aceptando texto libre si la localidad no está en el catálogo. */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Ciudad</Label>
-            <Input
-              value={formData.city}
-              onChange={(e) =>
-                setFormData({ ...formData, city: e.target.value })
-              }
-            />
+            <Label>Provincia</Label>
+            <Select
+              value={provinciaId}
+              onValueChange={(id) => {
+                const provincia = PROVINCIAS_ARGENTINA.find((p) => p.id === id)
+                setProvinciaId(id)
+                setFormData({ ...formData, province: provincia?.nombre || '' })
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Elegí una provincia" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVINCIAS_ARGENTINA.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
-            <Label>Provincia</Label>
-            <Input
-              value={formData.province}
-              onChange={(e) =>
-                setFormData({ ...formData, province: e.target.value })
-              }
+            <Label>Ciudad</Label>
+            <CityAutocomplete
+              value={formData.city}
+              onChange={(city) => setFormData({ ...formData, city })}
+              provinciaId={provinciaId || null}
+              disabled={!provinciaId}
             />
           </div>
         </div>
