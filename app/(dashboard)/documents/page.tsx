@@ -8,13 +8,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -28,6 +21,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu'
 import {
   Receipt,
@@ -108,6 +103,77 @@ const NO_PAYMENT_STATUS_BUDGET_STATUSES = new Set(['draft', 'rejected', 'expired
 
 function showsPaymentStatus(status: string) {
   return !NO_PAYMENT_STATUS_BUDGET_STATUSES.has(status)
+}
+
+// 👇 nuevo — estado de cobro de un presupuesto, para poder filtrar la lista.
+// 'none' = no aplica (borrador/rechazado/vencido, ver showsPaymentStatus).
+type PaymentState = 'none' | 'pending' | 'partial' | 'settled'
+
+function getPaymentState(total: number, collected: number, budgetStatus: string): PaymentState {
+  if (!showsPaymentStatus(budgetStatus)) return 'none'
+  if (total > 0 && collected >= total) return 'settled'
+  if (collected > 0) return 'partial'
+  return 'pending'
+}
+
+const PAYMENT_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'unsettled', label: 'Con saldo por cobrar' },
+  { value: 'pending', label: 'Pendientes (sin cobros)' },
+  { value: 'partial', label: 'Parciales (falta cobrar)' },
+  { value: 'settled', label: 'Saldados' },
+]
+
+// 👇 nuevo — filtro que sale directo del título de la columna (en vez de un
+// desplegable suelto aparte): un chevron al lado del título, con un puntito
+// cuando hay un filtro aplicado. `compact` es la versión "pastilla" para
+// celular, donde no hay tabla ni encabezados de columna.
+function ColumnFilter({
+  label,
+  value,
+  options,
+  onChange,
+  activeWhenNot = 'all',
+  compact = false,
+}: {
+  label: string
+  value: string
+  options: { value: string; label: string }[]
+  onChange: (value: string) => void
+  activeWhenNot?: string
+  compact?: boolean
+}) {
+  const current = options.find((o) => o.value === value)
+  const isActive = value !== activeWhenNot
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={current ? `${label}: ${current.label}` : label}
+          className={
+            compact
+              ? 'inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50'
+              : 'inline-flex items-center gap-1 rounded-md px-1 py-0.5 -ml-1 font-semibold text-slate-700 hover:bg-slate-200/60'
+          }
+        >
+          {compact && current ? `${label}: ${current.label}` : label}
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          {isActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+          {options.map((o) => (
+            <DropdownMenuRadioItem key={o.value} value={o.value} className="text-xs">
+              {o.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 // Botón de acción directo con dropdown secundario para historial
@@ -364,6 +430,7 @@ export default function DocumentsPage() {
   // gestionan con recibos/OT (a un rechazado o borrador no se le hace
   // recibo). Los demás igual se pueden buscar desde acá con el filtro.
   const [statusFilter, setStatusFilter] = useState<string>('approved_completed')
+  const [paymentFilter, setPaymentFilter] = useState<string>('all') // 👈 nuevo — estado de cobro
   const [standaloneReceiptOpen, setStandaloneReceiptOpen] = useState(false) // 👈 nuevo
   const [showVoidedReceipts, setShowVoidedReceipts] = useState(false) //👈 nuevo
   // 👇 nuevo — click en el badge "Falta $X" abre el recibo del faltante directo
@@ -462,8 +529,22 @@ export default function DocumentsPage() {
         ? b.status === 'approved' || b.status === 'completed'
         : b.status === statusFilter
 
-    return matchesSearch && matchesStatus
+    const paymentState = getPaymentState(b.total || 0, getCollectedAmount(b.id), b.status)
+    const matchesPayment =
+      paymentFilter === 'all'
+        ? true
+        : paymentFilter === 'unsettled'
+        ? paymentState === 'pending' || paymentState === 'partial'
+        : paymentState === paymentFilter
+
+    return matchesSearch && matchesStatus && matchesPayment
   })
+
+  const statusFilterOptions = [
+    { value: 'approved_completed', label: 'Aprobados y completados' },
+    { value: 'all', label: 'Todos los estados' },
+    ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label: String(label) })),
+  ]
 
   // KPIs
   const totalApproved = budgets.filter(
@@ -583,9 +664,9 @@ export default function DocumentsPage() {
           </Card>
         </div>
 
-        {/* Buscador + filtro de estado */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-sm">
+        {/* Buscador — los filtros de estado salen de los títulos de columna (desktop) o de estas pastillas (celular, donde no hay tabla) */}
+        <div className="flex flex-col gap-3">
+          <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Buscar por cliente o N° de presupuesto..."
@@ -594,21 +675,10 @@ export default function DocumentsPage() {
               className="pl-9 h-9 text-sm bg-white"
             />
           </div>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[220px] h-9 text-sm bg-white">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="approved_completed">Aprobados y completados</SelectItem>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-2 md:hidden">
+            <ColumnFilter compact label="Presup." value={statusFilter} options={statusFilterOptions} onChange={setStatusFilter} activeWhenNot="all" />
+            <ColumnFilter compact label="Cobro" value={paymentFilter} options={PAYMENT_FILTER_OPTIONS} onChange={setPaymentFilter} />
+          </div>
         </div>
 
         {isLoadingBudgets || isLoadingReceipts ? (
@@ -680,8 +750,12 @@ export default function DocumentsPage() {
                     <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
                     <TableHead className="font-semibold text-slate-700">Fecha</TableHead>
                     <TableHead className="font-semibold text-slate-700">Monto Total</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado Presup.</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado de Cobro</TableHead>
+                    <TableHead className="font-semibold text-slate-700">
+                      <ColumnFilter label="Estado Presup." value={statusFilter} options={statusFilterOptions} onChange={setStatusFilter} />
+                    </TableHead>
+                    <TableHead className="font-semibold text-slate-700">
+                      <ColumnFilter label="Estado de Cobro" value={paymentFilter} options={PAYMENT_FILTER_OPTIONS} onChange={setPaymentFilter} />
+                    </TableHead>
                     <TableHead className="text-right font-semibold text-slate-700 pr-6">
                       Generar Documentos
                     </TableHead>
