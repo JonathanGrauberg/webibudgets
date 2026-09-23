@@ -10,7 +10,8 @@ import RendicionesPage, {
 } from '@/components/rendiciones/RendicionesPage'
 
 import { Button } from '@/components/ui/button'
-import { Loader2, Crown } from 'lucide-react'
+import { Crown } from 'lucide-react'
+import { BrandedLoader } from '@/components/branded-loader'
 
 import { hasFeature } from '@/lib/features'
 
@@ -126,6 +127,12 @@ export default function RendicionesRoute() {
     if (currentId) mutate()
   }, [currentId, mutate])
 
+  // 👇 mientras se genera (POST) o se trae la rendición recién creada (GET),
+  // splash de marca en vez de dejar la pantalla sin feedback / un spinner chico.
+  if (isGenerating) {
+    return <BrandedLoader />
+  }
+
   if (!currentId) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
@@ -176,11 +183,7 @@ export default function RendicionesRoute() {
   }
 
   if (isLoading || !data) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <BrandedLoader />
   }
 
   return (
