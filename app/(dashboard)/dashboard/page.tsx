@@ -39,6 +39,7 @@ import { CashflowLineChart } from '@/components/dashboard/cashflow-line-chart'
 import { TopRequestedProducts } from '@/components/dashboard/top-requested-products'
 import { TopClients } from '@/components/dashboard/top-clients'
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
+import { BrandedLoader } from '@/components/branded-loader'
 import { useMemo } from 'react'
 
 type DashboardBudget = {
@@ -190,6 +191,13 @@ export default function DashboardPage() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [range]) // 👈 antes: [] — ahora refetchea cuando cambia el período
+
+  // 👇 splash de marca solo en el primer ingreso a la página (nunca hubo
+  // datos todavía); si el loading es por cambiar el filtro de período, se
+  // mantiene el skeleton de abajo para no taparle la pantalla entera.
+  if (loading && !data) {
+    return <BrandedLoader />
+  }
 
   if (loading) {
     return <DashboardSkeleton />
