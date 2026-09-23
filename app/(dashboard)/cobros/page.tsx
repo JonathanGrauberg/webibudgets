@@ -213,8 +213,12 @@ export default function CobrosPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('¿Eliminar este cobro?')) return
+  async function handleDelete(id: string, status?: string) {
+    const message =
+      status === 'paid'
+        ? 'Este cobro ya figura como PAGADO. Si lo eliminás, deja de sumar en "Cobrado" (dashboard, rendiciones y documentos). ¿Eliminarlo igual?'
+        : '¿Eliminar este cobro?'
+    if (!confirm(message)) return
     setBusyId(id)
     try {
       const res = await fetch(`/api/cobros/${id}`, { method: 'DELETE' })
@@ -302,7 +306,7 @@ export default function CobrosPage() {
                   onWhatsapp={() => handleSendWhatsapp(c)}
                   onMarkPaid={() => setMarkPaidCobro(c)}
                   onDuplicate={() => handleDuplicate(c.id)}
-                  onDelete={() => handleDelete(c.id)}
+                  onDelete={() => handleDelete(c.id, c.status)}
                   onLinkBudget={() => setLinkDialogCobro(c)}
                   onUnlinkBudget={() => handleLinkBudget(c.id, null)}
                 />
@@ -379,11 +383,9 @@ export default function CobrosPage() {
                               <Button variant="outline" size="sm" disabled={busyId === c.id} onClick={() => handleDuplicate(c.id)} title="Reutilizar el mes que viene">
                                 <Repeat className="h-4 w-4" />
                               </Button>
-                              {c.status !== 'paid' && (
-                                <Button variant="outline" size="sm" disabled={busyId === c.id} onClick={() => handleDelete(c.id)} className="text-destructive hover:text-destructive" title="Eliminar">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button variant="outline" size="sm" disabled={busyId === c.id} onClick={() => handleDelete(c.id, c.status)} className="text-destructive hover:text-destructive" title="Eliminar">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -646,11 +648,9 @@ function CobroCard({
           <Button variant="outline" size="sm" disabled={busy} onClick={onDuplicate}>
             <Repeat className="mr-1.5 h-3.5 w-3.5" /> Reutilizar
           </Button>
-          {cobro.status !== 'paid' && (
-            <Button variant="outline" size="sm" disabled={busy} onClick={onDelete} className="text-destructive">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button variant="outline" size="sm" disabled={busy} onClick={onDelete} className="text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </CardContent>
     </Card>

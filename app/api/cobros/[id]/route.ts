@@ -84,9 +84,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!existing) {
     return NextResponse.json({ error: 'Cobro no encontrado' }, { status: 404 })
   }
-  if (existing.status === 'paid') {
-    return NextResponse.json({ error: 'No se puede eliminar un cobro ya pagado — es un registro contable' }, { status: 400 })
-  }
+  // Un cobro pagado también se puede eliminar (ej. se cargó duplicado junto
+  // con un recibo). El confirm del front avisa; al borrarse deja de sumar en
+  // "cobrado" del dashboard, rendiciones y documentos, que leen siempre de DB.
 
   await prisma.cobro.delete({ where: { id } })
   return NextResponse.json({ ok: true })
