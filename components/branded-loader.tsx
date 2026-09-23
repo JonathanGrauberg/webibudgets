@@ -10,7 +10,7 @@ export function BrandedLoader() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-white">
-      <p role="status" aria-label="Cargando .budgets" className="flex text-4xl font-normal tracking-tight sm:text-5xl">
+      <p role="status" aria-label="Cargando .budgets" className="flex text-4xl font-semibold tracking-tight sm:text-5xl">
         {letters.map((char, i) => (
           <span
             key={i}
