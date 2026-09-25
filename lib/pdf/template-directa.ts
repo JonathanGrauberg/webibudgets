@@ -242,6 +242,14 @@ export function budgetPdfTemplateDirecta(
     .footer { position: fixed; bottom: 10px; left: 0; right: 0; font-size: 10px; color: ${palette.muted}; display: flex; justify-content: space-between; padding: 0 6px; }
     .page-num:after { content: 'Página ' counter(page) ' de ' counter(pages); }
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+
+    /* 👇 la tabla de ítems NO lleva avoid-break — si no entra completa,
+       tiene que poder partirse entre filas en vez de saltar en bloque a la
+       página siguiente. Se evita cortar una fila a la mitad, y se repite el
+       encabezado en cada página nueva. */
+    thead { display: table-header-group; }
+    tbody { display: table-row-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
   </style>
 </head>
 
@@ -278,7 +286,7 @@ export function budgetPdfTemplateDirecta(
       </div>
     </div>
 
-    <table class="avoid-break">
+    <table>
       <thead>
         <tr>
           <th>N°</th>

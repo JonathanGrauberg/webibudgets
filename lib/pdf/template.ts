@@ -197,6 +197,15 @@ export function budgetPdfTemplate(
 
     /* Evita cortes feos */
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+
+    /* 👇 la tabla de ítems NO lleva avoid-break — si no entra completa en la
+       página, tiene que poder partirse entre filas (si no, el bloque entero
+       salta a la página siguiente y deja la anterior vacía). Lo que sí se
+       evita es cortar una fila individual a la mitad, y se repite el
+       encabezado en cada página nueva. */
+    thead { display: table-header-group; }
+    tbody { display: table-row-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
   </style>
 </head>
 
@@ -238,7 +247,7 @@ export function budgetPdfTemplate(
     </div>
 
     <h2>Detalle del Presupuesto</h2>
-    <table class="avoid-break">
+    <table>
       <thead style="background-color: ${pdfPrimary}; color: ${pdfHeaderText};">
         <tr>
           <th>Concepto</th>
