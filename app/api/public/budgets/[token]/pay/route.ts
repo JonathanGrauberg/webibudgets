@@ -26,6 +26,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'Este negocio todavía no habilitó el cobro online' }, { status: 400 })
   }
 
+  // 👇 Mercado Pago Argentina liquida siempre en pesos para cuentas locales
+  // — no confiamos solo en que el botón esté oculto en el portal (ver
+  // canPay en /api/public/budgets/[token]), lo bloqueamos también acá.
+  if (budget.currency !== 'ARS') {
+    return NextResponse.json({ error: 'El cobro online por Mercado Pago solo está disponible en pesos argentinos' }, { status: 400 })
+  }
+
   // 👇 el cliente final puede elegir entre pagar la seña o el total — pero
   // el MONTO siempre se recalcula acá server-side, nunca se confía en un
   // número que mande el navegador. Si ya pagó algo (state='partial'), no

@@ -19,6 +19,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'Este negocio todavía no habilitó el cobro online' }, { status: 400 })
   }
 
+  // 👇 Mercado Pago Argentina liquida siempre en pesos para cuentas locales
+  // — no confiamos solo en que el botón esté oculto en el portal, lo
+  // bloqueamos también acá server-side.
+  if (cobro.currency !== 'ARS') {
+    return NextResponse.json({ error: 'El cobro online por Mercado Pago solo está disponible en pesos argentinos' }, { status: 400 })
+  }
+
   try {
     const { initPoint } = await createCobroPaymentPreference({
       tenant: cobro.tenant,

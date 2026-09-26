@@ -33,6 +33,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       depositAmount: summary.depositAmount,
       suggestedAmount: summary.suggestedAmount,
     },
-    canPay: !!budget.tenant.mpConnected && summary.state !== 'paid',
+    // 👇 Mercado Pago Argentina liquida siempre en pesos para cuentas
+    // locales — el currency_id que le mandamos no lo respeta, así que un
+    // presupuesto en otra moneda terminaría cobrando el mismo NÚMERO pero
+    // en ARS (ej. "USD 400" cobraría "$400"). Mejor ocultar el botón que
+    // dejarlo mischarging en silencio.
+    canPay: !!budget.tenant.mpConnected && summary.state !== 'paid' && budget.currency === 'ARS',
   })
 }

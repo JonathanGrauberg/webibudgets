@@ -83,12 +83,20 @@ async function fetcher(url: string) {
   return res.json()
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-  }).format(amount)
+// 👇 antes ignoraba budget.currency y mostraba TODO como ARS, incluso
+// presupuestos en USD — quedaba "$400" ambiguo también acá adentro, no
+// solo en el PDF (ver conversación: el cliente de NEOSTONE lo interpretó
+// como pesos). Ahora recibe la moneda real del presupuesto.
+function formatCurrency(amount: number, currency: string = 'ARS'): string {
+  try {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
 }
 
 function formatDate(date: Date): string {
@@ -677,11 +685,11 @@ const handleGeneratePDF = async () => {
                         </div>
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-muted-foreground">Precio unit.</span>
-                          <span>{formatCurrency(item.unitPrice)}</span>
+                          <span>{formatCurrency(item.unitPrice, budget.currency)}</span>
                         </div>
                         <div className="flex items-center justify-between gap-3 font-medium">
                           <span className="text-muted-foreground">Subtotal</span>
-                          <span>{formatCurrency(item.subtotal)}</span>
+                          <span>{formatCurrency(item.subtotal, budget.currency)}</span>
                         </div>
                       </div>
                     </div>
@@ -691,7 +699,7 @@ const handleGeneratePDF = async () => {
                 <div className="rounded-md border bg-muted/50 p-3">
                   <div className="flex items-center justify-between gap-3 text-base font-bold text-primary">
                     <span>Total</span>
-                    <span>{formatCurrency(budget.total)}</span>
+                    <span>{formatCurrency(budget.total, budget.currency)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -728,10 +736,10 @@ const handleGeneratePDF = async () => {
                             </TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
                             <TableCell className="text-right">
-                              {formatCurrency(item.unitPrice)}
+                              {formatCurrency(item.unitPrice, budget.currency)}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatCurrency(item.subtotal)}
+                              {formatCurrency(item.subtotal, budget.currency)}
                             </TableCell>
                           </TableRow>
                         )
@@ -742,7 +750,7 @@ const handleGeneratePDF = async () => {
                           Total
                         </TableCell>
                         <TableCell className="text-right text-lg font-bold text-primary">
-                          {formatCurrency(budget.total)}
+                          {formatCurrency(budget.total, budget.currency)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -759,51 +767,59 @@ const handleGeneratePDF = async () => {
                 <CardTitle className="text-base sm:text-lg">Cobro online</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Solicitar seña</p>
-                    <p className="text-xs text-muted-foreground">Pedile al cliente que pague una parte antes del total</p>
-                  </div>
-                  <Switch
-                    checked={depositEnabled}
-                    onCheckedChange={(checked) => {
-                      setDepositEnabled(checked)
-                      saveDepositConfig({ depositEnabled: checked })
-                    }}
-                  />
-                </div>
+                {budget.currency && budget.currency !== 'ARS' ? (
+                  <p className="text-xs text-muted-foreground">
+                    Mercado Pago solo cobra en pesos argentinos — este presupuesto está en {budget.currency}, así que el cobro online no está disponible acá. Cobrá por transferencia/efectivo y cargá el recibo a mano.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Solicitar seña</p>
+                        <p className="text-xs text-muted-foreground">Pedile al cliente que pague una parte antes del total</p>
+                      </div>
+                      <Switch
+                        checked={depositEnabled}
+                        onCheckedChange={(checked) => {
+                          setDepositEnabled(checked)
+                          saveDepositConfig({ depositEnabled: checked })
+                        }}
+                      />
+                    </div>
 
-                {depositEnabled && (
-                  <div className="flex items-center gap-2">
-                    <Select value={depositType} onValueChange={(v) => setDepositType(v as 'percent' | 'fixed')}>
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percent">%</SelectItem>
-                        <SelectItem value="fixed">$ fijo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <input
-                      type="number"
-                      min="0"
-                      value={depositValue}
-                      onChange={(e) => setDepositValue(e.target.value)}
-                      onBlur={() => saveDepositConfig()}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      placeholder={depositType === 'percent' ? '50' : '10000'}
-                    />
-                  </div>
+                    {depositEnabled && (
+                      <div className="flex items-center gap-2">
+                        <Select value={depositType} onValueChange={(v) => setDepositType(v as 'percent' | 'fixed')}>
+                          <SelectTrigger className="w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percent">%</SelectItem>
+                            <SelectItem value="fixed">$ fijo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <input
+                          type="number"
+                          min="0"
+                          value={depositValue}
+                          onChange={(e) => setDepositValue(e.target.value)}
+                          onBlur={() => saveDepositConfig()}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          placeholder={depositType === 'percent' ? '50' : '10000'}
+                        />
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      disabled={isGeneratingLink}
+                      onClick={handleCopyPaymentLink}
+                    >
+                      {isGeneratingLink ? 'Generando...' : 'Copiar link de cobro'}
+                    </Button>
+                  </>
                 )}
-
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  disabled={isGeneratingLink}
-                  onClick={handleCopyPaymentLink}
-                >
-                  {isGeneratingLink ? 'Generando...' : 'Copiar link de cobro'}
-                </Button>
               </CardContent>
             </Card>
 
@@ -954,33 +970,33 @@ const handleGeneratePDF = async () => {
               <CardContent className="space-y-2 pt-0 text-sm">
                 <div className="flex justify-between gap-3">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCurrency(budget.subtotal)}</span>
+                  <span>{formatCurrency(budget.subtotal, budget.currency)}</span>
                 </div>
 
                 {discount > 0 && (
                   <div className="flex justify-between gap-3 text-red-600">
                     <span>Descuento</span>
-                    <span>- {formatCurrency(discount)}</span>
+                    <span>- {formatCurrency(discount, budget.currency)}</span>
                   </div>
                 )}
 
                 {tax > 0 && (
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">IVA</span>
-                    <span>{formatCurrency(tax)}</span>
+                    <span>{formatCurrency(tax, budget.currency)}</span>
                   </div>
                 )}
 
                 {(shippingCost ?? 0) > 0 && (
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Envío</span>
-                    <span>{formatCurrency(shippingCost ?? 0)}</span>
+                    <span>{formatCurrency(shippingCost ?? 0, budget.currency)}</span>
                   </div>
                 )}
 
                 <div className="mt-2 flex justify-between gap-3 border-t pt-2 text-base font-bold text-primary sm:text-lg">
                   <span>Total</span>
-                  <span>{formatCurrency(budget.total)}</span>
+                  <span>{formatCurrency(budget.total, budget.currency)}</span>
                 </div>
 
                 {budget.notes?.trim() && (

@@ -37,6 +37,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       primaryColor: cobro.tenant.primaryColor,
     },
     showFooterBranding: cobro.tenant.showFooterBranding,
-    canPay: !!cobro.tenant.mpConnected && cobro.status !== 'paid',
+    // 👇 mismo criterio que /api/public/budgets/[token] — MP Argentina
+    // liquida siempre en pesos, así que un Cobro en otra moneda mischargearía
+    // el mismo número pero en ARS. Mejor ocultar el botón.
+    canPay: !!cobro.tenant.mpConnected && cobro.status !== 'paid' && cobro.currency === 'ARS',
   })
 }
