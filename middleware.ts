@@ -32,6 +32,7 @@ const PROTECTED_PREFIXES = [
   '/kiosco', // 👈 nuevo
   '/help', // 👈 nuevo
   '/cobros', // 👈 nuevo
+  '/calendar', // 👈 nuevo
 ]
 
 function isPublic(pathname: string): boolean {

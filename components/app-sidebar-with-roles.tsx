@@ -28,6 +28,7 @@ import {
   KanbanSquare,
   HelpCircle,
   Wallet,
+  CalendarDays,
 } from 'lucide-react'
 import { getVisibleNavItems, getVisibleSettingsItems } from '@/lib/permissions'
 import {
@@ -60,6 +61,7 @@ const NAV_ICONS: Record<string, ElementType> = {
   '/tasks': KanbanSquare, // 👈 nuevo
   '/help': HelpCircle, // 👈 nuevo
   '/cobros': Wallet, // 👈 nuevo
+  '/calendar': CalendarDays, // 👈 nuevo
 }
 
 const SETTINGS_ICONS: Record<string, ElementType> = {

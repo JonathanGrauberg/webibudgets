@@ -7,9 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* =========================
-   ENUMS
-========================= */
+/**
+ * =========================
+ * ENUMS
+ * =========================
+ */
 
 enum TaskPriority {
   low
@@ -32,8 +34,8 @@ enum TaskLinkType {
 }
 
 enum RendicionStatus {
-  draft   // se está armando, todavía editable
-  closed  // cerrada: valores fijos, ya se pagó/exportó
+  draft // se está armando, todavía editable
+  closed // cerrada: valores fijos, ya se pagó/exportó
 }
 
 enum WorkOrderPriority {
@@ -112,106 +114,108 @@ enum UserRole {
   viewer
 }
 
-/* =========================
-   TENANT
-========================= */
+/**
+ * =========================
+ * TENANT
+ * =========================
+ */
 
 model Tenant {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  name      String
-  slug      String @unique
+  name String
+  slug String @unique
 
-  email String?
-  phone String?
-  address String?
-  website String?
+  email       String?
+  phone       String?
+  address     String?
+  website     String?
   description String?
 
-  logoUrl        String?
-  faviconUrl     String?
-  watermarkUrl   String?
-  sidebarIconUrl String?
-  primaryColor   String?
-  secondaryColor String?
-  accentColor    String?
-  watermarkOpacity Float? @default(0.06)
-  logoSize         Int?   @default(100)
-  showPageNumbers  Boolean? @default(true)
-  showWebsiteInPdf Boolean? @default(true)
+  logoUrl            String?
+  faviconUrl         String?
+  watermarkUrl       String?
+  sidebarIconUrl     String?
+  primaryColor       String?
+  secondaryColor     String?
+  accentColor        String?
+  watermarkOpacity   Float?   @default(0.06)
+  logoSize           Int?     @default(100)
+  showPageNumbers    Boolean? @default(true)
+  showWebsiteInPdf   Boolean? @default(true)
   showFooterBranding Boolean? @default(false)
-  preferredTheme  String? @default("system")
-  pdfTemplate     String? @default("clasico") // 👈 nuevo — "clasico" | "contraste" | "cantonera" | "directa" (selector de diseño PDF, PRO)
-  pdfTemplateDark Boolean? @default(false) // 👈 nuevo — toggle fondo claro/oscuro, solo lo usa la plantilla "directa"
+  preferredTheme     String?  @default("system")
+  pdfTemplate        String?  @default("clasico") // 👈 nuevo — "clasico" | "contraste" | "cantonera" | "directa" (selector de diseño PDF, PRO)
+  pdfTemplateDark    Boolean? @default(false) // 👈 nuevo — toggle fondo claro/oscuro, solo lo usa la plantilla "directa"
 
   customSellerLabel    String? @default("Vendedor")
   customInstallerLabel String? @default("Instalador")
 
-  plan     String? @default("free")
-  maxUsers Int?    @default(5)
-  trialEndsAt DateTime?
-  mpSubscriptionId String?
+  plan               String?   @default("free")
+  maxUsers           Int?      @default(5)
+  trialEndsAt        DateTime?
+  mpSubscriptionId   String?
   proBillingInterval String? // 👈 nuevo — "monthly" | "annual", solo informativo/UI
 
   // 👇 Mercado Pago Connect — la cuenta de MP del propio tenant, para que
   // pueda cobrarle a SUS clientes (distinto de mpSubscriptionId, que es lo
   // que el tenant nos paga a nosotros). Guardado sensible: nunca exponer
   // mpAccessToken/mpRefreshToken al cliente, solo usarlos server-side.
-  mpConnected        Boolean   @default(false)
-  mpUserId           String?   // id de la cuenta de MP conectada
-  mpAccessToken      String?
-  mpRefreshToken     String?
-  mpTokenExpiresAt   DateTime?
-  mpPublicKey        String?   // Public Key de esa cuenta, para el checkout del lado del cliente
-  budgetPayments     BudgetPayment[]
+  mpConnected      Boolean         @default(false)
+  mpUserId         String? // id de la cuenta de MP conectada
+  mpAccessToken    String?
+  mpRefreshToken   String?
+  mpTokenExpiresAt DateTime?
+  mpPublicKey      String? // Public Key de esa cuenta, para el checkout del lado del cliente
+  budgetPayments   BudgetPayment[]
 
   active Boolean @default(true)
 
   // 👇 metadata de alta — de dónde vino el tenant, para soporte/seguridad.
   // Solo se completa en tenants nuevos a partir de acá, no retroactivo.
-  signupCountry  String? // desde el header x-vercel-ip-country
-  signupReferrer String? // header Referer al registrarse
+  signupCountry   String? // desde el header x-vercel-ip-country
+  signupReferrer  String? // header Referer al registrarse
   signupUserAgent String?
 
   budgetSequence Int @default(1)
 
-  rendiciones    Rendicion[]
+  rendiciones Rendicion[]
 
-  users          User[]
-  clients        Client[]
-  budgets        Budget[]
-  sellers        Seller[]
-  installers     Installer[]
-  products       ProductService[]
+  users             User[]
+  clients           Client[]
+  budgets           Budget[]
+  sellers           Seller[]
+  installers        Installer[]
+  products          ProductService[]
   productCategories TenantProductCategory[]
-  stockMovements StockMovement[]
-  serviceProductIds String[] @default([]) // 👈 nuevo — organización manual y visual, no forma parte del modelo de negocio real
+  stockMovements    StockMovement[]
+  serviceProductIds String[]                @default([]) // 👈 nuevo — organización manual y visual, no forma parte del modelo de negocio real
 
   features Json? // { "calculator": bool, "commissions": bool, "vouchers": bool, "dashboardMetrics": bool, "stockAnalytics": bool }
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  currency String @default("ARS") 
-  cuit         String?
-  condicionIva String?
-  defaultTransferAlias String? // 👈 nuevo — alias bancario por defecto, prellena "alias de transferencia" en Cobros
-  receiptSequence Int @default(1)
-  receiptSequenceStandalone Int @default(1) // 👈 nuevo — serie separada para recibos sin presupuesto
-  deliveryNoteSequence Int @default(1) // 👈 nuevo
-  receipts     Receipt[] 
-  deliveryNotes DeliveryNote[] // 👈 nuevo
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+  currency                  String         @default("ARS")
+  cuit                      String?
+  condicionIva              String?
+  defaultTransferAlias      String? // 👈 nuevo — alias bancario por defecto, prellena "alias de transferencia" en Cobros
+  receiptSequence           Int            @default(1)
+  receiptSequenceStandalone Int            @default(1) // 👈 nuevo — serie separada para recibos sin presupuesto
+  deliveryNoteSequence      Int            @default(1) // 👈 nuevo
+  receipts                  Receipt[]
+  deliveryNotes             DeliveryNote[] // 👈 nuevo
 
-  workOrderSequence Int @default(1) // 👈 nuevo
-  workOrders WorkOrder[] // 👈 nuevo
+  workOrderSequence Int         @default(1) // 👈 nuevo
+  workOrders        WorkOrder[] // 👈 nuevo
 
-  cobroSequence Int @default(1) // 👈 nuevo
-  cobros Cobro[] // 👈 nuevo
+  cobroSequence Int     @default(1) // 👈 nuevo
+  cobros        Cobro[] // 👈 nuevo
 
   budgetFollowups BudgetFollowup[] // 👈 nuevo
 
   arcaCredential ArcaCredential? // 👈 nuevo — facturación electrónica
 
-  tasks Task[]
+  tasks       Task[]
   kioskBoards KioskBoard[] // 👈 nuevo — falta esto, es el lado inverso de KioskBoard.tenant
 
   referralCodeId String?
@@ -220,34 +224,38 @@ model Tenant {
   conditionsPdfUrl  String? // data URI base64 del PDF de condiciones
   conditionsPdfName String? // nombre original, para mostrarlo en la UI
 
-  expenses          Expense[]               // 👈 nuevo
-  expenseCategories TenantExpenseCategory[]  // 👈 nuevo
+  expenses          Expense[] // 👈 nuevo
+  expenseCategories TenantExpenseCategory[] // 👈 nuevo
+
+  calendarEvents CalendarEvent[] // 👈 nuevo — calendario/agenda compartida de la empresa
 }
 
-/* =========================
-   USERS
-========================= */
+/**
+ * =========================
+ * USERS
+ * =========================
+ */
 
 model User {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name      String
-  email     String   @unique
-  password  String?
+  name     String
+  email    String  @unique
+  password String?
 
   emailVerified DateTime?
   image         String?
 
-  role      UserRole @default(viewer)
-  active    Boolean @default(true)
-  hasSeenOnboarding Boolean @default(false)
+  role              UserRole @default(viewer)
+  active            Boolean  @default(true)
+  hasSeenOnboarding Boolean  @default(false)
 
   // 👇 acceso total del sistema, desacoplado del plan del tenant (antes se
   // usaba tenant.plan === 'business' como parche — ver lib/auth.ts)
-  isSystemOwner Boolean @default(false)
+  isSystemOwner Boolean   @default(false)
   lastLoginAt   DateTime?
 
   accounts  Account[]
@@ -255,30 +263,33 @@ model User {
   seller    Seller?
   installer Installer?
 
-  receipts Receipt[]
-  deliveryNotes DeliveryNote[] // 👈 nuevo
+  receipts          Receipt[]
+  deliveryNotes     DeliveryNote[] // 👈 nuevo
   workOrderHelperOf WorkOrderHelper[] @relation("WorkOrderHelpers") // 👈 nuevo
 
-  passwordResetTokens PasswordResetToken[] // 👈 nuevo — recuperación de contraseña
+  passwordResetTokens     PasswordResetToken[] // 👈 nuevo — recuperación de contraseña
   emailVerificationTokens EmailVerificationToken[] // 👈 nuevo — verificación de email
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workOrdersAssigned WorkOrder[] @relation("AssignedTechnician") // 👈 nuevo
+  workOrdersAssigned   WorkOrder[] @relation("AssignedTechnician") // 👈 nuevo
   workOrdersRegistered WorkOrder[] @relation("RegisteredBy") // 👈 nuevo
 
   tasksCreated Task[] // 👈 nuevo
 
   expensesRegistered Expense[] // 👈 nuevo
 
+  calendarEventsCreated CalendarEvent[] // 👈 nuevo
 
   @@index([tenantId])
 }
 
-/* =========================
-   RECUPERACIÓN DE CONTRASEÑA
-========================= */
+/**
+ * =========================
+ * RECUPERACIÓN DE CONTRASEÑA
+ * =========================
+ */
 
 // 👇 nuevo — "olvidé mi contraseña". Se guarda el HASH del token (sha256),
 // nunca el token en texto plano — mismo principio que la columna
@@ -289,16 +300,16 @@ model User {
 // contraseña humana. Un solo uso: se marca `usedAt` al resetear y ahí
 // mismo se invalidan los demás tokens vigentes del usuario.
 model PasswordResetToken {
-  id        String    @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([userId, createdAt]) // 👈 para el límite de pedidos por hora
@@ -309,38 +320,40 @@ model PasswordResetToken {
 // misma infraestructura de envío (lib/email.ts) y el mismo criterio de
 // límite de reenvíos por hora.
 model EmailVerificationToken {
-  id        String    @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([userId, createdAt]) // 👈 para el límite de reenvíos por hora
 }
 
-/* =========================
-   NEXTAUTH
-========================= */
+/**
+ * =========================
+ * NEXTAUTH
+ * =========================
+ */
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -366,30 +379,32 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-/* =========================
-   CLIENTS
-========================= */
+/**
+ * =========================
+ * CLIENTS
+ * =========================
+ */
 
 model Client {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Identidad
-  name      String
-  lastName  String?
-  company   String?
-  dni       String?
-  cuit      String?
+  name     String
+  lastName String?
+  company  String?
+  dni      String?
+  cuit     String?
 
   // Contacto
-  email     String?
-  phone     String
+  email          String?
+  phone          String
   whatsappNumber String? // 👈 nuevo — normalizado, solo dígitos, listo para wa.me
 
   // Dirección
-  address   String
+  address String
 
   // Ubicación
   latitude  Float?
@@ -398,21 +413,21 @@ model Client {
   province  String?
 
   // Uso
-  type            ClientType?
-  peopleCount     Int?
-  usageFrequency  String?
+  type           ClientType?
+  peopleCount    Int?
+  usageFrequency String?
 
   // Comercial
-  status           String   @default("nuevo")
-  notes            String   @default("")
+  status           String    @default("nuevo")
+  notes            String    @default("")
   lastContactAt    DateTime?
   assignedSellerId String?
   locationUrl      String?
 
   // Relaciones
-  budgets   Budget[]
-  receipts  Receipt[]
-  cobros    Cobro[] // 👈 nuevo
+  budgets  Budget[]
+  receipts Receipt[]
+  cobros   Cobro[] // 👈 nuevo
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -420,14 +435,16 @@ model Client {
   @@index([tenantId])
 }
 
-/* =========================
-   COBROS — cargos recurrentes SIN presupuesto (ej: cuota mensual de
-   mantenimiento/marketing). Documento propio, no un Budget ni un Receipt:
-   así las métricas de presupuestos no se ensucian con esta plata, y viceversa.
-========================= */
+/**
+ * =========================
+ * COBROS — cargos recurrentes SIN presupuesto (ej: cuota mensual de
+ * mantenimiento/marketing). Documento propio, no un Budget ni un Receipt:
+ * así las métricas de presupuestos no se ensucian con esta plata, y viceversa.
+ * =========================
+ */
 
 model Cobro {
-  id       String @id @default(uuid())
+  id String @id @default(uuid())
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -447,7 +464,7 @@ model Cobro {
   concept  String
   alias    String? // 👈 nuevo — alias de transferencia bancaria, opcional: si viene cargado, el portal público lo muestra como alternativa al botón de Mercado Pago (para que el cliente evite la comisión)
   amount   Float
-  currency String @default("ARS")
+  currency String  @default("ARS")
 
   // 👇 nuevo — recargo opcional que se le suma a `amount` SOLO si paga vía
   // Mercado Pago (para trasladarle al cliente la comisión que MP te cobra a
@@ -458,19 +475,19 @@ model Cobro {
   // mensuales sin tener que parsear fechas de vencimiento.
   periodMonth DateTime
 
-  status   String @default("pending") // pending | paid
-  paidAt   DateTime?
+  status        String         @default("pending") // pending | paid
+  paidAt        DateTime?
   paymentMethod PaymentMethod?
 
   // Cobro online — mismo mecanismo que Budget (portal público + MP)
-  publicToken String? @unique
-  mpPaymentId String? @unique
-  commissionAmount Float @default(0) // comisión retenida (solo planes FREE), igual que BudgetPayment
+  publicToken      String? @unique
+  mpPaymentId      String? @unique
+  commissionAmount Float   @default(0) // comisión retenida (solo planes FREE), igual que BudgetPayment
 
   // Para "reutilizar el mes que viene" — de qué Cobro se duplicó, informativo
   duplicatedFromId String?
 
-  notes    String?
+  notes String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -481,28 +498,30 @@ model Cobro {
   @@index([budgetId])
 }
 
-/* =========================
-   ARCA (ex-AFIP) — Facturación electrónica.
-   Sin librerías/servicios de terceros de por medio a propósito: nosotros
-   generamos y guardamos la clave privada (cifrada, ver lib/arca/crypto.ts)
-   y hablamos directo con los webservices SOAP de ARCA (WSAA + WSFEv1).
-========================= */
+/**
+ * =========================
+ * ARCA (ex-AFIP) — Facturación electrónica.
+ * Sin librerías/servicios de terceros de por medio a propósito: nosotros
+ * generamos y guardamos la clave privada (cifrada, ver lib/arca/crypto.ts)
+ * y hablamos directo con los webservices SOAP de ARCA (WSAA + WSFEv1).
+ * =========================
+ */
 
 model ArcaCredential {
-  id       String @id @default(uuid())
+  id String @id @default(uuid())
 
   tenantId String @unique
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  cuit         String // CUIT con el que se factura — puede no ser el mismo que Tenant.cuit
-  environment  String @default("testing") // 'testing' (homologación) | 'production'
-  alias        String? // el "Alias" que ARCA le pone al certificado
+  cuit        String // CUIT con el que se factura — puede no ser el mismo que Tenant.cuit
+  environment String  @default("testing") // 'testing' (homologación) | 'production'
+  alias       String? // el "Alias" que ARCA le pone al certificado
 
   // 👇 la clave privada SIEMPRE cifrada (lib/arca/crypto.ts) — nunca en
   // texto plano, ni siquiera acá. El certificado en cambio no es secreto
   // (es información pública una vez emitido), va en texto plano.
-  privateKeyEncrypted String?
-  certificatePem      String?
+  privateKeyEncrypted  String?
+  certificatePem       String?
   certificateExpiresAt DateTime? // 👈 para poder avisar antes de que venza y haya que renovarlo
 
   puntoVenta Int?
@@ -514,102 +533,105 @@ model ArcaCredential {
   // 👇 Cache del Ticket de Acceso (TA) de WSAA — vale 12hs y ARCA pide
   // explícitamente no pedir uno nuevo mientras el actual sirva. Guardamos
   // uno solo (alcanza para "wsfe", el único servicio que usamos por ahora).
-  wsaaToken           String?
-  wsaaSign            String?
-  wsaaTokenExpiresAt  DateTime?
-  wsaaService         String?
+  wsaaToken          String?
+  wsaaSign           String?
+  wsaaTokenExpiresAt DateTime?
+  wsaaService        String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-/* =========================
-   PRODUCTS / SERVICES
-========================= */
+/**
+ * =========================
+ * PRODUCTS / SERVICES
+ * =========================
+ */
 
 model ProductService {
-  id          String           @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId    String
-  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name        String
-  description String
-  category    ProductCategory
+  name             String
+  description      String
+  category         ProductCategory
   customCategoryId String?
   customCategory   TenantProductCategory? @relation(fields: [customCategoryId], references: [id])
 
+  price Float
+  cost  Float?
+  unit  String
 
-  price       Float
-  cost        Float?
-  unit        String
+  active Boolean @default(true)
 
-  active      Boolean @default(true)
+  stock    Float            @default(0) // 👈 antes: Int
+  minStock Float? // umbral de "stock bajo" propio — null = usa el default global
+  variants ProductVariant[]
 
-  stock       Float @default(0) // 👈 antes: Int
-  minStock    Float? // umbral de "stock bajo" propio — null = usa el default global
-  variants    ProductVariant[]
-
-  items            BudgetItem[]
-  stockMovements   StockMovement[]
+  items          BudgetItem[]
+  stockMovements StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  currency String @default("ARS") // 👈 moneda en la que está cargado el precio
+  currency           String              @default("ARS") // 👈 moneda en la que está cargado el precio
   workOrderMaterials WorkOrderMaterial[] // 👈 nuevo
 
   @@index([tenantId])
 }
 
 model TenantProductCategory {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name      String   // "Lonas"
-  slug      String   // "lonas"
+  name String // "Lonas"
+  slug String // "lonas"
 
   createdAt DateTime @default(now())
 
-  products  ProductService[]
+  products ProductService[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
 }
 
-/* =========================
-   BUDGETS
-========================= */
+/**
+ * =========================
+ * BUDGETS
+ * =========================
+ */
 
 model Budget {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   budgetNumber Int?
 
-  clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   items     BudgetItem[]
   history   BudgetStatusHistory[]
   followups BudgetFollowup[] // 👈 nuevo — mini-CRM de seguimiento (llamadas, WhatsApp, etc.)
 
-  status    BudgetStatus @default(draft)
+  status BudgetStatus @default(draft)
 
-  notes     String @default("")
+  notes String @default("")
 
   // Notas internas del equipo — nunca se imprimen en el PDF que ve el cliente
   internalNotes String?
 
-  active    Boolean @default(true)
+  active Boolean @default(true)
 
   // Vendedor
-  sellerId  String?
-  seller    Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  sellerId String?
+  seller   Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
   // Instalador
   installerId String?
@@ -624,8 +646,8 @@ model Budget {
 
   // Montos
   subtotal     Float
-  discount     Float @default(0)
-  tax          Float @default(0)
+  discount     Float  @default(0)
+  tax          Float  @default(0)
   shippingCost Float?
   total        Float
 
@@ -638,23 +660,23 @@ model Budget {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  currency String @default("ARS") 
-  revisionNumber Int @default(0) 
+  currency       String @default("ARS")
+  revisionNumber Int    @default(0)
 
-  receipts Receipt[] 
+  receipts      Receipt[]
   deliveryNotes DeliveryNote[] // 👈 nuevo
-  workOrders WorkOrder[] // 👈 nuevo
+  workOrders    WorkOrder[] // 👈 nuevo
 
   attachConditionsPdf Boolean @default(true) // 👈 nuevo — se guarda por presupuesto, no solo en el form
 
   expenses Expense[] // 👈 nuevo
-  cobros   Cobro[]   // 👈 nuevo — cobros del módulo "Cobros" vinculados a este trabajo
+  cobros   Cobro[] // 👈 nuevo — cobros del módulo "Cobros" vinculados a este trabajo
 
   // 👇 nuevo — Cobro online con Mercado Pago (opcional, convive con el flujo normal)
-  publicToken   String?  @unique // token random para el portal público /p/[token], regenerable sin tocar el id real
-  depositEnabled Boolean @default(false)
+  publicToken    String?         @unique // token random para el portal público /p/[token], regenerable sin tocar el id real
+  depositEnabled Boolean         @default(false)
   depositType    String? // 'percent' | 'fixed'
-  depositValue   Float?  // % (0-100) si depositType='percent', o monto fijo si 'fixed'
+  depositValue   Float? // % (0-100) si depositType='percent', o monto fijo si 'fixed'
   payments       BudgetPayment[]
 
   @@index([tenantId])
@@ -665,54 +687,56 @@ model Budget {
 // El estado "Pendiente/Seña cobrada/Saldado" NUNCA se guarda: se calcula
 // sumando payments.amount (status=approved) contra budget.total.
 model BudgetPayment {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  budgetId  String
-  budget    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  mpPaymentId      String @unique // id que le pone MP al pago — evita duplicar si el webhook llega 2 veces
-  mpPreferenceId   String?
+  mpPaymentId    String  @unique // id que le pone MP al pago — evita duplicar si el webhook llega 2 veces
+  mpPreferenceId String?
 
-  amount           Float  // lo que pagó el cliente final
+  amount           Float // lo que pagó el cliente final
   commissionAmount Float  @default(0) // lo que te quedaste de comisión (solo planes FREE)
   status           String // approved | pending | rejected — tal cual los define MP
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  receipt   Receipt? // 👈 nuevo — si ya se generó el recibo de este pago (ver Receipt.sourceBudgetPaymentId)
+  receipt Receipt? // 👈 nuevo — si ya se generó el recibo de este pago (ver Receipt.sourceBudgetPaymentId)
 
   @@index([budgetId])
   @@index([tenantId])
 }
 
-/* =========================
-   INSTALLERS
-========================= */
+/**
+ * =========================
+ * INSTALLERS
+ * =========================
+ */
 
 model Installer {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name      String
-  lastName  String
+  name     String
+  lastName String
 
-  phone     String
-  email     String?
+  phone String
+  email String?
 
-  city      String?
+  city String?
 
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  budgets   Budget[]
+  budgets Budget[]
 
-  active    Boolean @default(true)
+  active Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -720,35 +744,37 @@ model Installer {
   @@index([tenantId])
 }
 
-/* =========================
-   SELLERS
-========================= */
+/**
+ * =========================
+ * SELLERS
+ * =========================
+ */
 
 model Seller {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name      String
-  lastName  String
+  name     String
+  lastName String
 
-  dni       String?
-  email     String?
-  phone     String?
+  dni   String?
+  email String?
+  phone String?
 
-  address   String?
-  city      String?
-  province  String?
+  address  String?
+  city     String?
+  province String?
 
-  sector    String?
+  sector String?
 
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  budgets   Budget[]
+  budgets Budget[]
 
-  active    Boolean @default(true)
+  active Boolean @default(true)
 
   rendicionShares RendicionSellerShare[]
 
@@ -758,73 +784,77 @@ model Seller {
   @@index([tenantId])
 }
 
-/* =========================
-   BUDGET ITEMS
-========================= */
+/**
+ * =========================
+ * BUDGET ITEMS
+ * =========================
+ */
 
 model BudgetItem {
-  id               String @id @default(uuid())
+  id String @id @default(uuid())
 
-  budgetId         String
-  budget           Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   // 🌟 1. Lo hacemos opcional con "?" y le agregamos onDelete: SetNull
   productServiceId String?
   productService   ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
 
   // 🌟 2. Campo para cuando escriben un producto/servicio a medida que no existe en stock
-  customName       String?
+  customName String?
 
-  quantity         Float
+  quantity Float
 
-  unitPrice        Float
+  unitPrice Float
 
-  discount         Float @default(0)
+  discount Float @default(0)
 
-  subtotal         Float?
+  subtotal Float?
 
-  cost             Float?
+  cost Float?
 
-  productVariantId  String?
-  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
 
-  widthCm          Float?
-  heightCm         Float?
-  hours            Float?
-  calculatedM2     Float?
-  depthCm          Float?
-  direct           Float?
+  widthCm      Float?
+  heightCm     Float?
+  hours        Float?
+  calculatedM2 Float?
+  depthCm      Float?
+  direct       Float?
 
   // Cantidad de piezas idénticas con la misma medida (ej: 10 ventanas de
   // 1.5m x 1.5m) — la "quantity" real sigue siendo el total (piezas ×
   // cantidad calculada por pieza), esto es solo para poder mostrar el
   // desglose en el PDF en vez de una cantidad total sin explicación.
-  pieces           Int? @default(1)
+  pieces Int? @default(1)
 }
 
-/* =========================
-   BUDGET HISTORY
-========================= */
+/**
+ * =========================
+ * BUDGET HISTORY
+ * =========================
+ */
 
 model BudgetStatusHistory {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  budgetId  String
-  budget    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
-  from      BudgetStatus
-  to        BudgetStatus
+  from BudgetStatus
+  to   BudgetStatus
 
   changedAt DateTime @default(now())
 
-  user      String?
+  user String?
 }
 
 // 👇 nuevo — mini-CRM de seguimiento por presupuesto: cada llamada/mensaje
 // que se registra, para saber "¿ya lo contacté? ¿qué me dijo?" sin
 // depender de la memoria de nadie. Independiente del cambio de estado.
 model BudgetFollowup {
-  id       String @id @default(uuid())
+  id String @id @default(uuid())
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -833,7 +863,7 @@ model BudgetFollowup {
   budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   note        String
-  channel     String?  // 'whatsapp' | 'llamada' | 'email' | 'presencial' | 'otro'
+  channel     String? // 'whatsapp' | 'llamada' | 'email' | 'presencial' | 'otro'
   contactedAt DateTime @default(now())
 
   // Mismo criterio liviano que BudgetStatusHistory.user — texto plano, no FK
@@ -845,50 +875,52 @@ model BudgetFollowup {
   @@index([tenantId])
 }
 
-/* =========================
-   STOCK MOVEMENTS
-========================= */
+/**
+ * =========================
+ * STOCK MOVEMENTS
+ * =========================
+ */
 
 model StockMovement {
-  id        String @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   productServiceId String
   productService   ProductService @relation(fields: [productServiceId], references: [id])
 
-  delta     Float
+  delta Float
 
-  type      StockMovementType
+  type StockMovementType
 
-  reason    String?
+  reason String?
 
   createdAt DateTime @default(now())
 
   productVariantId String?
-  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
-
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
 }
 
-/* =========================
-   RECEIPT
-========================= */
-
+/**
+ * =========================
+ * RECEIPT
+ * =========================
+ */
 
 model Receipt {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  budgetId       String?  // 👈 antes: String (obligatorio)
-  budget         Budget?  @relation(fields: [budgetId], references: [id], onDelete: Cascade) // 👈 antes: Budget (obligatorio)
-  
-  clientId       String?  // 👈 nuevo — solo se usa cuando NO hay budgetId
-  client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull) // 👈 nuevo
+  budgetId String? // 👈 antes: String (obligatorio)
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: Cascade) // 👈 antes: Budget (obligatorio)
+
+  clientId String? // 👈 nuevo — solo se usa cuando NO hay budgetId
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull) // 👈 nuevo
 
   // 👇 nuevo — cuando este recibo se generó desde "¿Crear recibo de este
   // pago?" en un cobro de Mercado Pago. Con esto lib/collected-amount.ts
@@ -897,30 +929,29 @@ model Receipt {
   sourceBudgetPaymentId String?        @unique
   sourceBudgetPayment   BudgetPayment? @relation(fields: [sourceBudgetPaymentId], references: [id], onDelete: SetNull)
 
-  receiptNumber  Int
-  isStandalone   Boolean  @default(false) // 👈 nuevo — distingue la serie, más explícito que "budgetId es null"
+  receiptNumber Int
+  isStandalone  Boolean @default(false) // 👈 nuevo — distingue la serie, más explícito que "budgetId es null"
 
+  issueDate  DateTime @default(now())
+  issuePlace String?
 
-  issueDate      DateTime @default(now())
-  issuePlace     String?
-
-  concept        String
-  amount         Float
-  currency       String
+  concept  String
+  amount   Float
+  currency String
 
   paymentMethod    PaymentMethod
   paymentReference String?
 
   pendingBalance Float?
 
-  notes          String?
-  branch         String?
-  cashRegister   String?
+  notes        String?
+  branch       String?
+  cashRegister String?
 
   registeredByUserId String?
   registeredByUser   User?   @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
 
-  status         ReceiptStatus @default(active)
+  status ReceiptStatus @default(active)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -930,42 +961,42 @@ model Receipt {
   @@index([clientId]) // 👈 nuevo
 }
 
-
-/* =========================
-   DELIVERY NOTES
-========================= */
-
+/**
+ * =========================
+ * DELIVERY NOTES
+ * =========================
+ */
 
 model DeliveryNote {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId         String
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  budgetId         String
-  budget           Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
-  deliveryNumber   Int
+  deliveryNumber Int
 
-  issueDate        DateTime @default(now())
+  issueDate DateTime @default(now())
 
   // Transporte (todo opcional — no siempre hay transportista tercero)
-  vehicle          String?
-  driverName       String?
-  licensePlate     String?
-  carrierCompany   String?
+  vehicle        String?
+  driverName     String?
+  licensePlate   String?
+  carrierCompany String?
 
   // Recepción
-  receivedByName   String?
-  receivedByDni    String?
-  receivedAt       DateTime?
+  receivedByName String?
+  receivedByDni  String?
+  receivedAt     DateTime?
 
-  notes            String?
+  notes String?
 
   registeredByUserId String?
   registeredByUser   User?   @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
 
-  status           DeliveryNoteStatus @default(active)
+  status DeliveryNoteStatus @default(active)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -974,57 +1005,58 @@ model DeliveryNote {
   @@index([budgetId])
 }
 
-/* =========================
-   WORKORDERS
-========================= */
-
+/**
+ * =========================
+ * WORKORDERS
+ * =========================
+ */
 
 model WorkOrder {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  budgetId       String
-  budget         Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   workOrderNumber Int
 
-  status         WorkOrderStatus @default(pending)
+  status WorkOrderStatus @default(pending)
 
-  pauseReason    String?  // 👈 nuevo — motivo de la pausa (ej: "se frenó por lluvia")
+  pauseReason String? // 👈 nuevo — motivo de la pausa (ej: "se frenó por lluvia")
 
-  priority           WorkOrderPriority @default(medium) // 👈 nuevo
-  scheduledTimeFrom  String?  // 👈 nuevo, ej "08:00"
-  scheduledTimeTo    String?  // 👈 nuevo, ej "12:00"
-  branch             String?  // 👈 nuevo, sucursal (mismo patrón que Receipt)
+  priority          WorkOrderPriority @default(medium) // 👈 nuevo
+  scheduledTimeFrom String? // 👈 nuevo, ej "08:00"
+  scheduledTimeTo   String? // 👈 nuevo, ej "12:00"
+  branch            String? // 👈 nuevo, sucursal (mismo patrón que Receipt)
 
   materials WorkOrderMaterial[] // 👈 nuevo
-  tasks     WorkOrderTask[]     // 👈 nuevo
-  tools     WorkOrderTool[]     // 👈 nuevo
-  helpers   WorkOrderHelper[]   // 👈 nuevo
+  tasks     WorkOrderTask[] // 👈 nuevo
+  tools     WorkOrderTool[] // 👈 nuevo
+  helpers   WorkOrderHelper[] // 👈 nuevo
 
-  title          String?
-  description    String?
+  title       String?
+  description String?
 
   assignedToUserId String?
-  assignedToUser   User?  @relation("AssignedTechnician", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  assignedToUser   User?   @relation("AssignedTechnician", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
-  scheduledDate  DateTime?
-  startedAt      DateTime?
-  completedAt    DateTime?
+  scheduledDate DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
 
-  locationUrl        String?
+  locationUrl String?
 
   estimatedHours Float?
   actualHours    Float?
 
-  notes          String?
+  notes String?
 
   registeredByUserId String?
-  registeredByUser   User?  @relation("RegisteredBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
+  registeredByUser   User?   @relation("RegisteredBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
 
-  checklist      WorkOrderChecklistItem[]
+  checklist WorkOrderChecklistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1034,17 +1066,16 @@ model WorkOrder {
   @@index([assignedToUserId])
 }
 
-
 model WorkOrderChecklistItem {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
   label       String
-  completed   Boolean  @default(false)
+  completed   Boolean   @default(false)
   completedAt DateTime?
-  order       Int      @default(0)
+  order       Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1052,9 +1083,8 @@ model WorkOrderChecklistItem {
   @@index([workOrderId])
 }
 
-
 model WorkOrderMaterial {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
@@ -1062,42 +1092,40 @@ model WorkOrderMaterial {
   productServiceId String?
   productService   ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
 
-  customName  String?
-  quantity    Float
-  unit        String?
-  order       Int @default(0)
+  customName String?
+  quantity   Float
+  unit       String?
+  order      Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([workOrderId])
 }
-
 
 model WorkOrderTask {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
-  label       String
-  order       Int @default(0)
+  label String
+  order Int    @default(0)
 
   createdAt DateTime @default(now())
 
   @@index([workOrderId])
 }
 
-
 model WorkOrderTool {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
-  label       String
-  checked     Boolean @default(false)
-  order       Int @default(0)
+  label   String
+  checked Boolean @default(false)
+  order   Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1105,15 +1133,14 @@ model WorkOrderTool {
   @@index([workOrderId])
 }
 
-
 model WorkOrderHelper {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
-  userId      String
-  user        User @relation("WorkOrderHelpers", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("WorkOrderHelpers", fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -1122,37 +1149,38 @@ model WorkOrderHelper {
   @@index([userId])
 }
 
-/* =========================
-   RENDICIONES
-========================= */
-
+/**
+ * =========================
+ * RENDICIONES
+ * =========================
+ */
 
 model Rendicion {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  periodStart    DateTime
-  periodEnd      DateTime
+  periodStart DateTime
+  periodEnd   DateTime
 
-  status         RendicionStatus @default(draft)
+  status RendicionStatus @default(draft)
 
   // Totales cacheados al momento de generar/cerrar (evita recalcular
   // y garantiza que lo exportado no cambie si después editan un presupuesto viejo)
   presupuestosCompletados Int
-  totalFacturado Float
-  totalCosto     Float
-  totalGanancia  Float
-  margenPromedio Float
+  totalFacturado          Float
+  totalCosto              Float
+  totalGanancia           Float
+  margenPromedio          Float
 
-  shares         RendicionSellerShare[]
-  budgets        RendicionBudget[]
+  shares  RendicionSellerShare[]
+  budgets RendicionBudget[]
 
-  closedAt       DateTime?
+  closedAt DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   asignaciones RendicionAsignacion[]
 
@@ -1163,186 +1191,225 @@ model Rendicion {
 }
 
 model RendicionSellerShare {
-  id             String    @id @default(uuid())
+  id String @id @default(uuid())
 
-  rendicionId    String
-  rendicion      Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+  rendicionId String
+  rendicion   Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
 
-  sellerId       String
-  seller         Seller    @relation(fields: [sellerId], references: [id])
+  sellerId String
+  seller   Seller @relation(fields: [sellerId], references: [id])
 
   // Métricas del vendedor en el período (cacheadas junto con el resto)
   presupuestosCompletados Int
-  totalFacturado Float
-  ganancia       Float
-  margenPromedio Float
+  totalFacturado          Float
+  ganancia                Float
+  margenPromedio          Float
 
   // Distribución editable
-  percentage     Float     // % asignado, editable por el usuario
-  gananciaAPagar Float     // = totalGanancia (de Rendicion) * percentage / 100
+  percentage     Float // % asignado, editable por el usuario
+  gananciaAPagar Float // = totalGanancia (de Rendicion) * percentage / 100
 
-  isDefault      Boolean   @default(true) // false si el usuario tocó el % a mano
-                                           // (así "Resetear" sabe si tiene algo que resetear)
+  isDefault Boolean @default(true) // false si el usuario tocó el % a mano
+  // (así "Resetear" sabe si tiene algo que resetear)
 
   @@unique([rendicionId, sellerId])
   @@index([sellerId])
 }
 
 model RendicionBudget {
-  id          String    @id @default(uuid())
+  id String @id @default(uuid())
 
   rendicionId String
   rendicion   Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
 
-  budgetId    String
-  budget      Budget    @relation(fields: [budgetId], references: [id])
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id])
 
   @@unique([rendicionId, budgetId])
   @@index([budgetId])
 }
 
 model RendicionAsignacion {
-  id           String   @id @default(uuid())
-  rendicionId  String
-  budgetId     String
-  sellerId     String
-  percentage   Float
-  monto        Float
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(uuid())
+  rendicionId String
+  budgetId    String
+  sellerId    String
+  percentage  Float
+  monto       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  rendicion    Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+  rendicion Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
 
   @@unique([rendicionId, budgetId, sellerId]) // 👈 clave — permite "reemplazar" en vez de "sumar"
 }
 
-/*VARIANTES DE PRODUCTOS ---------------------------- */
+/**
+ * VARIANTES DE PRODUCTOS ----------------------------
+ */
 
 model ProductVariant {
-  id               String  @id @default(uuid())
+  id String @id @default(uuid())
 
   productServiceId String
   productService   ProductService @relation(fields: [productServiceId], references: [id], onDelete: Cascade)
 
-  label            String  // "Rojo", "Mate", "Talle L"... genérico
-  stock            Float @default(0) // 👈 antes: Int
-  active           Boolean @default(true)
+  label  String // "Rojo", "Mate", "Talle L"... genérico
+  stock  Float   @default(0) // 👈 antes: Int
+  active Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  budgetItems BudgetItem[]
+  budgetItems    BudgetItem[]
   stockMovements StockMovement[]
 
   @@unique([productServiceId, label])
   @@index([productServiceId])
 }
 
-/* =========================
-   TASK
-========================= */
-
+/**
+ * =========================
+ * TASK
+ * =========================
+ */
 
 model Task {
-  id        String     @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   title       String
   description String?
   column      TaskColumn @default(backlog)
   order       Int        @default(0)
 
-  linkType  TaskLinkType?
-  linkId    String?
+  linkType TaskLinkType?
+  linkId   String?
 
   createdByUserId String?
-  createdByUser   User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUser   User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-
   kioskBoardId String?
-  kioskBoard   KioskBoard? @relation(fields: [kioskBoardId], references: [id])
+  kioskBoard   KioskBoard?   @relation(fields: [kioskBoardId], references: [id])
   priority     TaskPriority? @default(medium) // 👈 nuevo, si no existe ya — para el borde rojo
-
 
   @@index([tenantId])
   @@index([tenantId, column])
 }
 
-/* =========================
-   RECELLERS
-========================= */
+/**
+ * =========================
+ * CALENDARIO / AGENDA
+ * =========================
+ */
+
+// Calendario compartido de la empresa (no personal por usuario) — cualquiera
+// con acceso al sistema lo ve, pero solo Owner/Admin/Vendedor pueden crear
+// anotaciones. Cada anotación solo la puede editar/borrar quien la creó
+// (ni siquiera otro admin), por eso guardamos authorRole "congelado" al
+// momento de crearla — sirve para el color (admin vs. vendedor) y no
+// cambia aunque después le cambien el rol al usuario.
+model CalendarEvent {
+  id String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  title String
+  notes String?
+  date  DateTime // día del evento (medianoche UTC de ese día, sin hora)
+  time  String? // "HH:mm" opcional — null = sin horario puntual
+
+  createdByUserId String
+  createdByUser   User   @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  authorName      String // snapshot del nombre — igual que authorRole, no depende de que el user siga activo
+  authorRole      String // "admin" | "seller" — congelado al crear, define el color
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, date])
+}
+
+/**
+ * =========================
+ * RECELLERS
+ * =========================
+ */
 
 model ResellerCode {
-  id              String   @id @default(uuid())
-  code            String   @unique // "GUALEGUAYCHU10"
+  id              String  @id @default(uuid())
+  code            String  @unique // "GUALEGUAYCHU10"
   resellerName    String
   resellerContact String?
-  discountPercent Int      // 10, 40, etc. — debe tener su par de planes MP creado
-  active          Boolean  @default(true)
+  discountPercent Int // 10, 40, etc. — debe tener su par de planes MP creado
+  active          Boolean @default(true)
 
-  tenants         Tenant[]
+  tenants Tenant[]
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model KioskBoard {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String   // "Placard Sr. Gómez", "Reunión", "Producción"...
-  order     Int      @default(0) // para el orden de las solapas
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String // "Placard Sr. Gómez", "Reunión", "Producción"...
+  order     Int          @default(0) // para el orden de las solapas
   priority  TaskPriority @default(medium)
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
   tasks Task[]
 }
 
-/* =========================
-   EXPENSES
-========================= */
+/**
+ * =========================
+ * EXPENSES
+ * =========================
+ */
 
 model TenantExpenseCategory {
   id        String   @id @default(uuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String   // "Alquiler", "Insumos", "Sueldos"...
+  name      String // "Alquiler", "Insumos", "Sueldos"...
   slug      String
   createdAt DateTime @default(now())
 
-  expenses  Expense[]
+  expenses Expense[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
 }
 
 model Expense {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  categoryId  String?
-  category    TenantExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId String?
+  category   TenantExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   // 👇 opcional — si viene cargado, es un gasto asociado a un trabajo puntual
   // (ej: viáticos de una instalación). Si no, es un gasto general del negocio.
-  budgetId    String?
-  budget      Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetId String?
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
 
-  description String
-  amount      Float
-  currency    String   @default("ARS")
-  date        DateTime @default(now())
+  description   String
+  amount        Float
+  currency      String         @default("ARS")
+  date          DateTime       @default(now())
   paymentMethod PaymentMethod? // reusa el mismo enum que ya usa Receipt
-  notes       String?
+  notes         String?
 
   registeredByUserId String?
-  registeredByUser   User? @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
+  registeredByUser   User?   @relation(fields: [registeredByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

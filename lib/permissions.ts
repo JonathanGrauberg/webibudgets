@@ -18,6 +18,7 @@ export type RouteKey =
   | 'tasks' // 👈 nuevo
   | 'expenses' // 👈 nuevo
   | 'cobros' // 👈 nuevo
+  | 'calendar' // 👈 nuevo
   | 'settings_company'
   | 'settings_team'
   | 'help'
@@ -31,6 +32,7 @@ export type EditScope =
   | 'budgets'
   | 'budget_status'
   | 'expenses' // 👈 nuevo
+  | 'calendar' // 👈 nuevo — quién puede CREAR anotaciones (verlas es de todos, ver ROUTE_ACCESS)
 
 /** Budget statuses visible to installer (approved + pending workflow). */
 export const INSTALLER_VISIBLE_BUDGET_STATUSES: BudgetStatus[] = [
@@ -56,6 +58,7 @@ const ROUTE_ACCESS: Record<RouteKey, AppRole[]> = {
   expenses: ['owner', 'admin'], // 👈 nuevo — datos financieros sensibles (sueldos, alquiler), no para seller/installer
   help: ['owner', 'admin', 'seller', 'installer', 'viewer'], // 👈 nuevo — el manual lo ve cualquiera
   cobros: ['owner', 'admin'], // 👈 nuevo — cargos recurrentes a clientes, mismo nivel que expenses/commissions
+  calendar: ['owner', 'admin', 'seller', 'installer', 'viewer'], // 👈 nuevo — el calendario lo ve todo el equipo, aunque no todos puedan escribir en él
 }
 
 const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
@@ -67,6 +70,7 @@ const EDIT_ACCESS: Record<EditScope, AppRole[]> = {
   budgets: ['owner', 'admin', 'seller'],
   budget_status: ['owner', 'admin', 'seller'],
   expenses: ['owner', 'admin'], // 👈 nuevo
+  calendar: ['owner', 'admin', 'seller'], // 👈 nuevo — quién puede CREAR anotaciones (borrar/editar la propia es aparte, no pasa por acá)
 }
 
 export function isAppRole(role: string | null | undefined): role is AppRole {
@@ -135,6 +139,7 @@ export function routeFromPathname(pathname: string): RouteKey | null {
   if (pathname === '/tasks' || pathname.startsWith('/tasks/')) return 'tasks' // 👈 nuevo
   if (pathname === '/expenses' || pathname.startsWith('/expenses/')) return 'expenses' // 👈 nuevo
   if (pathname === '/cobros' || pathname.startsWith('/cobros/')) return 'cobros' // 👈 nuevo
+  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar' // 👈 nuevo
   if (pathname === '/settings/company' || pathname.startsWith('/settings/company/')) {
     return 'settings_company'
   }
@@ -159,6 +164,7 @@ export const NAV_ROUTES: { route: RouteKey; name: string; href: string; tooltip:
   { route: 'expenses', name: 'Gastos', href: '/expenses', tooltip: 'Gastos generales y de trabajos puntuales' }, // 👈 nuevo
   { route: 'cobros', name: 'Cobros', href: '/cobros', tooltip: 'Cargos recurrentes a clientes (mantenimiento, mensualidades)' }, // 👈 nuevo
   { route: 'tasks', name: 'Tareas', href: '/tasks', tooltip: 'Organizador de tareas del equipo' },
+  { route: 'calendar', name: 'Calendario', href: '/calendar', tooltip: 'Agenda compartida de la empresa' }, // 👈 nuevo
   { route: 'help', name: 'Ayuda', href: '/help', tooltip: 'Manual de uso del sistema' }, // 👈 nuevo
 ]
 
