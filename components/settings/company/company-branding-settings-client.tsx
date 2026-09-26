@@ -18,6 +18,7 @@ import {
   Plus,
   Loader2,
   Landmark,
+  Calculator,
 } from 'lucide-react'
 
 import type { Branding } from '@/lib/branding'
@@ -38,6 +39,8 @@ import { SmartAssetRow } from '@/components/branding/smart-asset-row'
 import { SmartPdfRow } from '@/components/branding/smart-pdf-row'
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { useSearchParams } from 'next/navigation'
+import { Switch } from '@/components/ui/switch'
+import { isCalcWidgetEnabled, setCalcWidgetEnabled } from '@/lib/calc-widget-prefs'
 
 
 export type CompanyBrandingSettingsClientProps = {
@@ -369,6 +372,12 @@ export default function CompanyBrandingSettingsClient({
 
   const [isSavingCompany, setIsSavingCompany] = useState(false)
   const [companySaveMessage, setCompanySaveMessage] = useState<string | null>(null)
+
+  // 👇 preferencia personal (localStorage, no de la empresa) — ver lib/calc-widget-prefs.ts
+  const [calcWidgetOn, setCalcWidgetOn] = useState(true)
+  useEffect(() => {
+    setCalcWidgetOn(isCalcWidgetEnabled())
+  }, [])
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [planInfo, setPlanInfo] = useState<PlanInfo>({ maxUsers: 5, activeUsers: 0, plan: 'free' })
@@ -935,6 +944,34 @@ export default function CompanyBrandingSettingsClient({
                   <p className="mt-4 text-xs text-slate-400">
                     Los cambios de branding se guardan automáticamente. La información de la empresa requiere que pulses "Guardar cambios".
                   </p>
+                </div>
+              </div>
+
+              {/* 👇 nuevo — preferencia PERSONAL (este navegador), no de la empresa */}
+              <div className="mt-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Preferencias</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Solo para vos, en este navegador — no afecta a tu equipo
+                  </p>
+                </div>
+                <div className="p-6 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800">
+                      <Calculator className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-50">Calculadora flotante</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Botón arrastrable para cuentas rápidas mientras usás el sistema</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={calcWidgetOn}
+                    onCheckedChange={(checked) => {
+                      setCalcWidgetOn(checked)
+                      setCalcWidgetEnabled(checked)
+                    }}
+                  />
                 </div>
               </div>
             </motion.div>

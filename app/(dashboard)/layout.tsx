@@ -11,6 +11,7 @@ import { EmailVerificationBanner } from '@/components/email-verification-banner'
 import { MercadoPagoConnectBanner } from '@/components/mercadopago-connect-banner'
 import { DynamicIslandHeader } from '@/components/dynamic-island-header' // 👈 Componente de la Solapa flotante
 import { FloatingHelpWidget } from '@/components/help/floating-help-widget'
+import { FloatingCalculator } from '@/components/floating-calculator'
 
 export default async function DashboardLayout({
   children,
@@ -75,6 +76,7 @@ export default async function DashboardLayout({
           </div>
 
           <FloatingHelpWidget />
+          <FloatingCalculator />
         </div>
       </BrandingProvider>
     </ThemeProvider>
