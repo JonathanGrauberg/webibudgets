@@ -40,6 +40,7 @@ import { TopRequestedProducts } from '@/components/dashboard/top-requested-produ
 import { TopClients } from '@/components/dashboard/top-clients'
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
 import { BrandedLoader } from '@/components/branded-loader'
+import { FxQuoteChip } from '@/components/dashboard/fx-quote-chip'
 import { useMemo } from 'react'
 
 type DashboardBudget = {
@@ -67,9 +68,9 @@ interface DashboardResponse {
     totalRevenue: number
   }
   collectedStats: {
-    totalCollected: number
-    totalPending: number
-    totalApprovedValue: number
+    totalCollected: CurrencyTotals
+    totalPending: CurrencyTotals
+    totalApprovedValue: CurrencyTotals
   }
   recentBudgets: DashboardBudget[]
   revenue: { month: string; total: number }[]
@@ -99,8 +100,8 @@ interface DashboardResponse {
         periodMonth: string
         client: { name: string | null; company: string | null } | null
       }[]
-      totalCobrado: number
-      totalPendiente: number
+      totalCobrado: CurrencyTotals
+      totalPendiente: CurrencyTotals
     }
     gastos: {
       recent: {
@@ -111,7 +112,7 @@ interface DashboardResponse {
         date: string
         categoryName: string | null
       }[]
-      total: number
+      total: CurrencyTotals
     }
     documentos: {
       recent: {
@@ -122,7 +123,7 @@ interface DashboardResponse {
         date: string
         source: string
       }[]
-      total: number
+      total: CurrencyTotals
     }
   }
   dailyCashflow?: { date: string; cobrado: number; recibos: number; gastado: number }[]
@@ -134,6 +135,28 @@ function formatCurrency(amount: number, currency: string = 'ARS'): string {
     currency: currency,
     minimumFractionDigits: 0,
   }).format(amount)
+}
+
+type CurrencyTotals = Record<string, number>
+
+// 👇 nuevo — antes estos totales sumaban a ciegas montos en distinta
+// moneda (un presupuesto en USD 400 se sumaba como si fueran 400 pesos).
+// Ahora el back separa por moneda, y esto lo muestra sin inventar ninguna
+// conversión: la moneda principal del negocio en grande, y cualquier otra
+// moneda con saldo, aparte y más chica — nunca mezcladas en un solo número.
+function MultiCurrencyValue({ amounts, primary, className }: { amounts: CurrencyTotals; primary: string; className?: string }) {
+  const others = Object.entries(amounts).filter(([code, value]) => code !== primary && value !== 0)
+
+  return (
+    <>
+      <h3 className={className}>{formatCurrency(amounts[primary] ?? 0, primary)}</h3>
+      {others.map(([code, value]) => (
+        <p key={code} className="text-xs font-medium text-muted-foreground mt-0.5">
+          + {formatCurrency(value, code)}
+        </p>
+      ))}
+    </>
+  )
 }
 
 function formatDate(date: Date | string): string {
@@ -212,7 +235,7 @@ export default function DashboardPage() {
   }
 
   const { stats, recentBudgets } = data
-  const collectedStats = data.collectedStats ?? { totalCollected: 0, totalPending: 0, totalApprovedValue: 0 }
+  const collectedStats = data.collectedStats ?? { totalCollected: {}, totalPending: {}, totalApprovedValue: {} }
   const budgets = filterBudgets(recentBudgets ?? [])
   const currency = branding?.currency ?? 'ARS'
 
@@ -241,6 +264,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
   description="Panel de control e inteligencia comercial de .budgets"
 >
   <div className="flex items-center gap-2">
+    <FxQuoteChip />
     <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
       {([
         { value: 'month', label: 'Este mes' },
@@ -286,9 +310,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                   Cobrado
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(collectedStats.totalCollected, currency)}
-                </h3>
+                <MultiCurrencyValue amounts={collectedStats.totalCollected} primary={currency} className="text-2xl font-bold text-foreground mt-1" />
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3 text-emerald-500" />
                   {period === 'month' ? 'Este mes' : period === 'year' ? 'Este año' : 'Histórico'} — Documentos + Cobros
@@ -306,9 +328,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                 <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                   Por Cobrar
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(collectedStats.totalPending, currency)}
-                </h3>
+                <MultiCurrencyValue amounts={collectedStats.totalPending} primary={currency} className="text-2xl font-bold text-foreground mt-1" />
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   <Clock className="h-3 w-3 text-amber-500" />
                   Saldo actual, no cambia con el período
@@ -524,7 +544,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                       </Link>
                     </div>
                     <div className="pt-1">
-                      <p className="text-lg font-bold text-blue-600">{formatCurrency(data.cobrosGastos.documentos.total, currency)}</p>
+                      <MultiCurrencyValue amounts={data.cobrosGastos.documentos.total} primary={currency} className="text-lg font-bold text-blue-600" />
                       <p className="text-[11px] text-muted-foreground">Cobrado según recibos, en el período</p>
                     </div>
                   </CardHeader>
@@ -562,11 +582,11 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                     </div>
                     <div className="flex items-center gap-4 pt-1">
                       <div>
-                        <p className="text-lg font-bold text-emerald-600">{formatCurrency(data.cobrosGastos.cobros.totalCobrado, currency)}</p>
+                        <MultiCurrencyValue amounts={data.cobrosGastos.cobros.totalCobrado} primary={currency} className="text-lg font-bold text-emerald-600" />
                         <p className="text-[11px] text-muted-foreground">Cobrado en el período</p>
                       </div>
                       <div>
-                        <p className="text-lg font-bold text-amber-600">{formatCurrency(data.cobrosGastos.cobros.totalPendiente, currency)}</p>
+                        <MultiCurrencyValue amounts={data.cobrosGastos.cobros.totalPendiente} primary={currency} className="text-lg font-bold text-amber-600" />
                         <p className="text-[11px] text-muted-foreground">Pendiente en el período</p>
                       </div>
                     </div>
@@ -611,7 +631,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                       </Link>
                     </div>
                     <div className="pt-1">
-                      <p className="text-lg font-bold text-red-600">{formatCurrency(data.cobrosGastos.gastos.total, currency)}</p>
+                      <MultiCurrencyValue amounts={data.cobrosGastos.gastos.total} primary={currency} className="text-lg font-bold text-red-600" />
                       <p className="text-[11px] text-muted-foreground">Gastado en el período</p>
                     </div>
                   </CardHeader>
@@ -670,9 +690,7 @@ const pipelineValue = pendingBudgetsList.reduce((acc, b) => acc + (b.total || 0)
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Card className="p-4 border-l-4 border-l-slate-400">
                       <p className="text-xs text-muted-foreground font-medium">Presupuestado (Aprobados)</p>
-                      <p className="mt-1 text-2xl font-bold text-foreground">
-                        {formatCurrency(collectedStats.totalApprovedValue, currency)}
-                      </p>
+                      <MultiCurrencyValue amounts={collectedStats.totalApprovedValue} primary={currency} className="mt-1 text-2xl font-bold text-foreground" />
                       <p className="text-[11px] text-muted-foreground mt-1">
                         Lo que valen — no es lo cobrado, ver "Cobrado" arriba
                       </p>

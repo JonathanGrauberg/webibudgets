@@ -2,6 +2,18 @@
 import { prisma } from '@/lib/prisma'
 import type { ProductCategory, BudgetStatus } from '@prisma/client' // 👈 nuevo
 import { isReceiptActive } from '@/lib/collected-amount'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
+
+// 👇 nuevo — antes estas métricas sumaban ciegamente montos de presupuestos
+// en distinta moneda como si fueran todos la misma (ej: un presupuesto en
+// USD 400 se sumaba como "400" pesos más). Ahora cada total se separa por
+// moneda — sin inventar ninguna conversión, cada una queda con lo suyo.
+export type CurrencyTotals = Record<string, number>
+
+function addCurrency(map: CurrencyTotals, currency: string | null | undefined, amount: number) {
+  const key = currency || DEFAULT_CURRENCY
+  map[key] = (map[key] ?? 0) + amount
+}
 
 // Estados de presupuesto donde el cobro es una expectativa REAL, no una
 // suposición — un 'sent' todavía no lo aprobó el cliente, así que contarlo
@@ -77,9 +89,9 @@ export async function getDashboardStats(
 }
 
 export interface CollectedStats {
-  totalCollected: number      // plata que entró de verdad (recibos + MP)
-  totalPending: number        // lo que falta cobrar de lo ya aprobado/enviado
-  totalApprovedValue: number  // "si se cobrara todo" — el número viejo, ahora secundario
+  totalCollected: CurrencyTotals      // plata que entró de verdad (recibos + MP), por moneda
+  totalPending: CurrencyTotals        // lo que falta cobrar de lo ya aprobado/enviado, por moneda
+  totalApprovedValue: CurrencyTotals  // "si se cobrara todo" — el número viejo, ahora secundario
 }
 
 // 👇 nuevo — a diferencia de totalRevenue (arriba), esto SÍ resta lo que ya
@@ -102,9 +114,10 @@ export async function getCollectedStats(
 ): Promise<CollectedStats> {
   const budgets = await prisma.budget.findMany({
     where: { tenantId, active: true, status: { in: PAYABLE_STATUSES } },
-    select: { id: true, total: true },
+    select: { id: true, total: true, currency: true },
   })
   const budgetIds = budgets.map((b) => b.id)
+  const currencyByBudget = new Map(budgets.map((b) => [b.id, b.currency || DEFAULT_CURRENCY]))
 
   const [receipts, payments, linkedCobros, standaloneCobros] = await Promise.all([
     prisma.receipt.findMany({
@@ -121,7 +134,7 @@ export async function getCollectedStats(
     }),
     prisma.cobro.findMany({
       where: { tenantId, budgetId: null },
-      select: { amount: true, status: true, paidAt: true },
+      select: { amount: true, status: true, paidAt: true, currency: true },
     }),
   ])
 
@@ -154,15 +167,16 @@ export async function getCollectedStats(
     if (inRange(c.paidAt)) add(collectedInRangeByBudget, c.budgetId, amount)
   }
 
-  let totalCollected = 0 // dentro del período elegido — esto es lo que se muestra
-  let totalCollectedAllTime = 0 // histórico completo — solo para calcular el saldo pendiente real
-  let totalApprovedValue = 0
+  const totalCollected: CurrencyTotals = {} // dentro del período elegido — esto es lo que se muestra
+  const totalCollectedAllTime: CurrencyTotals = {} // histórico completo — solo para calcular el saldo pendiente real
+  const totalApprovedValue: CurrencyTotals = {}
   for (const b of budgets) {
-    totalApprovedValue += b.total
+    const currency = currencyByBudget.get(b.id) ?? DEFAULT_CURRENCY
+    addCurrency(totalApprovedValue, currency, b.total)
     // Math.min por las dudas — si alguien pagó de más por error, no
     // queremos mostrar "cobrado" mayor a lo presupuestado.
-    totalCollectedAllTime += Math.min(collectedAllTimeByBudget.get(b.id) ?? 0, b.total)
-    totalCollected += Math.min(collectedInRangeByBudget.get(b.id) ?? 0, b.total)
+    addCurrency(totalCollectedAllTime, currency, Math.min(collectedAllTimeByBudget.get(b.id) ?? 0, b.total))
+    addCurrency(totalCollected, currency, Math.min(collectedInRangeByBudget.get(b.id) ?? 0, b.total))
   }
 
   // 👇 Cobros del módulo "Cobros" que NO están vinculados a ningún
@@ -172,17 +186,22 @@ export async function getCollectedStats(
   // si está pendiente ya forma parte del saldo pendiente de ESE
   // presupuesto — acá solo entran los sueltos.
   for (const c of standaloneCobros) {
-    totalApprovedValue += c.amount
+    addCurrency(totalApprovedValue, c.currency, c.amount)
     if (c.status === 'paid') {
-      totalCollectedAllTime += c.amount
-      if (inRange(c.paidAt)) totalCollected += c.amount
+      addCurrency(totalCollectedAllTime, c.currency, c.amount)
+      if (inRange(c.paidAt)) addCurrency(totalCollected, c.currency, c.amount)
     }
+  }
+
+  const totalPending: CurrencyTotals = {}
+  for (const currency of new Set([...Object.keys(totalApprovedValue), ...Object.keys(totalCollectedAllTime)])) {
+    totalPending[currency] = Math.max((totalApprovedValue[currency] ?? 0) - (totalCollectedAllTime[currency] ?? 0), 0)
   }
 
   return {
     totalCollected,
     totalApprovedValue,
-    totalPending: Math.max(totalApprovedValue - totalCollectedAllTime, 0),
+    totalPending,
   }
 }
 
@@ -340,18 +359,18 @@ export interface RecentDocumentoCobro {
 export interface CobrosGastosSummary {
   cobros: {
     recent: RecentCobro[]
-    totalCobrado: number  // cobros con status=paid, paidAt dentro del período elegido
-    totalPendiente: number // cobros pending, periodMonth dentro del período elegido
+    totalCobrado: CurrencyTotals  // cobros con status=paid, paidAt dentro del período elegido
+    totalPendiente: CurrencyTotals // cobros pending, periodMonth dentro del período elegido
   }
   gastos: {
     recent: RecentGasto[]
-    total: number // suma de todos los gastos (generales + por trabajo) con date dentro del período elegido
+    total: CurrencyTotals // suma de todos los gastos (generales + por trabajo) con date dentro del período elegido
   }
   // 👇 nuevo — lo cobrado vía Documentos (recibos manuales + Mercado Pago),
   // mismo criterio que ya usa la pantalla de Documentos ("Cobrado (recibos + Mercado Pago)")
   documentos: {
     recent: RecentDocumentoCobro[]
-    total: number
+    total: CurrencyTotals
   }
 }
 
@@ -370,7 +389,8 @@ export async function getCobrosGastosSummary(
       orderBy: { createdAt: 'desc' },
       include: { client: { select: { name: true, company: true } } },
     }),
-    prisma.cobro.aggregate({
+    prisma.cobro.groupBy({
+      by: ['currency'],
       where: {
         tenantId,
         status: 'paid',
@@ -378,7 +398,8 @@ export async function getCobrosGastosSummary(
       },
       _sum: { amount: true },
     }),
-    prisma.cobro.aggregate({
+    prisma.cobro.groupBy({
+      by: ['currency'],
       where: {
         tenantId,
         status: 'pending',
@@ -399,7 +420,8 @@ export async function getCobrosGastosSummary(
       orderBy: { date: 'desc' },
       include: { category: { select: { name: true } } },
     }),
-    prisma.expense.aggregate({
+    prisma.expense.groupBy({
+      by: ['currency'],
       where: {
         tenantId,
         ...(range ? { date: { gte: range.from, lte: range.to } } : {}),
@@ -424,13 +446,20 @@ export async function getCobrosGastosSummary(
         sourceBudgetPaymentId: null,
         ...(range ? { issueDate: { gte: range.from, lte: range.to } } : {}),
       },
-      select: { amount: true, status: true },
+      select: { amount: true, status: true, currency: true },
     }),
   ])
 
-  const documentosTotal = receiptsInRange
-    .filter((r) => isReceiptActive(r.status))
-    .reduce((acc, r) => acc + Number(r.amount || 0), 0)
+  const documentosTotal: CurrencyTotals = {}
+  for (const r of receiptsInRange) {
+    if (isReceiptActive(r.status)) addCurrency(documentosTotal, r.currency, Number(r.amount || 0))
+  }
+
+  const groupedToTotals = (rows: { currency: string; _sum: { amount: number | null } }[]): CurrencyTotals => {
+    const totals: CurrencyTotals = {}
+    for (const row of rows) addCurrency(totals, row.currency, row._sum.amount ?? 0)
+    return totals
+  }
 
   return {
     cobros: {
@@ -443,8 +472,8 @@ export async function getCobrosGastosSummary(
         periodMonth: c.periodMonth,
         client: c.client ? { name: c.client.name ?? null, company: c.client.company ?? null } : null,
       })),
-      totalCobrado: paidInRange._sum.amount ?? 0,
-      totalPendiente: pendingInRange._sum.amount ?? 0,
+      totalCobrado: groupedToTotals(paidInRange),
+      totalPendiente: groupedToTotals(pendingInRange),
     },
     gastos: {
       recent: recentGastos.map((e) => ({
@@ -455,7 +484,7 @@ export async function getCobrosGastosSummary(
         date: e.date,
         categoryName: e.category?.name ?? null,
       })),
-      total: gastosInRange._sum.amount ?? 0,
+      total: groupedToTotals(gastosInRange),
     },
     documentos: {
       recent: recentReceipts
