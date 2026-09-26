@@ -13,9 +13,9 @@ import { authOptions } from '@/lib/auth'
 import { QUE_ES_SECCIONES, PLAN_FEATURES } from '@/lib/que-es-data'
 
 export const metadata: Metadata = {
-  title: 'Qué es y qué hace .budgets | Sistema de gestión para PyMEs',
+  title: 'Qué es y qué hace .budgets | Gestión para PyMEs y profesionales',
   description:
-    '.budgets es un sistema de gestión comercial para negocios que cotizan y venden: presupuestos, clientes, stock, documentos, cobros online y recurrentes, gastos, equipo y reparto de ganancias. Guía completa de todos los módulos, con la diferencia entre el plan gratuito y PRO.',
+    '.budgets es un sistema de gestión comercial para profesionales independientes y negocios que cotizan y venden: presupuestos, clientes, stock, documentos, cobros online y recurrentes, gastos, equipo y reparto de ganancias. Guía completa de todos los módulos, con la diferencia entre el plan gratuito y PRO.',
 }
 
 export default async function QueEsPage() {
@@ -45,12 +45,13 @@ export default async function QueEsPage() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Qué es</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-          Un sistema de gestión hecho para negocios que cotizan y venden
+          Un sistema de gestión hecho para quien cotiza y vende — solo o en equipo
         </h1>
         <p className="mt-4 max-w-3xl text-base leading-relaxed text-foreground/90">
-          .budgets es un sistema de gestión comercial pensado para negocios que arman presupuestos y venden
-          productos o servicios: cotizás, hacés seguimiento del cliente, generás la documentación (recibos,
-          remitos, órdenes de trabajo), cobrás online o en efectivo/transferencia, controlás tu stock,
+          .budgets es un sistema de gestión comercial pensado para profesionales independientes y negocios
+          que arman presupuestos y venden productos o servicios: cotizás, hacés seguimiento del cliente,
+          generás la documentación (recibos, remitos y, si además manejás trabajo en campo, órdenes de
+          trabajo), cobrás online o en efectivo/transferencia, controlás tu stock si lo necesitás,
           organizás al equipo y sabés cuánto ganaste realmente en cada trabajo — todo desde un solo lugar,
           sin instalar nada: funciona desde el navegador, en la computadora o el celular.
         </p>

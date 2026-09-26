@@ -19,7 +19,7 @@ const FEATURES = [
     badge: 'ECOSISTEMA INTEGRADO',
     title: 'Operación 360° en un solo flujo',
     description:
-      'Aprobás el presupuesto y generás la Orden de Trabajo con los materiales autocompletados para el taller, el Remito de entrega y el Recibo final. Todo conectado sin reingresar datos.',
+      'Aprobás el presupuesto y generás la Orden de Trabajo con los materiales autocompletados para tu equipo, el Remito de entrega y el Recibo final. Todo conectado sin reingresar datos.',
     featured: true,
   },
   // 2. Arriba Derecha

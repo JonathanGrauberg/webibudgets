@@ -15,9 +15,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: '.budgets | Software de Gestión, Presupuestos y Órdenes de Trabajo',
+  title: '.budgets | Presupuestos, Cobros y Gestión para tu Negocio',
   description:
-    'Ecosistema integral para PYMEs y profesionales: cotizador por m², cobro online con Mercado Pago, órdenes de trabajo con QR, tablero Kanban, modo Kiosco para tablet de taller, control de stock, clientes y repartija de ganancias.',
+    'Sistema de gestión para negocios y profesionales independientes que cotizan y venden: presupuestos, seguimiento de clientes, cobro online con Mercado Pago y documentos, todo en un solo lugar. Para el que además maneja stock o trabajo en campo, suma calculadora por m², control de stock y órdenes de trabajo con QR.',
   generator: 'Webi',
 
   alternates: {
@@ -44,9 +44,9 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: '.budgets | Presupuestos, Órdenes de Trabajo y Gestión Integral',
+    title: '.budgets | Presupuestos, Cobros y Gestión Integral',
     description:
-      'Comenzá gratis. Cotizaciones por m², cobro online con Mercado Pago, control de stock, órdenes de trabajo con QR, tablero Kanban y repartija de ganancias en tiempo real.',
+      'Comenzá gratis. Presupuestos profesionales, cobro online con Mercado Pago y seguimiento de clientes — para profesionales independientes y PyMEs. Con calculadora por m², control de stock y órdenes de trabajo con QR para el que también maneja obra o taller.',
     url: 'https://budgets.webistudio.net',
     siteName: '.budgets',
     images: [
@@ -69,9 +69,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: 'summary_large_image',
-    title: '.budgets | Sistema de Gestión Operativa y Financiera',
+    title: '.budgets | Presupuestos y Gestión para tu Negocio',
     description:
-      'Plataforma Freemium: cotizaciones por m², cobro online con Mercado Pago, seguimiento de obras con QR, Kanban, stock y comisiones en tiempo real.',
+      'Plataforma freemium para profesionales independientes y PyMEs: presupuestos, cobro online con Mercado Pago, clientes, y para el que lo necesite, stock y órdenes de trabajo con QR.',
     images: ['https://budgets.webistudio.net/og-image.png'],
   },
 }
@@ -84,7 +84,7 @@ const jsonLd = {
   'operatingSystem': 'Web, Android, iOS (PWA)',
   'applicationCategory': 'BusinessApplication',
   'url': 'https://budgets.webistudio.net',
-  'description': 'Sistema integral de gestión operativa y financiera para PYMEs, talleres, imprentas, constructoras y freelancers. Cotizador por m², cobro online con Mercado Pago, órdenes de trabajo con QR, tablero Kanban, control de stock, CRM de clientes y cálculo de rendimientos.',
+  'description': 'Sistema de gestión comercial para profesionales independientes, freelancers y PyMEs de servicios que cotizan y venden: presupuestos, seguimiento de clientes, cobro online con Mercado Pago y documentos. Para negocios que además manejan stock o trabajo en campo (talleres, imprentas, constructoras), suma cotizador por m², control de stock y órdenes de trabajo con QR.',
   'publisher': {
     '@type': 'Organization',
     'name': 'Webi Studio',
@@ -112,17 +112,17 @@ const jsonLd = {
     ]
   },
   'featureList': [
-    'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios)',
+    'Presupuestos profesionales en segundos, con seguimiento de clientes y estado de cada cotización',
     'Cobro online integrado con Mercado Pago: link de pago, seña o total, directo a la cuenta del negocio',
-    'Generación de Órdenes de Trabajo con código QR y geolocalización',
-    'Tablero Kanban de tareas operativo e integrado a presupuestos',
-    'Modo Kiosco: pantalla táctil para pared del taller con tableros por proyecto y prioridades visuales',
+    'CRM de Clientes con historial financiero unificado',
+    'Gestión de documentos: recibos, remitos y comprobantes en PDF profesional',
     'Módulo de Rendimientos e Historial de Repartija de Ganancias entre socios y vendedores',
+    'Dashboard con métricas clave de facturación y rentabilidad',
+    'Cotizador automático por m², lineal y volumen (superficies, cartelería, obras y vidrios) para quien cobra por medida',
     'Control de stock en tiempo real con alertas de mínimo y variantes (color, talle, medida)',
-    'Gestión completa de comprobantes: presupuestos, remitos, recibos y órdenes de compra',
-    'CRM de Clientes y Proveedores con historial financiero unificado',
-    'Exportación rápida de presupuestos y comprobantes en PDF profesional',
-    'Dashboard con métricas clave de facturación y rentabilidad'
+    'Generación de Órdenes de Trabajo con código QR y geolocalización para equipos en campo',
+    'Tablero Kanban de tareas operativo e integrado a presupuestos',
+    'Modo Kiosco: pantalla táctil para tableros por proyecto y prioridades visuales'
   ]
 }
 
