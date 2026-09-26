@@ -4,14 +4,15 @@ import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest } from '@/lib/tenant'
 import { hasFeature } from '@/lib/features'
 import { findCandidateBudgetIds } from '@/lib/rendicion-engine'
+import { collectedDuringPeriod, type PeriodMovement } from '@/lib/rendicion-period'
 
 const BUDGET_INCLUDE_FOR_RENDICION = {
   client: { select: { name: true, company: true } },
   seller: { select: { name: true, lastName: true, userId: true } },
   items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-  receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
-  payments: { select: { amount: true, status: true } },
-  cobros: { select: { amount: true, status: true } },
+  receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true, issueDate: true } },
+  payments: { select: { amount: true, status: true, createdAt: true } },
+  cobros: { select: { amount: true, status: true, paidAt: true } },
   expenses: { select: { amount: true } },
 } as const
 
@@ -112,16 +113,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
       // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
       // sumado abajo — contarlo acá también duplicaría la plata.
-      const collectedReceipts = b.receipts
-        .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
-        .reduce((acc, r) => acc + Number(r.amount || 0), 0)
-      const collectedPayments = b.payments
-        .filter((p) => p.status === 'approved')
-        .reduce((acc, p) => acc + Number(p.amount || 0), 0)
-      const collectedCobros = b.cobros
-        .filter((c) => c.status === 'paid')
-        .reduce((acc, c) => acc + Number(c.amount || 0), 0)
-      const collected = Math.min(collectedReceipts + collectedPayments + collectedCobros, b.total)
+      const movements: PeriodMovement[] = [
+        ...b.receipts
+          .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
+          .map((r) => ({ amount: Number(r.amount || 0), date: r.issueDate })),
+        ...b.payments
+          .filter((p) => p.status === 'approved')
+          .map((p) => ({ amount: Number(p.amount || 0), date: p.createdAt })),
+        ...b.cobros
+          .filter((c) => c.status === 'paid' && c.paidAt)
+          .map((c) => ({ amount: Number(c.amount || 0), date: c.paidAt as Date })),
+      ]
+      // 👇 lo cobrado DENTRO de este período puntual — no lo acumulado desde
+      // el origen del trabajo (ver lib/rendicion-period.ts). Así una cuota ya
+      // cobrada y repartida en un período anterior no vuelve a contarse acá.
+      const collected = collectedDuringPeriod(movements, b.total, rendicion.periodStart, rendicion.periodEnd)
       const pctCobrado = b.total > 0 ? collected / b.total : 0
 
       const gastosAsociados = b.expenses.reduce((acc, e) => acc + e.amount, 0)

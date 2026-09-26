@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { BudgetStatus } from '@prisma/client' // 👈 nuevo — el enum real que genera Prisma
+import { collectedDuringPeriod, type PeriodMovement } from '@/lib/rendicion-period'
 
 type BudgetForRendicion = {
   id: string
@@ -133,14 +134,14 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
       client: { select: { name: true, company: true } },
       seller: { select: { name: true, lastName: true } },
       items: { select: { quantity: true, cost: true, productService: { select: { cost: true } } } },
-      receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true } },
-      payments: { select: { amount: true, status: true } },
-      cobros: { select: { amount: true, status: true } },
+      receipts: { select: { amount: true, status: true, sourceBudgetPaymentId: true, issueDate: true } },
+      payments: { select: { amount: true, status: true, createdAt: true } },
+      cobros: { select: { amount: true, status: true, paidAt: true } },
     },
   }) as unknown as (BudgetForRendicion & {
-    receipts: { amount: number; status: string | null; sourceBudgetPaymentId: string | null }[]
-    payments: { amount: number; status: string }[]
-    cobros: { amount: number; status: string }[]
+    receipts: { amount: number; status: string | null; sourceBudgetPaymentId: string | null; issueDate: Date }[]
+    payments: { amount: number; status: string; createdAt: Date }[]
+    cobros: { amount: number; status: string; paidAt: Date | null }[]
   })[]
 
   // 👇 antes acá se exigía collected >= total (100% cobrado) para que el
@@ -151,16 +152,22 @@ export async function generateRendicionData(tenantId: string, periodStart: Date,
     .map((b) => {
       // 👇 sourceBudgetPaymentId: un recibo "espejo" de un BudgetPayment ya
       // sumado más abajo — contarlo acá también duplicaría la plata.
-      const collectedReceipts = b.receipts
-        .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
-        .reduce((acc, r) => acc + Number(r.amount || 0), 0)
-      const collectedPayments = b.payments
-        .filter((p) => p.status === 'approved')
-        .reduce((acc, p) => acc + Number(p.amount || 0), 0)
-      const collectedCobros = b.cobros
-        .filter((c) => c.status === 'paid')
-        .reduce((acc, c) => acc + Number(c.amount || 0), 0)
-      const collected = collectedReceipts + collectedPayments + collectedCobros
+      const movements: PeriodMovement[] = [
+        ...b.receipts
+          .filter((r) => isReceiptActive(r.status) && !r.sourceBudgetPaymentId)
+          .map((r) => ({ amount: Number(r.amount || 0), date: r.issueDate })),
+        ...b.payments
+          .filter((p) => p.status === 'approved')
+          .map((p) => ({ amount: Number(p.amount || 0), date: p.createdAt })),
+        ...b.cobros
+          .filter((c) => c.status === 'paid' && c.paidAt)
+          .map((c) => ({ amount: Number(c.amount || 0), date: c.paidAt as Date })),
+      ]
+      // 👇 lo cobrado DENTRO de este período puntual — no lo acumulado desde
+      // el origen del trabajo (ver lib/rendicion-period.ts). Antes esto
+      // volvía a contar (y a repartir) cuotas ya cobradas en un período
+      // anterior cada vez que se generaba una rendición nueva.
+      const collected = collectedDuringPeriod(movements, b.total, periodStart, periodEnd)
       return { budget: b, collected }
     })
     .filter(({ collected, budget }) => collected > 0 && budget.total > 0)
