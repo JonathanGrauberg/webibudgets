@@ -14,7 +14,11 @@ export const SUPPORTED_CURRENCIES: Record<string, CurrencyConfig> = {
   COP: { code: 'COP', name: 'Peso Colombiano', locale: 'es-CO' },
   PEN: { code: 'PEN', name: 'Sol Peruano', locale: 'es-PE' },
   MXN: { code: 'MXN', name: 'Peso Mexicano', locale: 'es-MX' },
-  USD: { code: 'USD', name: 'Dólar Estadounidense', locale: 'en-US' },
+  // 👇 locale es-AR (no en-US) a propósito — así Intl.NumberFormat lo
+  // muestra como "US$" en vez de un "$" ambiguo e indistinguible del peso
+  // argentino (ver conversación: un cliente interpretó "$400" en dólares
+  // como pesos, porque así se veía en el PDF).
+  USD: { code: 'USD', name: 'Dólar Estadounidense', locale: 'es-AR' },
   EUR: { code: 'EUR', name: 'Euro', locale: 'de-DE' },
 }
 
