@@ -83,6 +83,60 @@ export function FloatingCalculator() {
     return () => window.removeEventListener(CALC_WIDGET_TOGGLE_EVENT, onToggle)
   }, [])
 
+  // 👇 soporte de teclado — solo mientras el panel está abierto, y solo si
+  // el foco no está en un input/textarea/select de OTRA parte de la pantalla
+  // (así no le "roba" el tipeo a un campo real del formulario que esté atrás).
+  useEffect(() => {
+    if (!isOpen) return
+
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      const isTypingElsewhere =
+        (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) &&
+        !target?.closest('[data-calc-widget]')
+      if (isTypingElsewhere) return
+
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault()
+        inputDigit(e.key)
+      } else if (e.key === '.' || e.key === ',') {
+        e.preventDefault()
+        inputDot()
+      } else if (e.key === '+') {
+        e.preventDefault()
+        applyOperator('+')
+      } else if (e.key === '-') {
+        e.preventDefault()
+        applyOperator('-')
+      } else if (e.key === '*' || e.key.toLowerCase() === 'x') {
+        e.preventDefault()
+        applyOperator('×')
+      } else if (e.key === '/') {
+        e.preventDefault()
+        applyOperator('÷')
+      } else if (e.key === '%') {
+        e.preventDefault()
+        percent()
+      } else if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault()
+        evaluate()
+      } else if (e.key === 'Backspace') {
+        e.preventDefault()
+        backspace()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        setIsOpen(false)
+      } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault()
+        reset()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, display, stored, pendingOp, justEvaluated])
+
   function handlePointerDown(e: React.PointerEvent) {
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     dragState.current = { startX: e.clientX, startY: e.clientY, originX: position.x, originY: position.y, dragged: false }
@@ -197,7 +251,7 @@ export function FloatingCalculator() {
   const opensUp = position.y > window.innerHeight / 2
 
   return (
-    <div className="fixed z-50" style={{ left: position.x, top: position.y, touchAction: 'none' }}>
+    <div data-calc-widget className="fixed z-50" style={{ left: position.x, top: position.y, touchAction: 'none' }}>
       {isOpen && (
         <div
           className="absolute w-[240px] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
