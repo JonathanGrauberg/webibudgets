@@ -4,8 +4,39 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
+import Script from 'next/script'
 
 const MIN_PASSWORD_LENGTH = 8
+
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+
+// 👇 reCAPTCHA v3 es invisible — no hay checkbox ni desafío, solo pedimos
+// un token justo antes de mandar el formulario. Si no está configurada la
+// site key todavía (ver .env), devolvemos undefined y el registro sigue
+// funcionando igual — la verificación del lado del servidor también deja
+// pasar si no hay secret key (ver lib/recaptcha.ts).
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready: (cb: () => void) => void
+      execute: (siteKey: string, opts: { action: string }) => Promise<string>
+    }
+  }
+}
+
+function getRecaptchaToken(action: string): Promise<string | undefined> {
+  if (!RECAPTCHA_SITE_KEY || typeof window === 'undefined' || !window.grecaptcha) {
+    return Promise.resolve(undefined)
+  }
+  return new Promise((resolve) => {
+    window.grecaptcha!.ready(() => {
+      window
+        .grecaptcha!.execute(RECAPTCHA_SITE_KEY, { action })
+        .then(resolve)
+        .catch(() => resolve(undefined))
+    })
+  })
+}
 
 export default function RegisterForm() {
   const router = useRouter()
@@ -121,6 +152,8 @@ export default function RegisterForm() {
     setIsSubmitting(true)
 
     try {
+      const recaptchaToken = await getRecaptchaToken('register')
+
       const registerRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -132,6 +165,7 @@ export default function RegisterForm() {
           // cualquier otra cosa cae a 'free' igual, así que mandamos 'free' explícito acá.
           // El tenant pasa a 'custom' recién cuando el webhook de MercadoPago confirma el pago.
           plan: 'free',
+          recaptchaToken,
         }),
       })
 
@@ -218,6 +252,9 @@ export default function RegisterForm() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
+      {RECAPTCHA_SITE_KEY && (
+        <Script src={`https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`} strategy="afterInteractive" />
+      )}
       <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04]" />
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-foreground/[0.04]" />
 

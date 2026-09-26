@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { resolveMaxUsers, resolveTrialEndsAt } from '@/lib/plan'
 import { issueAndSendVerificationEmail } from '@/lib/email-verification'
+import { verifyRecaptcha } from '@/lib/recaptcha'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -37,10 +38,15 @@ async function uniqueSlug(base: string): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
-    const { companyName, email: rawEmail, password, plan: rawPlan } = body ?? {}
+    const { companyName, email: rawEmail, password, plan: rawPlan, recaptchaToken } = body ?? {}
 
     if (!companyName || !rawEmail || !password) {
       return NextResponse.json({ error: 'Todos los campos son requeridos' }, { status: 400 })
+    }
+
+    const humanEnough = await verifyRecaptcha(recaptchaToken, 'register')
+    if (!humanEnough) {
+      return NextResponse.json({ error: 'No pudimos validar el registro. Recargá la página y probá de nuevo.' }, { status: 400 })
     }
 
     // 🔒 NORMALIZACIÓN TOTAL DEL EMAIL EN BACKEND (Anti-Mayúsculas)

@@ -93,6 +93,42 @@ export async function sendGoogleAccountNoticeEmail(to: string) {
   }
 }
 
+// 👇 nuevo — botón "Sugerencias" del widget de ayuda. Va a la casilla del
+// producto (no a soporte@), y con reply-to al usuario para poder
+// responderle directo sin tener que pedirle el mail de nuevo.
+const SUGGESTIONS_TO = process.env.SUGGESTIONS_EMAIL_TO || 'puntobudgets@gmail.com'
+
+export async function sendSuggestionEmail(params: {
+  userName: string
+  userEmail: string
+  tenantName: string
+  message: string
+}) {
+  const client = getResendClient()
+  if (!client) return
+
+  const html = emailShell(`
+    <h1 style="font-size:16px; color:#15171C; margin:0 0 12px;">Nueva sugerencia</h1>
+    <p style="font-size:13px; color:#9297A2; line-height:1.6; margin:0 0 16px;">
+      De <b>${params.userName}</b> (${params.userEmail}) — empresa "${params.tenantName}"
+    </p>
+    <p style="font-size:13.5px; color:#15171C; line-height:1.7; margin:0; white-space:pre-wrap; background:#F4F5F7; border-radius:8px; padding:14px;">${params.message}</p>
+  `)
+
+  try {
+    await client.emails.send({
+      from: EMAIL_FROM,
+      to: SUGGESTIONS_TO,
+      replyTo: params.userEmail,
+      subject: `Sugerencia de ${params.tenantName}`,
+      html,
+    })
+  } catch (err) {
+    console.error('[email] Error enviando sugerencia:', err)
+    throw err
+  }
+}
+
 export async function sendVerificationEmail(to: string, verifyUrl: string) {
   const client = getResendClient()
   if (!client) return

@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { HelpCircle, X, ArrowLeft, House, PlayCircle } from 'lucide-react'
+import { HelpCircle, X, ArrowLeft, House, PlayCircle, Lightbulb, Send, CheckCircle2 } from 'lucide-react'
 import { HELP_CATEGORIES } from '@/lib/help-content'
 
 const POSITION_KEY = 'help-widget-position'
@@ -20,6 +20,7 @@ type Screen =
   | { type: 'root' }
   | { type: 'category'; slug: string }
   | { type: 'article'; categorySlug: string; articleSlug: string }
+  | { type: 'suggestion' }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -229,7 +230,18 @@ function ChatScreen({
               {c.title}
             </OptionButton>
           ))}
+          <OptionButton disabled={!isLast} onClick={() => onSelect({ type: 'suggestion' })}>
+            <Lightbulb className="h-3 w-3 shrink-0" /> Dejar una sugerencia
+          </OptionButton>
         </ButtonList>
+      </Bubble>
+    )
+  }
+
+  if (screen.type === 'suggestion') {
+    return (
+      <Bubble>
+        <SuggestionForm disabled={!isLast} />
       </Bubble>
     )
   }
@@ -273,6 +285,70 @@ function ChatScreen({
         </OptionButton>
       </ButtonList>
     </Bubble>
+  )
+}
+
+// 👇 nuevo — "Dejar una sugerencia": manda un mail al equipo de producto
+// (no es un caso de la base de ayuda, es el único screen con estado propio).
+function SuggestionForm({ disabled }: { disabled: boolean }) {
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit() {
+    if (!message.trim() || sending) return
+    setSending(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message.trim() }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => null)
+        setError(json?.error ?? 'No se pudo enviar. Probá de nuevo.')
+        return
+      }
+      setSent(true)
+    } catch {
+      setError('No se pudo enviar. Probá de nuevo.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <p className="flex items-center gap-1.5 text-sm text-card-foreground">
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> ¡Gracias! Ya la recibimos.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-card-foreground">¿Qué te gustaría que mejoremos o agreguemos?</p>
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        disabled={disabled || sending}
+        rows={3}
+        maxLength={2000}
+        placeholder="Escribí tu idea acá..."
+        className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50 disabled:opacity-60"
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={disabled || sending || !message.trim()}
+        className="flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-default disabled:opacity-40"
+      >
+        <Send className="h-3 w-3" /> {sending ? 'Enviando...' : 'Enviar sugerencia'}
+      </button>
+    </div>
   )
 }
 
