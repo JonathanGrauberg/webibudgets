@@ -418,6 +418,52 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    slug: 'arca',
+    title: 'Facturación electrónica (ARCA)',
+    description: 'Función PRO en construcción — hoy deja listo el certificado, todavía no emite comprobantes.',
+    articles: [
+      {
+        slug: 'que-hace-hoy',
+        title: '¿Qué se puede hacer hoy con esto?',
+        body: [
+          'Por ahora, dos cosas: generar el certificado digital que ARCA exige, y probar que ARCA lo reconoce (conexión WSAA). Emitir una factura real todavía no está armado — no pasa nada si probás todo el circuito, no se genera ningún comprobante.',
+          'Es una función PRO (plan pago). Si no la ves, o la ves bloqueada, es por eso.',
+        ],
+        keywords: ['arca', 'afip', 'facturacion electronica', 'certificado', 'que hace', 'construccion'],
+      },
+      {
+        slug: 'pasos-completos',
+        title: 'Los pasos completos, en orden',
+        body: [
+          '1) En .budgets → Configuración → Facturación: cargás tu CUIT, nombre de la empresa, un nombre técnico y un alias, elegís "Homologación (testing)" para probar sin riesgo, y tocás "Generar certificado y descargar CSR" — se descarga un archivo .csr.',
+          '2) Entrás a ARCA con tu Clave Fiscal, a la herramienta de gestión de certificados (WSASS en testing, o "Administrador de Certificados Digitales" en producción) → "Crear DN y certificado" → pegás el .csr → te devuelve un certificado (.crt).',
+          '3) Volvés a .budgets, pegás ese .crt y tocás "Confirmar certificado" — ahí pasa a estado "Activo".',
+          '4) De nuevo en ARCA → "Crear autorización a servicio" → elegís el certificado que acabás de crear → elegís el servicio "wsfe - Facturación Electrónica" → confirmás.',
+          '5) Esperás unos minutos (ARCA tarda en propagar esa autorización) y volvés a .budgets a tocar "Probar conexión (WSAA)". Si dice que ARCA aceptó el certificado, todo el circuito quedó funcionando.',
+        ],
+        keywords: ['csr', 'crt', 'certificado', 'wsass', 'pasos', 'como', 'homologacion', 'testing'],
+      },
+      {
+        slug: 'nombre-simbolico-del-dn',
+        title: '¿Qué es el "Nombre simbólico del DN" que pide ARCA?',
+        body: [
+          'Es solo un apodo para vos — así identificás ese certificado en la lista de ARCA más adelante (por ejemplo, al crear la autorización a servicio). No tiene que coincidir con ningún dato técnico ni afecta el certificado en sí.',
+          'Aun así, conviene poner ahí el mismo alias que cargaste en .budgets, para no perderte entre los dos sistemas. Ojo: ARCA solo acepta letras y números en ese campo — nada de guiones, puntos ni espacios. Si en .budgets pusiste "facturacion-1", en ARCA vas a tener que ponerlo sin el guion, como "facturacion1".',
+        ],
+        keywords: ['dn', 'alias', 'nombre simbolico', 'distinguished name', 'guion', 'simbolos'],
+      },
+      {
+        slug: 'computador-no-autorizado',
+        title: 'Error "Computador no autorizado a acceder al servicio"',
+        body: [
+          'Significa que ARCA ya reconoce el certificado, pero todavía no le diste permiso para usar el servicio de Facturación Electrónica puntualmente. Ese permiso se da aparte, en ARCA → "Crear autorización a servicio" (ver el paso 4 de "Los pasos completos, en orden").',
+          'Si ya hiciste ese paso y te sigue tirando el mismo error, esperá 10-15 minutos — ARCA suele tardar en propagar la autorización nueva — y probá de nuevo antes de asumir que algo está mal.',
+        ],
+        keywords: ['computador no autorizado', 'error', 'wsaa', 'rechazo', 'autorizacion'],
+      },
+    ],
+  },
+  {
     slug: 'revendedores',
     title: 'Revendedores y equipo',
     description: 'Cómo sumarte como revendedor o formar parte del equipo de .budgets.',

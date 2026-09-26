@@ -272,10 +272,13 @@ export default function ArcaSettingsCard({ colors }: { colors: ColorSystem }) {
               <input
                 type="text"
                 value={alias}
-                onChange={(e) => setAlias(e.target.value)}
-                placeholder="facturacion-1"
+                onChange={(e) => setAlias(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+                placeholder="facturacion1"
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm outline-none focus:border-slate-400"
               />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Solo letras y números (sin guiones ni símbolos) — ARCA no acepta otra cosa ahí. No es obligatorio, pero conviene poner el mismo nombre acá y en el "Nombre simbólico del DN" cuando crees el certificado en ARCA, para no confundirte entre los dos.
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Entorno</label>
