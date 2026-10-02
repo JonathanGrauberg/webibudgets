@@ -7,8 +7,6 @@ import { loadPublicCobro } from '@/lib/public-cobro'
 import { formatCurrency } from '@/lib/format'
 import { CobroPortalClient } from './cobro-client'
 
-const FALLBACK_IMAGE = 'https://budgets.webistudio.net/og-whatsapp.png'
-
 export async function generateMetadata({
   params,
 }: {
@@ -23,14 +21,13 @@ export async function generateMetadata({
 
   const title = `${cobro.concept} — ${cobro.tenant.name}`
   const description = `Total: ${formatCurrency(cobro.amount, cobro.currency)} — Pagá online con Mercado Pago`
-  const image = cobro.tenant.logoUrl || FALLBACK_IMAGE
 
   return {
     title,
     description,
     robots: { index: false, follow: false },
-    openGraph: { title, description, images: [{ url: image }] },
-    twitter: { card: 'summary', title, description, images: [image] },
+    openGraph: { title, description },
+    twitter: { card: 'summary_large_image', title, description },
   }
 }
 
