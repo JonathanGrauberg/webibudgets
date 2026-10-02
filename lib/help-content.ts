@@ -361,6 +361,63 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     ],
   },
   {
+    slug: 'calendario',
+    title: 'Calendario',
+    description: 'Agenda compartida de la empresa.',
+    articles: [
+      {
+        slug: 'que-es',
+        title: 'El Calendario de la empresa',
+        body: [
+          'Es una agenda compartida: todos los que tienen acceso la ven, y Dueño, Admin y Vendedor pueden agregar eventos (título, fecha, hora y notas opcionales). Por ahora se muestra por mes — la vista por semana o por día puede sumarse más adelante.',
+          'Cada evento se pinta de un color según quién lo creó (violeta para Admin/Dueño, azul para Vendedor), para distinguir de un vistazo quién anotó qué.',
+        ],
+        keywords: ['calendario', 'agenda', 'eventos', 'mes'],
+      },
+      {
+        slug: 'edicion',
+        title: 'Quién puede editar o borrar un evento',
+        body: [
+          'Solo la persona que creó el evento puede editarlo o borrarlo — ni siquiera otro Admin puede tocar el evento de otra persona. Así cada uno mantiene el control de lo que anotó.',
+          'La opción "Vaciar calendario completo" (borra todos los eventos de una) está disponible solo para Dueño y Admin, para los casos en que se quiera arrancar de cero.',
+        ],
+        keywords: ['permisos', 'editar', 'borrar', 'vaciar calendario'],
+      },
+      {
+        slug: 'overlay',
+        title: 'Ver información de .budgets en el calendario',
+        body: [
+          'Hay un interruptor para superponer, en modo solo lectura, fechas que ya existen en el sistema: vencimientos de presupuestos y fechas de pago de cobros. Aparecen con un borde punteado, separadas de los eventos que escribe el equipo, y no se pueden editar desde ahí — son solo para tener todo a la vista en un mismo lugar.',
+        ],
+        keywords: ['overlay', 'vencimientos', 'cobros', 'presupuestos'],
+      },
+    ],
+  },
+  {
+    slug: 'calculadora',
+    title: 'Calculadora flotante',
+    description: 'Botón flotante con una calculadora simple.',
+    articles: [
+      {
+        slug: 'que-es',
+        title: 'La calculadora flotante',
+        body: [
+          'Es un botón flotante (junto al de Ayuda) que abre una calculadora simple: suma, resta, multiplicación, división, porcentaje y cambio de signo. Viene activada por defecto.',
+          'También funciona con el teclado mientras está abierta: números, +, -, *, /, %, Enter para calcular, Backspace para borrar y Escape para cerrar.',
+        ],
+        keywords: ['calculadora', 'flotante', 'sumar', 'restar', 'teclado'],
+      },
+      {
+        slug: 'desactivar',
+        title: 'Cómo desactivarla',
+        body: [
+          'Se puede apagar desde Configuración → pestaña "Configuración" → tarjeta "Preferencias", con un interruptor. Si no la usás, la podés dejar apagada y no va a aparecer el botón flotante.',
+        ],
+        keywords: ['desactivar', 'apagar', 'configuracion', 'preferencias'],
+      },
+    ],
+  },
+  {
     slug: 'rendiciones',
     title: 'Rendiciones',
     description: 'Cierre de cuentas y reparto de ganancias entre vendedores.',
