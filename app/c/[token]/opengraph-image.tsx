@@ -12,6 +12,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
 
   const tenantName = cobro?.tenant.name ?? '.budgets'
   const concept = cobro?.concept ?? 'Cobro'
+  const headline = cobro?.previewText?.trim() || 'Link de pago'
   const amount = cobro ? formatCurrency(cobro.amount, cobro.currency) : ''
 
   return new ImageResponse(
@@ -32,7 +33,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', fontSize: 52, color: '#0f172a', fontWeight: 700 }}>
-            Tenés un pago pendiente
+            {headline}
           </div>
           <div style={{ display: 'flex', fontSize: 36, color: '#64748b', marginTop: 12 }}>{concept}</div>
           <div style={{ display: 'flex', fontSize: 120, color: '#0f172a', fontWeight: 800, marginTop: 24 }}>

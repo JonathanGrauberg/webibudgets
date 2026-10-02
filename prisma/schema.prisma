@@ -462,6 +462,7 @@ model Cobro {
   cobroNumber Int
 
   concept  String
+  previewText String? // leyenda corta (máx. 25) que se muestra en la imagen de vista previa de WhatsApp
   alias    String? // 👈 nuevo — alias de transferencia bancaria, opcional: si viene cargado, el portal público lo muestra como alternativa al botón de Mercado Pago (para que el cliente evite la comisión)
   amount   Float
   currency String  @default("ARS")

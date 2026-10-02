@@ -78,6 +78,7 @@ export async function POST(request: Request) {
         budgetId,
         cobroNumber,
         concept: String(data.concept).trim(),
+        previewText: data.previewText ? String(data.previewText).trim().slice(0, 25) : null,
         alias: data.alias ? String(data.alias).trim() : null,
         mpSurchargePercent: data.mpSurchargePercent !== undefined && data.mpSurchargePercent !== null ? Number(data.mpSurchargePercent) : null,
         amount: Number(data.amount),

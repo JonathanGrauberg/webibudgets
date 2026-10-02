@@ -32,6 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const updateData: Record<string, unknown> = {}
     if (data.concept !== undefined) updateData.concept = String(data.concept).trim()
+    if (data.previewText !== undefined) updateData.previewText = data.previewText ? String(data.previewText).trim().slice(0, 25) : null
     if (data.alias !== undefined) updateData.alias = data.alias ? String(data.alias).trim() : null
     if (data.mpSurchargePercent !== undefined) {
       if (data.mpSurchargePercent === null) {

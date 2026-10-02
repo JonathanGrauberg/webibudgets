@@ -677,6 +677,7 @@ function CreateCobroDialog({
   const [clientId, setClientId] = useState('')
   const [concept, setConcept] = useState('')
   const [alias, setAlias] = useState(defaultAlias)
+  const [previewText, setPreviewText] = useState('')
   const [mpSurchargePercent, setMpSurchargePercent] = useState('')
   const [amount, setAmount] = useState('')
   const [productId, setProductId] = useState('')
@@ -689,6 +690,7 @@ function CreateCobroDialog({
     setClientId('')
     setConcept('')
     setAlias(defaultAlias)
+    setPreviewText('')
     setMpSurchargePercent('')
     setAmount('')
     setProductId('')
@@ -717,6 +719,7 @@ function CreateCobroDialog({
         body: JSON.stringify({
           clientId,
           concept: concept.trim(),
+          previewText: previewText.trim() || null,
           alias: alias.trim() || null,
           mpSurchargePercent: mpSurchargePercent.trim() ? Number(mpSurchargePercent) : null,
           amount: Number(amount),
@@ -762,6 +765,19 @@ function CreateCobroDialog({
           <div className="space-y-2">
             <label className="text-sm font-medium">Concepto</label>
             <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Ej: Marketing mensual" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Leyenda de la vista previa en WhatsApp (opcional)</label>
+            <Input
+              value={previewText}
+              onChange={(e) => setPreviewText(e.target.value.slice(0, 25))}
+              maxLength={25}
+              placeholder="Ej: Tu link de pago"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Es el texto que aparece en la imagen cuando mandás el link por WhatsApp ({previewText.length}/25). Si lo dejás vacío dice "Link de pago".
+            </p>
           </div>
 
           <div className="space-y-2">
