@@ -415,7 +415,7 @@ export async function getCobrosGastosSummary(
       _sum: { amount: true },
     }),
     prisma.expense.findMany({
-      where: { tenantId },
+      where: { tenantId, ...(range ? { date: { gte: range.from, lte: range.to } } : {}) },
       take: 5,
       orderBy: { date: 'desc' },
       include: { category: { select: { name: true } } },
@@ -431,7 +431,7 @@ export async function getCobrosGastosSummary(
     // 👇 nuevo — "Documentos" = lo cobrado vía recibos (Receipt), sin mezclar
     // con Cobros ni Mercado Pago — es específicamente lo que pidió Jonathan.
     prisma.receipt.findMany({
-      where: { tenantId, sourceBudgetPaymentId: null },
+      where: { tenantId, sourceBudgetPaymentId: null, ...(range ? { issueDate: { gte: range.from, lte: range.to } } : {}) },
       take: 5,
       orderBy: { issueDate: 'desc' },
       select: {
