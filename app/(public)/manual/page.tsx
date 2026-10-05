@@ -9,7 +9,7 @@ import { HelpManual } from '@/components/help/help-manual'
 export const metadata: Metadata = {
   title: 'Manual de uso | .budgets',
   description:
-    'Guía completa de .budgets: presupuestos, clientes, stock, órdenes de trabajo, rendiciones, calculadora por m²/m³/horas y todo lo que hace el sistema, explicado simple.',
+    'Manual de .budgets: cómo hacer presupuestos gratis con tu logo y marca de agua, cobrar online con Mercado Pago, agendar cobros recurrentes, crear recibos y remitos, tablero Kanban de tareas, calendario, gastos y rendiciones. Explicado simple.',
 }
 
 export default async function ManualPage() {

@@ -10,6 +10,7 @@ export type HelpArticle = {
   title: string
   body: string[] // un párrafo por elemento
   keywords?: string[] // términos extra para que el buscador los encuentre
+  link?: { label: string; href: string } // enlace opcional al final del artículo
 }
 
 export type HelpCategory = {
@@ -29,10 +30,31 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         slug: 'que-es',
         title: '¿Qué es .budgets?',
         body: [
-          'Es un sistema de gestión pensado para negocios que arman presupuestos: cotizás, hacés seguimiento del cliente, generás la documentación (recibos, remitos, órdenes de trabajo) y controlás cómo va tu facturación, todo en un solo lugar.',
-          'No hace falta instalar nada — funciona desde el navegador, en la compu o el celular.',
+          '.budgets es un sistema de gestión online para profesionales independientes, freelancers y PyMEs: hacés presupuestos con tu logo y tu marca, cobrás online, agendás cobros recurrentes, generás recibos y remitos, controlás gastos y organizás a tu equipo, todo en un solo lugar.',
+          'Sirve igual para quien cotiza servicios (diseño, marketing, consultoría, mantenimiento, oficios) que para quien además maneja stock, órdenes de trabajo o trabajos por obra. Usás solo lo que te hace falta.',
+          'No hace falta instalar nada — funciona desde el navegador, en la compu o el celular. Podés empezar gratis.',
         ],
-        keywords: ['inicio', 'bienvenida', 'sistema'],
+        link: { label: 'Ver todo lo que hace .budgets, módulo por módulo', href: '/que-es' },
+        keywords: ['inicio', 'bienvenida', 'sistema', 'gratis', 'freelancer', 'pyme'],
+      },
+      {
+        slug: 'que-podes-hacer',
+        title: '¿Qué puedo hacer con .budgets? (guía rápida)',
+        body: [
+          'Hacer un presupuesto gratis con tu logo, tus colores y marca de agua, y mandarlo en PDF por WhatsApp o por link. Los presupuestos son ilimitados en el plan gratuito.',
+          'Cobrar online: vinculás tu cuenta de Mercado Pago y tus clientes pagan desde un link, con comisión directa a tu cuenta. También podés mostrar tu alias para que transfieran sin comisión.',
+          'Agendar cobros de empresas y clientes (cuotas, abonos, mantenimiento mensual): cargás el cobro una vez y lo repetís mes a mes, con el link de pago listo para enviar.',
+          'Crear recibos, remitos y órdenes de trabajo a partir de un presupuesto aprobado, sin volver a cargar datos.',
+          'Organizar el trabajo del equipo en un tablero tipo Kanban (similar a Trello): pendientes, en curso y hechas, y vincular cada tarea a un cliente o presupuesto.',
+          'Llevar un calendario compartido de la empresa, controlar gastos, ver métricas en el dashboard y repartir la ganancia entre socios con las Rendiciones.',
+          'Trabajar con presupuestos en pesos o en otras monedas (como dólares), con la cotización del día de referencia en el dashboard.',
+        ],
+        link: { label: 'Guía completa de .budgets', href: '/que-es' },
+        keywords: [
+          'presupuesto gratis', 'hacer presupuesto', 'logo', 'marca de agua', 'cobros', 'agendar cobros',
+          'mercado pago', 'vincular mercado pago', 'recibos', 'crear recibos', 'kanban', 'kanvan', 'trello',
+          'tareas', 'calendario', 'dolar', 'whatsapp', 'pdf',
+        ],
       },
       {
         slug: 'verificar-email',

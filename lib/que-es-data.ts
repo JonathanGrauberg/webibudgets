@@ -204,6 +204,28 @@ export const QUE_ES_SECCIONES: QueEsSeccion[] = [
     ],
   },
   {
+    slug: 'calendario-y-herramientas',
+    kicker: 'Día a día',
+    titulo: 'Calendario y calculadora',
+    subtitulo: 'Una agenda compartida y una calculadora a mano, sin salir del sistema.',
+    bloques: [
+      {
+        titulo: 'Calendario de la empresa',
+        desc: 'Agenda compartida por todo el equipo, vista por mes.',
+        items: [
+          'Dueño, Admin y Vendedor agregan eventos con fecha, hora y notas; todos los ven.',
+          'Cada evento se colorea según quién lo creó, y solo su autor puede editarlo o borrarlo.',
+          'Opcionalmente se superponen, en solo lectura, los vencimientos de presupuestos y las fechas de cobro.',
+        ],
+      },
+      {
+        titulo: 'Calculadora flotante',
+        desc: 'Un botón flotante con una calculadora simple (suma, resta, multiplicación, división y porcentaje), con soporte de teclado.',
+        items: ['Viene activada y se puede apagar desde Configuración → Preferencias.'],
+      },
+    ],
+  },
+  {
     slug: 'personal-e-instaladores',
     kicker: 'Tu gente en campo',
     titulo: 'Personal e instaladores',

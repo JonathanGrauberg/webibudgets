@@ -111,6 +111,11 @@ export function HelpManual() {
                         {paragraph}
                       </p>
                     ))}
+                    {article.link && (
+                      <a href={article.link.href} className="inline-block text-sm font-medium text-primary underline underline-offset-2">
+                        {article.link.label} →
+                      </a>
+                    )}
                   </div>
                 </details>
               ))}

@@ -278,6 +278,11 @@ function ChatScreen({
         {article.body.map((p, i) => (
           <p key={i} className="text-xs leading-relaxed text-muted-foreground">{p}</p>
         ))}
+        {article.link && (
+          <a href={article.link.href} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-medium text-primary underline underline-offset-2">
+            {article.link.label} →
+          </a>
+        )}
       </div>
       <ButtonList className="mt-3">
         <OptionButton disabled={!isLast} onClick={() => onSelect({ type: 'category', slug: category.slug })}>
