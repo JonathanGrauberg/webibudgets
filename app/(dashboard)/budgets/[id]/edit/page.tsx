@@ -456,6 +456,32 @@ const BudgetItemCardMobile = React.memo(function BudgetItemCardMobile({
 /* ================================
    PAGE
 ================================ */
+const DURATION_TITLE = 'Demora aproximada'
+const END_DATE_TITLE = 'Fecha estimada de finalización'
+
+// "2026-10-30" -> "30/10/2026" sin pasar por Date (evita desfases de zona horaria)
+function isoToDisplayDate(iso: string) {
+  const [y, m, d] = iso.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
+}
+
+// "30/10/2026" -> "2026-10-30" (si no coincide el formato, devuelve vacío)
+function displayToIsoDate(display: string) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(display.trim())
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+}
+
+// Un mes desde hoy en fecha local (ajusta fin de mes: 31/01 -> 28/02)
+function oneMonthFromToday() {
+  const now = new Date()
+  const target = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(now.getDate(), lastDay))
+  const mm = String(target.getMonth() + 1).padStart(2, '0')
+  const dd = String(target.getDate()).padStart(2, '0')
+  return `${target.getFullYear()}-${mm}-${dd}`
+}
+
 export default function EditBudgetPage() {
   const router = useRouter()
   const params = useParams()
@@ -488,6 +514,8 @@ export default function EditBudgetPage() {
   const [installerId, setInstallerId]       = useState('')
   const [installerReference, setInstallerReference] = useState('')
   const [details, setDetails]               = useState([{ id: crypto.randomUUID(), title: '', value: '' }])
+  const [estimatedDuration, setEstimatedDuration] = useState('')
+  const [estimatedEndDate, setEstimatedEndDate]   = useState('')
   const [discountType, setDiscountType]     = useState<'percentage' | 'fixed' | null>(null)
   const [discountValue, setDiscountValue]   = useState(0)
   const [taxPercentage, setTaxPercentage]   = useState(0)
@@ -554,15 +582,18 @@ export default function EditBudgetPage() {
     // 👈 nuevo — hidrata el estado de "adjuntar condiciones" desde lo que se guardó al crear
     setAttachConditions(existingBudget.attachConditionsPdf !== false)
 
-    setDetails(
-      Array.isArray(existingBudget.details) && existingBudget.details.length > 0
-        ? existingBudget.details.map((d: any) => ({
-            id: d.id ?? crypto.randomUUID(),
-            title: d.title ?? '',
-            value: d.value ?? '',
-          }))
-        : [{ id: crypto.randomUUID(), title: '', value: '' }]
-    )
+    const savedDetails: { id: string; title: string; value: string }[] = Array.isArray(existingBudget.details)
+      ? existingBudget.details.map((d: any) => ({
+          id: d.id ?? crypto.randomUUID(),
+          title: d.title ?? '',
+          value: d.value ?? '',
+        }))
+      : []
+    // Demora y fecha estimada tienen sus propios campos: se sacan de la lista libre.
+    setEstimatedDuration(savedDetails.find((d) => d.title === DURATION_TITLE)?.value ?? '')
+    setEstimatedEndDate(displayToIsoDate(savedDetails.find((d) => d.title === END_DATE_TITLE)?.value ?? ''))
+    const freeDetails = savedDetails.filter((d) => d.title !== DURATION_TITLE && d.title !== END_DATE_TITLE)
+    setDetails(freeDetails.length > 0 ? freeDetails : [{ id: crypto.randomUUID(), title: '', value: '' }])
 
     setItems(
       (existingBudget.items ?? []).map((it: any) => ({
@@ -816,7 +847,11 @@ export default function EditBudgetPage() {
           installationResponsible,
           installerId: installationResponsible === 'company' ? installerId || null : null,
           installerReference,
-          details: details.filter((d) => d.title.trim() || d.value.trim()),
+          details: [
+            ...(estimatedDuration.trim() ? [{ id: crypto.randomUUID(), title: DURATION_TITLE, value: estimatedDuration.trim() }] : []),
+            ...(estimatedEndDate ? [{ id: crypto.randomUUID(), title: END_DATE_TITLE, value: isoToDisplayDate(estimatedEndDate) }] : []),
+            ...details.filter((d) => d.title.trim() || d.value.trim()),
+          ],
           discountType,
           discountValue: safeDiscountValue,
           taxPercentage: safeTaxPercentage,
@@ -1128,6 +1163,34 @@ export default function EditBudgetPage() {
                     value={installerReference}
                     onChange={(e) => setInstallerReference(e.target.value)}
                   />
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="estimatedDuration" className="text-sm font-normal text-muted-foreground">
+                        Demora aproximada
+                      </Label>
+                      <Input
+                        id="estimatedDuration"
+                        placeholder="Ej: 15 días hábiles"
+                        value={estimatedDuration}
+                        onChange={(e) => setEstimatedDuration(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="estimatedEndDate" className="text-sm font-normal text-muted-foreground">
+                        Fecha estimada de finalización
+                      </Label>
+                      <Input
+                        id="estimatedEndDate"
+                        type="date"
+                        value={estimatedEndDate}
+                        onChange={(e) => setEstimatedEndDate(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">
+                      Opcional: si completás alguno, aparece en el presupuesto; si lo dejás vacío, no se muestra.
+                    </p>
+                  </div>
 
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Información adicional</p>
