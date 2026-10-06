@@ -1,5 +1,6 @@
 'use client'
 //app\(dashboard)\documents\page.tsx
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { PageHeader } from '@/components/page-header'
@@ -60,12 +61,17 @@ async function fetcher(url: string) {
   return res.json()
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(value)
+function formatCurrency(value: number, currencyCode: string = DEFAULT_CURRENCY) {
+  const cfg = SUPPORTED_CURRENCIES[currencyCode] ?? SUPPORTED_CURRENCIES[DEFAULT_CURRENCY]
+  try {
+    return new Intl.NumberFormat(cfg.locale, {
+      style: 'currency',
+      currency: cfg.code,
+      maximumFractionDigits: 0,
+    }).format(value)
+  } catch {
+    return `${cfg.code} ${Math.round(value)}`
+  }
 }
 
 function formatDate(dateString?: Date | string) {
@@ -232,10 +238,12 @@ function DirectDocButton({
 function PaymentStatusBadge({
   total,
   collected,
+  currency,
   onClickFalta,
 }: {
   total: number
   collected: number
+  currency?: string
   onClickFalta?: () => void
 }) {
   const pending = Math.max(0, total - collected)
@@ -257,10 +265,10 @@ function PaymentStatusBadge({
         title="Generar el recibo del faltante"
       >
         <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 font-medium gap-1 w-fit">
-          <Clock className="h-3 w-3 text-amber-600" /> Falta {formatCurrency(pending)}
+          <Clock className="h-3 w-3 text-amber-600" /> Falta {formatCurrency(pending, currency)}
         </Badge>
         <span className="text-[10px] text-slate-500 font-normal">
-          Cobrado: {formatCurrency(collected)}
+          Cobrado: {formatCurrency(collected, currency)}
         </span>
       </button>
     )
@@ -269,7 +277,7 @@ function PaymentStatusBadge({
   return (
     <button type="button" onClick={onClickFalta} title="Generar recibo">
       <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 font-medium gap-1">
-        <AlertCircle className="h-3 w-3 text-slate-400" /> Pendiente {formatCurrency(pending)}
+        <AlertCircle className="h-3 w-3 text-slate-400" /> Pendiente {formatCurrency(pending, currency)}
       </Badge>
     </button>
   )
@@ -547,8 +555,10 @@ export default function DocumentsPage() {
   ]
 
   // KPIs
+  // Los totales de arriba son en pesos: los presupuestos en otra moneda no se
+  // suman acá (no se mezclan pesos con dólares); se ven en su fila.
   const totalApproved = budgets.filter(
-    (b) => b.status === 'approved' || b.status === 'completed'
+    (b) => (b.status === 'approved' || b.status === 'completed') && (b.currency || DEFAULT_CURRENCY) === DEFAULT_CURRENCY
   )
   const totalAmount = totalApproved.reduce((acc, b) => acc + (b.total || 0), 0)
 
@@ -717,10 +727,10 @@ export default function DocumentsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-900">
-                        {formatCurrency(b.total || 0)}
+                        {formatCurrency(b.total || 0, b.currency)}
                       </span>
                       {showsPaymentStatus(b.status) ? (
-                        <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
+                        <PaymentStatusBadge total={b.total || 0} currency={b.currency} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
@@ -776,7 +786,7 @@ export default function DocumentsPage() {
                           {formatDate(b.createdAt)}
                         </TableCell>
                         <TableCell className="text-sm font-semibold text-slate-900">
-                          {formatCurrency(b.total || 0)}
+                          {formatCurrency(b.total || 0, b.currency)}
                         </TableCell>
                         <TableCell>
                           <Badge className={STATUS_COLORS[b.status]}>
@@ -785,7 +795,7 @@ export default function DocumentsPage() {
                         </TableCell>
                         <TableCell>
                           {showsPaymentStatus(b.status) ? (
-                            <PaymentStatusBadge total={b.total || 0} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
+                            <PaymentStatusBadge total={b.total || 0} currency={b.currency} collected={collected} onClickFalta={() => setQuickReceiptBudget(b)} />
                           ) : (
                             <span className="text-xs text-slate-400">—</span>
                           )}
@@ -848,7 +858,7 @@ export default function DocumentsPage() {
 
                         <div className="flex items-center gap-3 shrink-0">
                           <span className={`text-sm font-semibold ${isVoided ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                            {formatCurrency(r.amount)}
+                            {formatCurrency(r.amount, (r as { currency?: string }).currency)}
                           </span>
                           <a href={`/api/receipts/${r.id}/pdf`} target="_blank" rel="noreferrer">
                             <Button variant="ghost" size="icon" className="h-8 w-8">

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import type { Budget, BudgetStatus } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '@/lib/currencies'
 import { usePermissions } from '@/hooks/use-permissions'
 import { buildWhatsappLink } from '@/lib/whatsapp'
 
@@ -42,12 +43,30 @@ async function fetcher(url: string) {
   return res.json()
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-  }).format(amount)
+function formatCurrency(amount: number, currencyCode: string = 'ARS') {
+  const cfg = SUPPORTED_CURRENCIES[currencyCode] ?? SUPPORTED_CURRENCIES[DEFAULT_CURRENCY]
+  try {
+    return new Intl.NumberFormat(cfg.locale, {
+      style: 'currency',
+      currency: cfg.code,
+      minimumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${cfg.code} ${Math.round(amount)}`
+  }
+}
+
+// Totales por moneda: nunca se suman pesos con dólares. La moneda principal
+// (pesos, si hay) va primero y las demás se agregan con "+".
+type CurrencyTotals = Record<string, number>
+function addTo(map: CurrencyTotals, currency: string | undefined, amount: number) {
+  const c = currency || DEFAULT_CURRENCY
+  map[c] = (map[c] ?? 0) + amount
+}
+function formatMulti(map: CurrencyTotals) {
+  const entries = Object.entries(map).sort(([a], [b]) => (a === DEFAULT_CURRENCY ? -1 : b === DEFAULT_CURRENCY ? 1 : a.localeCompare(b)))
+  if (entries.length === 0) return formatCurrency(0)
+  return entries.map(([c, v]) => formatCurrency(v, c)).join(' + ')
 }
 
 function formatDate(date: Date | string): string {
@@ -350,23 +369,28 @@ export default function BudgetsPage() {
   }, [budgets, financeScope])
 
   const financeSummary = useMemo(() => {
-    let totalCost = 0
-    let totalProfit = 0
+    const totalCost: CurrencyTotals = {}
+    const totalProfit: CurrencyTotals = {}
     let anyMissingCost = false
     for (const b of financeBudgets) {
       const { cost, profit, hasMissingCost } = computeBudgetCostMetrics(b)
-      totalCost += cost
-      totalProfit += profit
+      addTo(totalCost, b.currency, cost)
+      addTo(totalProfit, b.currency, profit)
       if (hasMissingCost) anyMissingCost = true
     }
-    const avgMarginPct = summaryTotalForMargin(financeBudgets)
+    // el margen es un % y no se puede calcular mezclando monedas: se usa la principal
+    const mainCurrency = financeBudgets.some((b) => (b.currency || DEFAULT_CURRENCY) === DEFAULT_CURRENCY)
+      ? DEFAULT_CURRENCY
+      : financeBudgets[0]?.currency
+    const avgMarginPct = summaryTotalForMargin(financeBudgets.filter((b) => (b.currency || DEFAULT_CURRENCY) === (mainCurrency || DEFAULT_CURRENCY)))
     return { totalCost, totalProfit, avgMarginPct, anyMissingCost }
   }, [financeBudgets])
 
   const summary = useMemo(() => {
     const total = budgets.length
     const approved = budgets.filter((b) => b.status === 'approved')
-    const approvedTotal = approved.reduce((acc, b) => acc + (b.total ?? 0), 0)
+    const approvedTotal: CurrencyTotals = {}
+    for (const b of approved) addTo(approvedTotal, b.currency, b.total ?? 0)
     return { total, approvedCount: approved.length, approvedTotal }
   }, [budgets])
 
@@ -504,7 +528,7 @@ export default function BudgetsPage() {
             <div className="hidden h-3 w-px bg-border sm:block" />
             <div className="flex items-center gap-1.5">
               <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-semibold text-card-foreground">{formatCurrency(summary.approvedTotal)}</span>
+              <span className="font-semibold text-card-foreground">{formatMulti(summary.approvedTotal)}</span>
               <span className="text-muted-foreground">en aprobados</span>
             </div>
 
@@ -514,7 +538,7 @@ export default function BudgetsPage() {
                 {/* un solo dropdown controla costo + ganancia + margen a la vez */}
                 <MetricDropdown
                   icon={PackageMinus}
-                  value={formatCurrency(financeSummary.totalCost)}
+                  value={formatMulti(financeSummary.totalCost)}
                   label={`costo (${STATUS_LABELS[financeScope as BudgetStatus] ?? 'todos'})`}
                   current={financeScope}
                   onChange={setFinanceScope}
@@ -523,7 +547,7 @@ export default function BudgetsPage() {
                 <div className="hidden h-3 w-px bg-border sm:block" />
                 <MetricDropdown
                   icon={TrendingUp}
-                  value={formatCurrency(financeSummary.totalProfit)}
+                  value={formatMulti(financeSummary.totalProfit)}
                   label={`ganancia (${STATUS_LABELS[financeScope as BudgetStatus] ?? 'todos'})`}
                   current={financeScope}
                   onChange={setFinanceScope}
@@ -746,7 +770,7 @@ export default function BudgetsPage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Total</span>
                         <span className="flex items-center gap-1.5 font-semibold text-card-foreground">
-                          {formatCurrency(b.total)}
+                          {formatCurrency(b.total, b.currency)}
                           {hasUnreceiptedPayment(b) && (
                             <button
                               type="button"
@@ -874,7 +898,7 @@ export default function BudgetsPage() {
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               <div className="flex items-center justify-end gap-1.5">
-                                {formatCurrency(b.total)}
+                                {formatCurrency(b.total, b.currency)}
                                 {hasUnreceiptedPayment(b) && (
                                   <button
                                     type="button"
@@ -891,10 +915,10 @@ export default function BudgetsPage() {
                             {canViewFinancials && (
                               <>
                                 <TableCell className="text-right text-muted-foreground">
-                                  {formatCurrency(cost)}
+                                  {formatCurrency(cost, b.currency)}
                                 </TableCell>
                                 <TableCell className="text-right font-medium">
-                                  {formatCurrency(profit)}
+                                  {formatCurrency(profit, b.currency)}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <span className="inline-flex items-center gap-1">
