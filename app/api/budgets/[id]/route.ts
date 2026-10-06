@@ -2,6 +2,7 @@
 import { hasFeature } from '@/lib/features'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { expireOverdueBudgets } from '@/lib/budget-expiry'
 import { getTenantIdFromRequest, tenantWhereId } from '@/lib/tenant'
 import {
   calculateBudgetTotals,
@@ -38,6 +39,7 @@ export async function GET(request: Request, { params }: Params) {
   }
 
   try {
+    await expireOverdueBudgets(tenantId)
     const budget = await prisma.budget.findFirst({
       where: tenantWhereId(id, tenantId),
       include: {

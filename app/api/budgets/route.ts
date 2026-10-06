@@ -1,6 +1,7 @@
 // app\api\budgets\route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { expireOverdueBudgets } from '@/lib/budget-expiry'
 import { getTenantIdFromRequest, tenantWhere } from '@/lib/tenant'
 import {
   calculateBudgetTotals,
@@ -27,6 +28,9 @@ import { resolveMaxBudgetsForTenant } from '@/lib/plan'
 export async function GET(request: Request) {
   try {
     const tenantId = await getTenantIdFromRequest(request)
+
+    // Antes de listar, pasa a "Vencido" lo que ya superó su fecha de "válido hasta".
+    await expireOverdueBudgets(tenantId)
 
     const budgets = await prisma.budget.findMany({
       where: tenantWhere(tenantId),

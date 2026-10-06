@@ -2,7 +2,7 @@
 //app\(dashboard)\budgets\page.tsx
 import { hasFeature } from '@/lib/features'
 import { LockedButton } from '@/components/feature-gate'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import { PageHeader } from '@/components/page-header'
@@ -220,6 +220,28 @@ function NotesPreview({ notes }: { notes?: string | null }) {
   )
 }
 
+// Guarda cada filtro en localStorage para que, al entrar a un presupuesto y
+// volver, la lista siga como la dejó el usuario. `hydrated` evita pisar lo
+// guardado con el valor inicial en el primer render.
+function usePersistentState<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial)
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw !== null) setValue(JSON.parse(raw) as T)
+    } catch {}
+    setHydrated(true)
+  }, [key])
+  useEffect(() => {
+    if (!hydrated) return
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {}
+  }, [key, value, hydrated])
+  return [value, setValue] as const
+}
+
 export default function BudgetsPage() {
 
   const { canEdit, filterBudgets } = usePermissions()
@@ -230,22 +252,22 @@ export default function BudgetsPage() {
   const [openUpgrade, setOpenUpgrade] = useState(false)
 
   // buscador + filtro de estado (para la tabla)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = usePersistentState('budgets.filter.search', '')
   // 👇 default: mostramos todos los estados — el cliente prefirió esto a
   // que arranque filtrado. El filtro "Aprobados y completados" sigue
   // disponible en el dropdown, solo que ya no es la vista inicial.
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active')
+  const [statusFilter, setStatusFilter] = usePersistentState<string>('budgets.filter.status', 'all')
+  const [activeFilter, setActiveFilter] = usePersistentState<'active' | 'inactive' | 'all'>('budgets.filter.active', 'active')
 
   // 👇 filtro por fecha (de creación del presupuesto)
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'month' | 'year' | 'custom'>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
-  const [sellerFilter, setSellerFilter] = useState<string>('all')
+  const [dateFilter, setDateFilter] = usePersistentState<'all' | 'today' | 'month' | 'year' | 'custom'>('budgets.filter.date', 'all')
+  const [customFrom, setCustomFrom] = usePersistentState('budgets.filter.from', '')
+  const [customTo, setCustomTo] = usePersistentState('budgets.filter.to', '')
+  const [sellerFilter, setSellerFilter] = usePersistentState<string>('budgets.filter.seller', 'all')
 
   // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
-  const [presupuestosScope, setPresupuestosScope] = useState<'all' | 'active' | 'inactive'>('all')
-  const [financeScope, setFinanceScope] = useState<BudgetStatus | 'all'>('approved') // 👈 default: solo aprobados, no todo lo cotizado
+  const [presupuestosScope, setPresupuestosScope] = usePersistentState<'all' | 'active' | 'inactive'>('budgets.scope.presupuestos', 'all')
+  const [financeScope, setFinanceScope] = usePersistentState<BudgetStatus | 'all'>('budgets.scope.finance', 'approved') // 👈 default: solo aprobados, no todo lo cotizado
 
   const { data: branding } = useSWR('/api/tenants', fetcher)
   const canEditBudgetsFeature = hasFeature(
@@ -597,6 +619,26 @@ export default function BudgetsPage() {
                   <SelectItem value="custom">Rango personalizado</SelectItem>
                 </SelectContent>
               </Select>
+
+              {(searchQuery || statusFilter !== 'all' || activeFilter !== 'active' || dateFilter !== 'all' || sellerFilter !== 'all') && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setStatusFilter('all')
+                    setActiveFilter('active')
+                    setDateFilter('all')
+                    setCustomFrom('')
+                    setCustomTo('')
+                    setSellerFilter('all')
+                  }}
+                >
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
 
             {dateFilter === 'custom' && (
