@@ -17,6 +17,7 @@ type PublicBudgetData = {
   currency: string
   showFooterBranding: boolean
   depositEnabled: boolean
+  conditions?: { name: string } | null
   payment: {
     paid: number
     remaining: number
@@ -163,6 +164,32 @@ export function PublicBudgetPortalClient({ token }: { token: string }) {
             </a>
           </div>
         </div>
+
+        {/* Condiciones comerciales / anexos del negocio */}
+        {data.conditions && (
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-8">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Condiciones y anexos</h2>
+                <p className="mt-0.5 text-xs text-slate-500">{data.conditions.name}</p>
+              </div>
+              <a
+                href={`/api/public/budgets/${token}/conditions`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Ver / descargar
+              </a>
+            </div>
+            <iframe
+              src={`/api/public/budgets/${token}/conditions#view=FitH`}
+              title="Condiciones y anexos"
+              className="hidden h-[640px] w-full border-t border-slate-100 sm:block"
+            />
+          </div>
+        )}
 
         {/* Pasarela de pago — solo si hay algo que mostrar */}
         {(data.payment.paid > 0 || data.canPay) && (

@@ -26,6 +26,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     currency: budget.currency,
     showFooterBranding: budget.tenant.showFooterBranding,
     depositEnabled: budget.depositEnabled,
+    // condiciones/anexos adjuntos del negocio (se abren desde /conditions)
+    conditions: budget.attachConditionsPdf && budget.tenant.conditionsPdfName ? { name: budget.tenant.conditionsPdfName } : null,
     payment: {
       paid: summary.paid,
       remaining: summary.remaining,

@@ -26,6 +26,8 @@ export async function loadPublicBudget(token: string) {
           email: true,
           website: true,
           showFooterBranding: true,
+          // solo el nombre (liviano): el PDF en sí se sirve desde /conditions
+          conditionsPdfName: true,
         },
       },
       payments: { select: { amount: true, status: true } },
