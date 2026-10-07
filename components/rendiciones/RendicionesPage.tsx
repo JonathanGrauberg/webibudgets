@@ -442,6 +442,10 @@ export default function RendicionesPage({
   // 👇 nuevo — bloque de cobros sueltos (sin presupuesto) como una fila
   // "virtual" compatible con RendicionBudgetRow, para reusar el mismo panel
   // de distribución por % que ya existe para los presupuestos.
+  // suma de la columna "Ganancia repartible" de los trabajos (+ el bloque de cobros sueltos si lo hay)
+  const totalRepartible =
+    data.budgets.reduce((acc, b) => acc + (b.ganancia || 0), 0) + (data.cobrosSueltos?.total ?? 0)
+
   const cobrosSueltosRow: RendicionBudgetRow | null = useMemo(() => {
     if (!data.cobrosSueltos || data.cobrosSueltos.total <= 0) return null;
     return {
@@ -496,10 +500,16 @@ export default function RendicionesPage({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard label="Trabajos con cobro" value={String(data.presupuestosCompletados)} sublabel="En el período" />
         <KpiCard label="Total facturado" value={formatCurrency(data.totalFacturado, currency)} sublabel="Cobrado en el período, sin importar reparto" />
         <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo - gastos" valueClassName="text-emerald-600" />
+        <KpiCard
+          label="Ganancia repartible"
+          value={formatCurrency(totalRepartible, currency)}
+          sublabel={data.cobrosSueltos ? 'Suma de la columna + cobros sueltos' : 'Suma de la columna "Ganancia repartible"'}
+          valueClassName="text-orange-600"
+        />
         <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
         <KpiCard label="Margen promedio" value={formatPercent(data.margenPromedio)} sublabel="Sobre lo facturado" />
       </div>
