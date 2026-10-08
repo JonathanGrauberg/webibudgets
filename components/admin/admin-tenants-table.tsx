@@ -589,16 +589,16 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                 <tr>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Slug</th>
-                  <th className="px-6 py-4">Plan</th>
-                  <th className="px-6 py-4">Max usuarios</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4">Creado</th>
-                  <th className="px-6 py-4 text-center" title="Usuarios creados">Usuarios</th>
-                  <th className="px-6 py-4 text-center" title="Presupuestos creados — mide uso real">Presup.</th>
-                  <th className="px-6 py-4 text-center" title="¿Conectó su cuenta de Mercado Pago para cobrar online?">MP</th>
-                  <th className="sticky right-0 whitespace-nowrap bg-slate-50 px-6 py-4 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-900">
+                  <th className="px-3 py-4">Nombre</th>
+                  <th className="hidden px-3 py-4 2xl:table-cell">Slug</th>
+                  <th className="px-3 py-4">Plan</th>
+                  <th className="px-3 py-4">Max usuarios</th>
+                  <th className="px-3 py-4">Estado</th>
+                  <th className="px-3 py-4">Creado</th>
+                  <th className="px-3 py-4 text-center" title="Usuarios creados">Usuarios</th>
+                  <th className="px-3 py-4 text-center" title="Presupuestos creados — mide uso real">Presup.</th>
+                  <th className="px-3 py-4 text-center" title="¿Conectó su cuenta de Mercado Pago para cobrar online?">MP</th>
+                  <th className="sticky right-0 whitespace-nowrap bg-slate-50 px-3 py-4 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-900">
                     Acciones
                   </th>
                 </tr>
@@ -614,7 +614,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                   return (
                     <Fragment key={tenant.id}>
                       <tr className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'bg-slate-50/40 opacity-75'}`}>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
+                        <td className="px-3 py-4 text-sm font-medium text-slate-900 dark:text-white">
                           <div className="flex items-center gap-1.5">
                             <Link href={`/admin/tenants/${tenant.id}`} className="underline-offset-2 hover:underline">{tenant.name}</Link>
                             <Link href={`/admin/tenants/${tenant.id}`} className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100">Ver ficha</Link>
@@ -622,19 +622,19 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                             {isCurrentCustom && <Gem className="w-4 h-4 text-violet-500 fill-violet-500 shrink-0" />}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
+                        <td className="hidden 2xl:table-cell px-3 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{tenant.slug}</td>
 
                         {isEditing && edit ? (
                           <EditFields />
                         ) : (
                           <>
-                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            <td className="px-3 py-4 text-sm text-slate-600 dark:text-slate-400">
                               <span className={!tenant.plan ? 'italic text-zinc-400' : ''}>{planLabel(tenant.plan)}</span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            <td className="px-3 py-4 text-sm text-slate-600 dark:text-slate-400">
                               {maxUsersDisplay(tenant.maxUsers, tenant.plan)}
                             </td>
-                            <td className="px-6 py-4 text-sm">
+                            <td className="px-3 py-4 text-sm">
                               <span className={`font-medium ${tenant.active ? 'text-emerald-600' : 'text-zinc-400'}`}>
                                 {tenant.active ? 'Activo' : 'Inactivo'}
                               </span>
@@ -642,17 +642,17 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                           </>
                         )}
 
-                        <td suppressHydrationWarning className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        <td suppressHydrationWarning className="px-3 py-4 text-sm text-slate-600 dark:text-slate-400">
                           {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
                         </td>
 
-                        <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
+                        <td className="px-3 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
                           {tenant.userCount}
                         </td>
-                        <td className={`px-6 py-4 text-center text-sm font-medium ${tenant.budgetCount === 0 ? 'text-amber-600' : 'text-slate-600 dark:text-slate-400'}`}>
+                        <td className={`px-3 py-4 text-center text-sm font-medium ${tenant.budgetCount === 0 ? 'text-amber-600' : 'text-slate-600 dark:text-slate-400'}`}>
                           {tenant.budgetCount}
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-3 py-4 text-center">
                           {tenant.mpConnected ? (
                             <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-500" />
                           ) : (
@@ -660,7 +660,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                           )}
                         </td>
 
-                        <td className="sticky right-0 whitespace-nowrap bg-white px-6 py-4 text-right text-sm shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-950">
+                        <td className="sticky right-0 whitespace-nowrap bg-white px-3 py-4 text-right text-sm shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:bg-slate-950">
                           {isEditing ? (
                             <div className="flex justify-end gap-2">
                               <button onClick={saveEdit} disabled={isSaving} className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50">
@@ -730,7 +730,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       {/* Fila extra: detalle de alta/actividad — toggle con el botón Info */}
                       {!isEditing && expandedId === tenant.id && (
                         <tr key={`${tenant.id}-detail`}>
-                          <td colSpan={10} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                          <td colSpan={10} className="px-3 py-4 bg-slate-50 dark:bg-slate-900">
                             <TenantDetailPanel tenant={tenant} />
                           </td>
                         </tr>
@@ -739,7 +739,7 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       {/* Fila extra: módulos Custom, solo mientras se edita un tenant con plan "custom" */}
                       {isEditing && edit && edit.plan === 'custom' && (
                         <tr key={`${tenant.id}-features`}>
-                          <td colSpan={10} className="px-6 py-4 bg-slate-50 dark:bg-slate-900">
+                          <td colSpan={10} className="px-3 py-4 bg-slate-50 dark:bg-slate-900">
                             <TenantFeaturesForm
                               tenantId={tenant.id}
                               plan={edit.plan}
