@@ -466,19 +466,25 @@ export default function RendicionesPage({
     ? getRepartoStatus(cobrosSueltosRow.id, asignacionesGuardadas)
     : "pendiente";
 
-  // Ganancia repartible que todavía NO se repartió entre los integrantes: por
-  // cada fila (trabajo o bloque de cobros sueltos) se resta lo ya asignado.
-  const pendienteARepartir = useMemo(() => {
+  // Ganancia repartible del período dividida en: pendiente (todavía sin repartir),
+  // repartida (ya asignada a integrantes) y, dentro de lo repartido, lo ya pagado.
+  const reparto = useMemo(() => {
     const rows = [
       ...data.budgets.map((b) => ({ id: b.id, ganancia: b.ganancia || 0 })),
       ...(cobrosSueltosRow ? [{ id: cobrosSueltosRow.id, ganancia: cobrosSueltosRow.ganancia || 0 }] : []),
     ];
-    return rows.reduce((acc, r) => {
-      const asignado = asignacionesGuardadas
-        .filter((a) => a.budgetId === r.id)
-        .reduce((sum, a) => sum + (a.gananciaAsignada || 0), 0);
-      return acc + Math.max(0, r.ganancia - asignado);
-    }, 0);
+    let pendiente = 0;
+    let repartido = 0;
+    let pagado = 0;
+    for (const r of rows) {
+      const asign = asignacionesGuardadas.filter((a) => a.budgetId === r.id);
+      const totalAsignado = Math.min(r.ganancia, asign.reduce((sum, a) => sum + (a.gananciaAsignada || 0), 0));
+      const totalPagado = Math.min(totalAsignado, asign.filter((a) => a.pagado).reduce((sum, a) => sum + (a.gananciaAsignada || 0), 0));
+      repartido += totalAsignado;
+      pagado += totalPagado;
+      pendiente += Math.max(0, r.ganancia - totalAsignado);
+    }
+    return { pendiente, repartido, pagado };
   }, [data.budgets, cobrosSueltosRow, asignacionesGuardadas]);
 
   return (
@@ -511,15 +517,21 @@ export default function RendicionesPage({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <KpiCard label="Trabajos con cobro" value={String(data.presupuestosCompletados)} sublabel="En el período" />
         <KpiCard label="Total facturado" value={formatCurrency(data.totalFacturado, currency)} sublabel="Cobrado en el período, sin importar reparto" />
         <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo - gastos" valueClassName="text-emerald-600" />
         <KpiCard
           label="Pendiente a repartir"
-          value={formatCurrency(pendienteARepartir, currency)}
+          value={formatCurrency(reparto.pendiente, currency)}
           sublabel="Ganancia de trabajos cobrados que todavía no se repartió"
           valueClassName="text-orange-600"
+        />
+        <KpiCard
+          label="Ya repartido"
+          value={formatCurrency(reparto.repartido, currency)}
+          sublabel={`Asignado a integrantes · pagado: ${formatCurrency(reparto.pagado, currency)}`}
+          valueClassName="text-blue-600"
         />
         <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
         <KpiCard label="Margen promedio" value={formatPercent(data.margenPromedio)} sublabel="Sobre lo facturado" />
