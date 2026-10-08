@@ -1,6 +1,7 @@
 // components/admin/admin-tenants-table.tsx
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { PLAN_OPTIONS, PLAN_LIMITS, normalizePlan, type PlanKey } from '@/lib/plan'
 import { Crown, Gem, Trash2, Search, X, Info, Wallet, CheckCircle2 } from 'lucide-react'
@@ -439,7 +440,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-sm text-slate-900 dark:text-white">{tenant.name}</p>
+                        <Link href={`/admin/tenants/${tenant.id}`} className="font-semibold text-sm text-slate-900 underline-offset-2 hover:underline dark:text-white">{tenant.name}</Link>
+                        <Link href={`/admin/tenants/${tenant.id}`} className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100">Ver ficha</Link>
                         {isCurrentVip && <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />}
                         {isCurrentCustom && <Gem className="w-3.5 h-3.5 text-violet-500 fill-violet-500 shrink-0" />}
                       </div>
@@ -614,7 +616,8 @@ export default function AdminTenantsTable({ initialTenants }: { initialTenants: 
                       <tr className={`transition ${tenant.active ? 'hover:bg-slate-50 dark:hover:bg-slate-900' : 'bg-slate-50/40 opacity-75'}`}>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
                           <div className="flex items-center gap-1.5">
-                            {tenant.name}
+                            <Link href={`/admin/tenants/${tenant.id}`} className="underline-offset-2 hover:underline">{tenant.name}</Link>
+                            <Link href={`/admin/tenants/${tenant.id}`} className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100">Ver ficha</Link>
                             {isCurrentVip && <Crown className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
                             {isCurrentCustom && <Gem className="w-4 h-4 text-violet-500 fill-violet-500 shrink-0" />}
                           </div>

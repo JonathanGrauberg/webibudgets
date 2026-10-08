@@ -94,9 +94,17 @@ export default async function AdminTenantsPage() {
           <h2 className="text-3xl font-semibold tracking-[-1]">Listado de tenants</h2>
           <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-400">Revisa y administra los tenants creados por el equipo de Webi Studio.</p>
         </div>
-        <Link href="/admin/create-tenant" className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
+<div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/api/admin/tenants/export"
+            className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+          >
+            Exportar a Excel (CSV)
+          </a>
+                  <Link href="/admin/create-tenant" className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
           Nuevo tenant
         </Link>
+        </div>
       </div>
 
       {/* 👇 nuevo — resumen de uso de toda la plataforma */}
