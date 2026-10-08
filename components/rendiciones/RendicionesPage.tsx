@@ -39,6 +39,7 @@ export interface RendicionBudgetRow {
   total: number; // total nominal del trabajo (aunque no se haya cobrado del todo)
   collected: number; // 👈 nuevo — lo efectivamente cobrado a la fecha (recibos + MP + Cobros vinculados)
   pctCobrado: number; // 👈 nuevo — collected/total * 100
+  saldado?: boolean; // el trabajo ya está cobrado por completo (acumulado, no solo del período)
   costo: number;
   gananciaTotal: number; // 👈 nuevo — ganancia del trabajo COMPLETO, informativa
   ganancia: number; // ganancia YA REPARTIBLE — proporcional a lo cobrado, no la del trabajo completo
@@ -468,10 +469,12 @@ export default function RendicionesPage({
 
   // Ganancia repartible del período dividida en: pendiente (todavía sin repartir),
   // repartida (ya asignada a integrantes) y, dentro de lo repartido, lo ya pagado.
+  // por defecto solo cuentan los trabajos saldados por completo (como se reparten en la práctica)
+  const [incluirParciales, setIncluirParciales] = useState(false);
   const reparto = useMemo(() => {
     const rows = [
-      ...data.budgets.map((b) => ({ id: b.id, ganancia: b.ganancia || 0 })),
-      ...(cobrosSueltosRow ? [{ id: cobrosSueltosRow.id, ganancia: cobrosSueltosRow.ganancia || 0 }] : []),
+      ...data.budgets.map((b) => ({ id: b.id, ganancia: b.ganancia || 0, saldado: b.saldado !== false })),
+      ...(cobrosSueltosRow ? [{ id: cobrosSueltosRow.id, ganancia: cobrosSueltosRow.ganancia || 0, saldado: true }] : []),
     ];
     let pendiente = 0;
     let repartido = 0;
@@ -482,10 +485,10 @@ export default function RendicionesPage({
       const totalPagado = Math.min(totalAsignado, asign.filter((a) => a.pagado).reduce((sum, a) => sum + (a.gananciaAsignada || 0), 0));
       repartido += totalAsignado;
       pagado += totalPagado;
-      pendiente += Math.max(0, r.ganancia - totalAsignado);
+      if (incluirParciales || r.saldado) pendiente += Math.max(0, r.ganancia - totalAsignado);
     }
     return { pendiente, repartido, pagado };
-  }, [data.budgets, cobrosSueltosRow, asignacionesGuardadas]);
+  }, [data.budgets, cobrosSueltosRow, asignacionesGuardadas, incluirParciales]);
 
   return (
     <div className="space-y-6">
@@ -524,7 +527,7 @@ export default function RendicionesPage({
         <KpiCard
           label="Pendiente a repartir"
           value={formatCurrency(reparto.pendiente, currency)}
-          sublabel="Ganancia de trabajos cobrados que todavía no se repartió"
+          sublabel={incluirParciales ? "Incluye trabajos con cobro parcial, todavía sin repartir" : "De trabajos saldados por completo, todavía sin repartir"}
           valueClassName="text-orange-600"
         />
         <KpiCard
@@ -536,6 +539,16 @@ export default function RendicionesPage({
         <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
         <KpiCard label="Margen promedio" value={formatPercent(data.margenPromedio)} sublabel="Sobre lo facturado" />
       </div>
+
+      <label className="flex items-center justify-end gap-2 text-xs text-slate-500">
+        <input
+          type="checkbox"
+          checked={incluirParciales}
+          onChange={(e) => setIncluirParciales(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 accent-amber-500"
+        />
+        Sumar también los cobros parciales (ej. primera cuota) a "Pendiente a repartir"
+      </label>
 
       {/* 👇 nuevo — Tu saldo, solo si sabemos quién está mirando la pantalla */}
       {currentUserId && (

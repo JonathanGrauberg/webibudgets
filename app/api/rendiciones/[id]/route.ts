@@ -129,6 +129,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       // cobrada y repartida en un período anterior no vuelve a contarse acá.
       const collected = collectedDuringPeriod(movements, b.total, rendicion.periodStart, rendicion.periodEnd)
       const pctCobrado = b.total > 0 ? collected / b.total : 0
+      // saldado por completo = todo lo cobrado hasta hoy (no solo en este período) alcanza el total
+      const cobradoAcumulado = movements.reduce((acc, m) => acc + m.amount, 0)
+      const saldado = b.total > 0 && cobradoAcumulado >= b.total - 0.5
 
       const gastosAsociados = b.expenses.reduce((acc, e) => acc + e.amount, 0)
       const gananciaTotal = gananciaBrutaTotal - gastosAsociados
@@ -148,6 +151,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         total: b.total,
         collected,
         pctCobrado: pctCobrado * 100,
+        saldado,
         costo: cost,
         gananciaTotal,
         ganancia,
