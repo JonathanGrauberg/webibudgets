@@ -189,6 +189,10 @@ export async function PATCH(request: Request, { params }: Params) {
       if (data.details !== undefined) {
         updateData.details = data.details ?? []
       }
+
+      if (data.attachConditionsPdf !== undefined) {
+        updateData.attachConditionsPdf = data.attachConditionsPdf !== false
+      }
       
       if (sellerId !== undefined) {
         updateData.sellerId = sellerId
