@@ -442,10 +442,6 @@ export default function RendicionesPage({
   // 👇 nuevo — bloque de cobros sueltos (sin presupuesto) como una fila
   // "virtual" compatible con RendicionBudgetRow, para reusar el mismo panel
   // de distribución por % que ya existe para los presupuestos.
-  // suma de la columna "Ganancia repartible" de los trabajos (+ el bloque de cobros sueltos si lo hay)
-  const totalRepartible =
-    data.budgets.reduce((acc, b) => acc + (b.ganancia || 0), 0) + (data.cobrosSueltos?.total ?? 0)
-
   const cobrosSueltosRow: RendicionBudgetRow | null = useMemo(() => {
     if (!data.cobrosSueltos || data.cobrosSueltos.total <= 0) return null;
     return {
@@ -469,6 +465,21 @@ export default function RendicionesPage({
   const cobrosSueltosRepartoStatus = cobrosSueltosRow
     ? getRepartoStatus(cobrosSueltosRow.id, asignacionesGuardadas)
     : "pendiente";
+
+  // Ganancia repartible que todavía NO se repartió entre los integrantes: por
+  // cada fila (trabajo o bloque de cobros sueltos) se resta lo ya asignado.
+  const pendienteARepartir = useMemo(() => {
+    const rows = [
+      ...data.budgets.map((b) => ({ id: b.id, ganancia: b.ganancia || 0 })),
+      ...(cobrosSueltosRow ? [{ id: cobrosSueltosRow.id, ganancia: cobrosSueltosRow.ganancia || 0 }] : []),
+    ];
+    return rows.reduce((acc, r) => {
+      const asignado = asignacionesGuardadas
+        .filter((a) => a.budgetId === r.id)
+        .reduce((sum, a) => sum + (a.gananciaAsignada || 0), 0);
+      return acc + Math.max(0, r.ganancia - asignado);
+    }, 0);
+  }, [data.budgets, cobrosSueltosRow, asignacionesGuardadas]);
 
   return (
     <div className="space-y-6">
@@ -505,9 +516,9 @@ export default function RendicionesPage({
         <KpiCard label="Total facturado" value={formatCurrency(data.totalFacturado, currency)} sublabel="Cobrado en el período, sin importar reparto" />
         <KpiCard label="Ganancia neta" value={formatCurrency(data.totalGanancia, currency)} sublabel="Total - costo - gastos" valueClassName="text-emerald-600" />
         <KpiCard
-          label="Ganancia repartible"
-          value={formatCurrency(totalRepartible, currency)}
-          sublabel={data.cobrosSueltos ? 'Suma de la columna + cobros sueltos' : 'Suma de la columna "Ganancia repartible"'}
+          label="Pendiente a repartir"
+          value={formatCurrency(pendienteARepartir, currency)}
+          sublabel="Ganancia de trabajos cobrados que todavía no se repartió"
           valueClassName="text-orange-600"
         />
         <KpiCard label="Gastos generales" value={formatCurrency(data.totalGastosGenerales, currency)} sublabel="Del período, no atribuibles a un trabajo" valueClassName="text-red-600" />
