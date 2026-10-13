@@ -102,7 +102,7 @@ export default async function AdminTenantDetailPage({ params }: { params: Promis
             <Field label="Dirección" value={tenant.address} />
             <Field label="Web" value={tenant.website} />
             <Field label="Moneda" value={tenant.currency} />
-            <Field label="Slug" value={<span className="font-mono">{tenant.slug}</span>} />
+            <Field label="Slug" value={<span className="tabular-nums">{tenant.slug}</span>} />
           </div>
         </Section>
 
@@ -166,7 +166,7 @@ export default async function AdminTenantDetailPage({ params }: { params: Promis
             {tenant.budgets.length === 0 && <li className="text-slate-500">Todavía no creó presupuestos.</li>}
             {tenant.budgets.map((b) => (
               <li key={b.budgetNumber} className="flex justify-between gap-3">
-                <span className="font-mono">#{String(b.budgetNumber ?? 0).padStart(6, '0')} · {b.status}</span>
+                <span className="tabular-nums">#{String(b.budgetNumber ?? 0).padStart(6, '0')} · {b.status}</span>
                 <span className="text-slate-500">{fmt(b.createdAt)}</span>
               </li>
             ))}
