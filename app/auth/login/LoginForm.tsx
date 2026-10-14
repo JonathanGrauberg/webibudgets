@@ -1,9 +1,33 @@
 'use client'
 //app\auth\login\LoginForm.tsx:
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useEffect, useState } from 'react'
+import { signIn, signOut } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { AuthHero } from '@/components/auth/auth-hero'
+
+const REMEMBER_KEY = 'budgets.lastAccount'
+
+type AccountSummary = { tenantName: string | null; logoUrl: string | null; email: string | null; role: string | null }
+
+// Solo se guarda lo no sensible: nombre del negocio, logo (si es una URL normal) y email.
+function rememberAccount(a: AccountSummary) {
+  try {
+    const logo = a.logoUrl && !a.logoUrl.startsWith('data:') ? a.logoUrl : null
+    localStorage.setItem(REMEMBER_KEY, JSON.stringify({ tenantName: a.tenantName, logoUrl: logo, email: a.email, role: a.role }))
+  } catch {}
+}
+
+function CompanyAvatar({ name, logoUrl }: { name: string | null; logoUrl: string | null }) {
+  const initial = (name ?? '?').trim().charAt(0).toUpperCase()
+  const realLogo = logoUrl && !logoUrl.includes('placeholder') ? logoUrl : null
+  return realLogo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={realLogo} alt="" className="h-10 w-10 shrink-0 rounded-full border border-border bg-background object-cover" />
+  ) : (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-foreground">{initial}</span>
+  )
+}
 
 const ERROR_MESSAGES: Record<string, { title: string; detail: string }> = {
   CredentialsSignin: {
@@ -26,6 +50,10 @@ export default function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false) // 🌟 Estado de carga para Google
+  const [account, setAccount] = useState<AccountSummary | null>(null) // sesión activa en este navegador
+  const [remembered, setRemembered] = useState<AccountSummary | null>(null) // último negocio usado, sin sesión
+  const [checking, setChecking] = useState(true)
+  const [useOtherAccount, setUseOtherAccount] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl')
@@ -36,6 +64,40 @@ export default function LoginForm() {
   const errorInfo = ERROR_MESSAGES[displayError] ?? {
     title: 'Error',
     detail: displayError,
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    try {
+      const raw = localStorage.getItem(REMEMBER_KEY)
+      if (raw) setRemembered(JSON.parse(raw) as AccountSummary)
+    } catch {}
+    fetch('/api/auth/account-summary')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: AccountSummary | null) => {
+        if (cancelled) return
+        if (data?.tenantName) {
+          setAccount(data)
+          rememberAccount(data)
+        }
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setChecking(false))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const continueAsAccount = () => {
+    const target = callbackUrl ?? (account?.role === 'owner' ? '/admin' : '/dashboard')
+    router.push(target)
+  }
+
+  const switchAccount = async () => {
+    await signOut({ redirect: false })
+    setAccount(null)
+    setUseOtherAccount(true)
+    setEmail('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +127,11 @@ export default function LoginForm() {
       if (sessionData?.user?.role === 'owner') target = '/admin'
     }
 
+    try {
+      const summary = await fetch('/api/auth/account-summary').then((r) => (r.ok ? r.json() : null))
+      if (summary?.tenantName) rememberAccount(summary)
+    } catch {}
+
     router.push(target)
     setLoading(false)
   }
@@ -81,17 +148,67 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04]" />
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-2">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04] lg:hidden" />
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-foreground/[0.04]" />
 
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl">
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl lg:shadow-none">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
           .budgets
         </Link>
 
+        {checking && <p className="mt-8 text-xs text-muted-foreground">Cargando...</p>}
+
+        {!checking && account && !useOtherAccount && (
+          <div className="mt-5">
+            <h1 className="mb-1 text-sm font-semibold text-foreground">¡Qué bueno tenerte acá!</h1>
+            <p className="mb-5 text-xs text-muted-foreground">Seleccioná tu negocio</p>
+            <button
+              type="button"
+              onClick={continueAsAccount}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left transition hover:bg-muted"
+            >
+              <CompanyAvatar name={account.tenantName} logoUrl={account.logoUrl} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-foreground">{account.tenantName}</span>
+                {account.email && <span className="block truncate text-[11px] text-muted-foreground">{account.email}</span>}
+              </span>
+              <span className="text-lg text-muted-foreground">›</span>
+            </button>
+            <div className="relative my-5 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+              <span className="relative bg-card px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">o</span>
+            </div>
+            <button
+              type="button"
+              onClick={switchAccount}
+              className="w-full rounded-full border border-border py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+            >
+              Continuar con otra cuenta
+            </button>
+          </div>
+        )}
+
+        {!checking && !(account && !useOtherAccount) && (
+        <>
         <h1 className="mb-5 mt-5 text-sm font-semibold text-foreground">Iniciar sesión</h1>
         <p className="mb-6 text-xs text-muted-foreground">Accedé a tu panel de presupuestos</p>
+
+        {remembered?.tenantName && remembered.email && !email && (
+          <button
+            type="button"
+            onClick={() => setEmail(remembered.email ?? '')}
+            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left transition hover:bg-muted"
+          >
+            <CompanyAvatar name={remembered.tenantName} logoUrl={remembered.logoUrl} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-foreground">{remembered.tenantName}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">Ingresar como {remembered.email}</span>
+            </span>
+            <span className="text-lg text-muted-foreground">›</span>
+          </button>
+        )}
 
         {/* 🔘 Botón de Google Funcional */}
         <button
@@ -193,7 +310,11 @@ export default function LoginForm() {
             Registrate gratis
           </Link>
         </p>
+        </>
+        )}
       </div>
+    </div>
+    <AuthHero />
     </div>
   )
 }
