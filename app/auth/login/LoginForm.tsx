@@ -148,12 +148,10 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-2">
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-foreground/[0.04] lg:hidden" />
-      <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-foreground/[0.04]" />
-
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-xl lg:shadow-none">
+    <div className="relative min-h-screen overflow-hidden">
+    <AuthHero />
+    <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 lg:justify-end lg:pr-[4vw]">
+      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl lg:max-w-[21rem] lg:p-8">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
           .budgets
         </Link>
@@ -314,7 +312,6 @@ export default function LoginForm() {
         )}
       </div>
     </div>
-    <AuthHero />
     </div>
   )
 }

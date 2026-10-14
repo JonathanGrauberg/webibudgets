@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-// Panel decorativo del lado derecho del login/registro (solo escritorio).
+// Fondo de marca a pantalla completa para el login (la tarjeta va por encima).
 // Si existe /public/auth-hero.webp se muestra esa imagen; si no, queda el fondo
 // negro con las curvas doradas de la marca.
 const CURVES = [
@@ -22,7 +22,7 @@ export function AuthHero() {
   }, [])
 
   return (
-    <div className="relative hidden overflow-hidden bg-[#0a0a0a] lg:block">
+    <div className="absolute inset-0 overflow-hidden bg-[#0a0a0a]">
       <svg viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
         {CURVES.map((d, i) => (
           <path key={i} d={d} fill="none" stroke="#fcc107" strokeOpacity={0.2} strokeWidth={70} strokeLinecap="round" />
@@ -31,14 +31,15 @@ export function AuthHero() {
 
       {hasImage && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_18%]" />
       )}
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-12">
-        <p className="text-4xl font-black tracking-tighter text-white leading-none">
+      <div className="absolute inset-0 bg-black/15" />
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-start bg-gradient-to-t from-black/75 to-transparent px-8 pb-8 pt-24 text-left sm:px-12 sm:pb-10">
+        <p className="text-3xl font-black tracking-tighter text-white leading-none sm:text-4xl">
           <span className="text-[#fcc107]">.</span>budgets
         </p>
-        <p className="mt-3 max-w-sm text-sm font-medium text-white/80">
+        <p className="mt-2 max-w-sm text-sm font-medium text-white/85">
           Tu negocio ordenado. Tu tiempo, de vuelta.
         </p>
       </div>
