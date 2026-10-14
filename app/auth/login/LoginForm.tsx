@@ -151,7 +151,8 @@ export default function LoginForm() {
     <div className="relative min-h-screen overflow-hidden">
     <AuthHero />
     <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 lg:justify-end lg:pr-[7vw]">
-      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl lg:flex lg:min-h-[88vh] lg:max-w-[19.5rem] lg:flex-col lg:justify-center lg:p-7 xl:max-w-[21rem] xl:p-8">
+      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl lg:flex lg:h-[88vh] lg:max-w-[19.5rem] lg:flex-col lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
+        <div className="lg:my-auto">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
           .budgets
         </Link>
@@ -310,6 +311,7 @@ export default function LoginForm() {
         </p>
         </>
         )}
+        </div>
       </div>
     </div>
     </div>
