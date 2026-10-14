@@ -151,8 +151,8 @@ export default function LoginForm() {
     <div className="relative min-h-screen overflow-hidden">
     <AuthHero />
     <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 lg:justify-end lg:pr-[7vw]">
-      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl flex min-h-[30rem] flex-col lg:h-[88vh] lg:max-w-[19.5rem] lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
-        <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
+      <div className="w-full max-w-[19rem] rounded-3xl border border-border bg-card p-6 shadow-2xl flex min-h-[28rem] sm:max-w-sm sm:p-10 flex-col lg:h-[88vh] lg:max-w-[19.5rem] lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
+        <Link href="/" className="text-3xl font-black tracking-tighter text-primary leading-none sm:text-4xl">
           .budgets
         </Link>
 
@@ -274,7 +274,7 @@ export default function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading || isGoogleLoading}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[13px] sm:px-4 sm:py-2.5 sm:text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
             />
           </div>
 
@@ -294,14 +294,14 @@ export default function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading || isGoogleLoading}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[13px] sm:px-4 sm:py-2.5 sm:text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-foreground disabled:opacity-50"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading || isGoogleLoading}
-            className="w-full rounded-full bg-foreground py-2.5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+            className="w-full rounded-full bg-foreground py-2 text-[13px] font-semibold sm:py-2.5 sm:text-sm text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 mt-2"
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
