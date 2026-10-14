@@ -39,7 +39,7 @@ export function AuthHero() {
           <span className="text-[#fcc107]">.</span>budgets
         </p>
         <p className="mt-3 max-w-sm text-sm font-medium text-white/80">
-          Presupuestos, cobros y gestión para tu negocio, en un solo lugar.
+          Tu negocio ordenado. Tu tiempo, de vuelta.
         </p>
       </div>
     </div>
