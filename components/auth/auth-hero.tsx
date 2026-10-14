@@ -31,7 +31,7 @@ export function AuthHero() {
 
       {hasImage && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_18%]" />
+        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full origin-right scale-[1.15] object-cover object-center" />
       )}
 
       <div className="absolute inset-0 bg-black/15" />
