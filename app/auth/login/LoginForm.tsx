@@ -148,10 +148,10 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-[100dvh] overflow-hidden">
     <AuthHero />
-    <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 lg:justify-end lg:pr-[7vw]">
-      <div className="w-full max-w-[19rem] rounded-3xl border border-border bg-card p-6 shadow-2xl flex min-h-[28rem] sm:max-w-sm sm:p-10 flex-col lg:h-[88vh] lg:max-w-[19.5rem] lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
+    <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-4 py-4 lg:flex-row lg:justify-end lg:pr-[5vw]">
+      <div className="w-full max-w-[19rem] rounded-3xl border border-border bg-card p-6 shadow-2xl flex min-h-[28rem] sm:max-w-sm sm:p-10 flex-col lg:h-[88vh] lg:max-w-[22rem] lg:overflow-y-auto lg:p-8 xl:max-w-[24rem] xl:p-9">
         <Link href="/" className="text-3xl font-black tracking-tighter text-primary leading-none sm:text-4xl">
           .budgets
         </Link>
@@ -317,11 +317,14 @@ export default function LoginForm() {
         )}
         </div>
 
-        <div className="mt-2 flex items-center justify-between border-t border-border pt-4 text-[11px] text-muted-foreground">
+        <div className="mt-2 hidden items-center justify-between border-t border-border pt-4 text-[11px] text-muted-foreground sm:flex">
           <Link href="/" className="font-medium underline-offset-2 hover:text-foreground hover:underline">← Volver al inicio</Link>
           <Link href="/manual" className="font-medium underline-offset-2 hover:text-foreground hover:underline">Manual de uso</Link>
         </div>
       </div>
+      <p className="mt-3 text-center text-xs font-semibold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)] sm:hidden">
+        Tu negocio ordenado. Tu tiempo, de vuelta.
+      </p>
     </div>
     </div>
   )

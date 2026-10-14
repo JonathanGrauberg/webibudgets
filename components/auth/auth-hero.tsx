@@ -31,11 +31,11 @@ export function AuthHero() {
 
       {hasImage && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full origin-right scale-[1.15] object-cover object-center" />
+        <img src="/auth-hero.webp" alt="" className="absolute inset-0 h-full w-full origin-right scale-[1.2] object-cover object-center" />
       )}
 
       <div className="absolute inset-0 bg-black/15" />
-      <div className="absolute inset-x-0 bottom-0 flex flex-col items-start bg-gradient-to-t from-black/75 to-transparent px-8 pb-8 pt-24 text-left sm:px-12 sm:pb-10">
+      <div className="absolute inset-x-0 bottom-0 hidden flex-col items-start bg-gradient-to-t from-black/75 to-transparent px-8 pb-8 pt-24 text-left sm:px-12 sm:pb-10 sm:flex">
         <p className="text-3xl font-black tracking-tighter text-white leading-none sm:text-4xl">
           <span className="text-[#fcc107]">.</span>budgets
         </p>
