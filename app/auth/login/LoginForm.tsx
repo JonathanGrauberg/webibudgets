@@ -151,11 +151,12 @@ export default function LoginForm() {
     <div className="relative min-h-screen overflow-hidden">
     <AuthHero />
     <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 lg:justify-end lg:pr-[7vw]">
-      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl lg:flex lg:h-[88vh] lg:max-w-[19.5rem] lg:flex-col lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
-        <div className="lg:my-auto">
+      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-10 shadow-2xl flex min-h-[30rem] flex-col lg:h-[88vh] lg:max-w-[19.5rem] lg:overflow-y-auto lg:p-7 xl:max-w-[21rem] xl:p-8">
         <Link href="/" className="text-4xl font-black tracking-tighter text-primary leading-none">
           .budgets
         </Link>
+
+        <div className="my-auto py-3">
 
         {checking && <p className="mt-8 text-xs text-muted-foreground">Cargando...</p>}
 
@@ -186,19 +187,22 @@ export default function LoginForm() {
             >
               Continuar con otra cuenta
             </button>
+            <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+              Tu sesión sigue abierta en este dispositivo. Si no es tu equipo, tocá "Continuar con otra cuenta" para cerrarla.
+            </p>
           </div>
         )}
 
         {!checking && !(account && !useOtherAccount) && (
         <>
-        <h1 className="mb-5 mt-5 text-sm font-semibold text-foreground">Iniciar sesión</h1>
-        <p className="mb-6 text-xs text-muted-foreground">Accedé a tu panel de presupuestos</p>
+        <h1 className="mb-3 mt-3 text-sm font-semibold text-foreground">Iniciar sesión</h1>
+        <p className="mb-4 text-xs text-muted-foreground">Accedé a tu panel de presupuestos</p>
 
         {remembered?.tenantName && remembered.email && !email && (
           <button
             type="button"
             onClick={() => setEmail(remembered.email ?? '')}
-            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left transition hover:bg-muted"
+            className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-2.5 text-left transition hover:bg-muted"
           >
             <CompanyAvatar name={remembered.tenantName} logoUrl={remembered.logoUrl} />
             <span className="min-w-0 flex-1">
@@ -214,7 +218,7 @@ export default function LoginForm() {
           type="button"
           disabled={loading || isGoogleLoading}
           onClick={handleGoogleLogin}
-          className="mb-5 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.99] disabled:opacity-50"
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.99] disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path fill="#EA4335" d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.56 14.96 1 12 1 7.36 1 3.4 3.68 1.4 7.6l3.8 2.96c.92-2.76 3.52-4.52 6.8-4.52z"/>
@@ -226,7 +230,7 @@ export default function LoginForm() {
         </button>
 
         {/* Separador estético */}
-        <div className="relative mb-5 flex items-center justify-center">
+        <div className="relative mb-4 flex items-center justify-center">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
           <span className="relative bg-card px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">O con email</span>
         </div>
@@ -258,7 +262,7 @@ export default function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
           <div>
             <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
               Email
@@ -303,7 +307,7 @@ export default function LoginForm() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           ¿No tenés cuenta?{' '}
           <Link href="/register" className="font-medium text-foreground underline underline-offset-2">
             Registrate gratis
@@ -311,6 +315,11 @@ export default function LoginForm() {
         </p>
         </>
         )}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-4 text-[11px] text-muted-foreground">
+          <Link href="/" className="font-medium underline-offset-2 hover:text-foreground hover:underline">← Volver al inicio</Link>
+          <Link href="/manual" className="font-medium underline-offset-2 hover:text-foreground hover:underline">Manual de uso</Link>
         </div>
       </div>
     </div>
