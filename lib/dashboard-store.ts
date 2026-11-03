@@ -384,7 +384,18 @@ export async function getCobrosGastosSummary(
 ): Promise<CobrosGastosSummary> {
   const [recentCobros, paidInRange, pendingInRange, recentGastos, gastosInRange, recentReceipts, receiptsInRange] = await Promise.all([
     prisma.cobro.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        // Misma regla que los totales: pagados por día de pago y pendientes por mes del cobro.
+        ...(range
+          ? {
+              OR: [
+                { status: 'paid', paidAt: { gte: range.from, lte: range.to } },
+                { status: 'pending', periodMonth: { gte: new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), 1)), lte: range.to } },
+              ],
+            }
+          : {}),
+      },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { client: { select: { name: true, company: true } } },
