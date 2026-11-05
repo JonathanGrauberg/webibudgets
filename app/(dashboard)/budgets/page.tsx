@@ -28,7 +28,7 @@ import {
 import {
   Loader2, Eye, Plus, FileText, Pencil, Search, CheckCircle2, Wallet,
   Percent, TrendingUp, PackageMinus, Handshake, ChevronDown, Check, StickyNote,
-  Bell, MessageCircle,
+  Bell, MessageCircle, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react'
 import type { Budget, BudgetStatus } from '@/lib/types'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
@@ -283,6 +283,9 @@ export default function BudgetsPage() {
   const [customFrom, setCustomFrom] = usePersistentState('budgets.filter.from', '')
   const [customTo, setCustomTo] = usePersistentState('budgets.filter.to', '')
   const [sellerFilter, setSellerFilter] = usePersistentState<string>('budgets.filter.seller', 'all')
+  // 👇 orden de la tabla: por fecha de creación (default) o de aprobación
+  const [sortField, setSortField] = usePersistentState<'createdAt' | 'approvedAt'>('budgets.sort.field', 'createdAt')
+  const [sortDir, setSortDir] = usePersistentState<'asc' | 'desc'>('budgets.sort.dir', 'desc')
 
   // 👇 alcance de cada métrica de la tira de arriba, independiente de los filtros de la tabla
   const [presupuestosScope, setPresupuestosScope] = usePersistentState<'all' | 'active' | 'inactive'>('budgets.scope.presupuestos', 'all')
@@ -350,6 +353,26 @@ export default function BudgetsPage() {
       return matchesSearch && matchesStatus && matchesActive && matchesDate && matchesSeller
     })
   }, [budgets, searchQuery, statusFilter, activeFilter, dateRange, sellerFilter])
+
+  // Los que no tienen fecha de aprobación van siempre al final, sea cual sea el sentido.
+  const sortedBudgets = useMemo(() => {
+    const ts = (b: Budget) => {
+      const v = sortField === 'approvedAt' ? b.approvedAt : b.createdAt
+      return v ? new Date(v).getTime() : null
+    }
+    return [...filteredBudgets].sort((a, b) => {
+      const ta = ts(a), tb = ts(b)
+      if (ta === null && tb === null) return 0
+      if (ta === null) return 1
+      if (tb === null) return -1
+      return sortDir === 'asc' ? ta - tb : tb - ta
+    })
+  }, [filteredBudgets, sortField, sortDir])
+
+  const toggleSort = (field: 'createdAt' | 'approvedAt') => {
+    if (sortField === field) setSortDir(sortDir === 'desc' ? 'asc' : 'desc')
+    else { setSortField(field); setSortDir('desc') }
+  }
 
   const canViewFinancials = canEdit('budgets')
 
@@ -644,6 +667,25 @@ export default function BudgetsPage() {
                 </SelectContent>
               </Select>
 
+              <Select
+                value={`${sortField}:${sortDir}`}
+                onValueChange={(v) => {
+                  const [f, d] = v.split(':')
+                  setSortField(f as 'createdAt' | 'approvedAt')
+                  setSortDir(d as 'asc' | 'desc')
+                }}
+              >
+                <SelectTrigger className="w-full md:hidden">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt:desc">Creación: más recientes</SelectItem>
+                  <SelectItem value="createdAt:asc">Creación: más antiguos</SelectItem>
+                  <SelectItem value="approvedAt:desc">Aprobación: más recientes</SelectItem>
+                  <SelectItem value="approvedAt:asc">Aprobación: más antiguos</SelectItem>
+                </SelectContent>
+              </Select>
+
               {(searchQuery || statusFilter !== 'all' || activeFilter !== 'active' || dateFilter !== 'all' || sellerFilter !== 'all') && (
                 <Button
                   type="button"
@@ -725,7 +767,7 @@ export default function BudgetsPage() {
           <>
             {/* MOBILE: cards */}
             <div className="space-y-4 md:hidden">
-              {filteredBudgets.map((b) => {
+              {sortedBudgets.map((b) => {
                 const { marginPct, hasMissingCost } = computeBudgetCostMetrics(b)
 
                 return (
@@ -738,6 +780,7 @@ export default function BudgetsPage() {
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             #{String(b.budgetNumber ?? 0).padStart(6, '0')} · {formatDate(b.createdAt)}
+                            {b.approvedAt && ` · Aprobado ${formatDate(b.approvedAt)}`}
                           </p>
                         </div>
                         <Badge className={STATUS_COLORS[b.status]}>
@@ -845,7 +888,21 @@ export default function BudgetsPage() {
                         <TableHead>Cliente</TableHead>
                         <TableHead>Vendedor</TableHead>
                         <TableHead className="text-muted-foreground">N°</TableHead>
-                        <TableHead>Fecha</TableHead>
+                        {([['createdAt', 'Fecha'], ['approvedAt', 'Aprobado']] as const).map(([field, label]) => (
+                          <TableHead key={field}>
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(field)}
+                              title={`Ordenar por fecha de ${field === 'approvedAt' ? 'aprobación' : 'creación'}`}
+                              className="inline-flex items-center gap-1 hover:text-foreground"
+                            >
+                              {label}
+                              {sortField === field
+                                ? (sortDir === 'desc' ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />)
+                                : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
+                            </button>
+                          </TableHead>
+                        ))}
                         <TableHead>Estado</TableHead>
                         <TableHead>Notas</TableHead>
                         <TableHead className="text-right">Total</TableHead>
@@ -860,7 +917,7 @@ export default function BudgetsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredBudgets.map((b) => {
+                      {sortedBudgets.map((b) => {
                         const { cost, profit, marginPct, hasMissingCost } = computeBudgetCostMetrics(b)
 
                         return (
@@ -876,6 +933,9 @@ export default function BudgetsPage() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {formatDate(b.createdAt)}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {b.approvedAt ? formatDate(b.approvedAt) : '—'}
                             </TableCell>
                             <TableCell>
                               <Badge className={STATUS_COLORS[b.status]}>

@@ -65,10 +65,19 @@ export async function GET(request: Request) {
           where: { status: 'paid' },
           select: { id: true, amount: true },
         },
+        // Última vez que pasó a "Aprobado" (viene del historial de estados).
+        history: {
+          where: { to: 'approved' },
+          orderBy: { changedAt: 'desc' },
+          take: 1,
+          select: { changedAt: true },
+        },
       },
     })
 
-    return NextResponse.json(budgets)
+    return NextResponse.json(
+      budgets.map(({ history, ...b }) => ({ ...b, approvedAt: history[0]?.changedAt ?? null }))
+    )
   } catch (error) {
     console.error('Get budgets error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })

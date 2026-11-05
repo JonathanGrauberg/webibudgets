@@ -183,6 +183,7 @@ export interface Budget {
   depositValue?: number | null
   payments?: { id: string; amount: number; receipt: { id: string } | null }[] // 👈 solo los aprobados (ver app/api/budgets/route.ts)
   cobros?: { id: string; amount: number }[] // 👈 nuevo — solo los pagados (ver app/api/budgets/route.ts)
+  approvedAt?: Date | string | null // 👈 última vez que pasó a "Aprobado" (historial de estados)
 
   createdAt: Date
   updatedAt: Date
