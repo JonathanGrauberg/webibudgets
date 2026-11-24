@@ -1,5 +1,6 @@
 // app\api\products\route.ts 
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getTenantIdFromRequest, tenantCreateData, tenantWhere } from '@/lib/tenant'
 import { normalizeCurrency, DEFAULT_CURRENCY } from '@/lib/currencies' // 👈 nuevo
@@ -88,6 +89,8 @@ export async function PATCH(request: Request) {
 
     const data = await request.json()
     const { percentage, category } = data
+    const target: 'price' | 'cost' | 'profit' = ['cost', 'profit'].includes(data.target) ? data.target : 'price'
+    const keepProfit = data.keepProfit === true
 
     if (percentage === undefined || isNaN(Number(percentage))) {
       return NextResponse.json(
@@ -109,6 +112,24 @@ export async function PATCH(request: Request) {
     // Si pasaron una categoría específica por el body, filtramos también por ella
     if (category) {
       whereConditions.category = category
+    }
+
+    // Costo / ganancia: dependen de otra columna, así que van con SQL directo.
+    // Solo se tocan los productos que tienen costo cargado.
+    //  - costo: cost × factor (y, si keepProfit, el precio sube lo mismo para no perder ganancia)
+    //  - ganancia: (price − cost) × factor, o sea el precio = costo + nueva ganancia
+    if (target !== 'price') {
+      const categorySql = category ? Prisma.sql`AND "category" = ${category}::"ProductCategory"` : Prisma.empty
+      const setSql =
+        target === 'cost'
+          ? keepProfit
+            ? Prisma.sql`"cost" = "cost" * ${factor}, "price" = "price" + "cost" * ${factor - 1}`
+            : Prisma.sql`"cost" = "cost" * ${factor}`
+          : Prisma.sql`"price" = "cost" + ("price" - "cost") * ${factor}`
+      const count = await prisma.$executeRaw`
+        UPDATE "ProductService" SET ${setSql}, "updatedAt" = NOW()
+        WHERE "tenantId" = ${tenantId} AND "active" = true AND "cost" IS NOT NULL ${categorySql}`
+      return NextResponse.json({ message: 'Actualizado con éxito.', count })
     }
 
     // Ejecutamos la query masiva directamente en Postgres gracias a Prisma

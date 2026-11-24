@@ -182,6 +182,8 @@ export default function ProductsPage() {
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkPercentage, setBulkPercentage] = useState('')
   const [bulkCategory, setBulkCategory] = useState('all')
+  const [bulkTarget, setBulkTarget] = useState<'price' | 'cost' | 'profit'>('price')
+  const [bulkKeepProfit, setBulkKeepProfit] = useState(false)
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false)
 
   // Aplicación de los Filtros (Búsqueda, Categoría y Estado Inactivo)
@@ -244,9 +246,11 @@ export default function ProductsPage() {
       return
     }
 
+    const what = bulkTarget === 'price' ? 'el precio' : bulkTarget === 'cost' ? 'el costo' : 'la ganancia'
+    const onlyWithCost = bulkTarget === 'price' ? '' : ' (solo los que tienen costo cargado)'
     const confirmMsg = bulkCategory === 'all'
-      ? `¿Estás seguro de que querés actualizar masivamente el precio de TODOS los productos en un ${pct}%?`
-      : `¿Estás seguro de que querés actualizar el precio de la categoría seleccionada en un ${pct}%?`
+      ? `¿Estás seguro de que querés actualizar masivamente ${what} de TODOS los productos en un ${pct}%${onlyWithCost}?`
+      : `¿Estás seguro de que querés actualizar ${what} de la categoría seleccionada en un ${pct}%${onlyWithCost}?`
 
     if (!confirm(confirmMsg)) return
 
@@ -257,6 +261,8 @@ export default function ProductsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           percentage: pct,
+          target: bulkTarget,
+          keepProfit: bulkTarget === 'cost' && bulkKeepProfit,
           category: bulkCategory === 'all' ? undefined : bulkCategory
         })
       })
@@ -267,10 +273,12 @@ export default function ProductsPage() {
       }
 
       const result = await res.json()
-      alert(`¡Éxito! Se actualizaron los precios de ${result.count} productos.`)
+      alert(`¡Éxito! Se actualizaron ${result.count} productos.`)
 
       setBulkPercentage('')
       setBulkCategory('all')
+      setBulkTarget('price')
+      setBulkKeepProfit(false)
       setIsBulkOpen(false)
       mutate('/api/products')
     } catch (err: any) {
@@ -857,10 +865,44 @@ export default function ProductsPage() {
               <DialogOverlay className="bg-black/70 backdrop-blur-[2px]" />
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Actualización Masiva de Precios</DialogTitle>
+                  <DialogTitle>Actualización Masiva</DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={handleBulkUpdateSubmit} className="space-y-4 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bulkTarget">Qué actualizar</Label>
+                    <Select value={bulkTarget} onValueChange={(v) => setBulkTarget(v as 'price' | 'cost' | 'profit')} disabled={isSubmittingBulk}>
+                      <SelectTrigger id="bulkTarget" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="price">Precio</SelectItem>
+                        <SelectItem value="cost">Costo</SelectItem>
+                        <SelectItem value="profit">Ganancia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {bulkTarget === 'cost' && (
+                      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={bulkKeepProfit}
+                          onChange={(e) => setBulkKeepProfit(e.target.checked)}
+                          disabled={isSubmittingBulk}
+                          className="mt-0.5"
+                        />
+                        <span>Mantener mi ganancia (el precio sube lo mismo que el costo)</span>
+                      </label>
+                    )}
+                    {bulkTarget !== 'price' && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {bulkTarget === 'profit'
+                          ? 'Cambia la ganancia (precio − costo) y ajusta el precio en consecuencia. '
+                          : ''}
+                        Solo afecta a los productos que tienen costo cargado.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="bulkPercentage">Porcentaje de Ajuste</Label>
                     <div className="relative">
