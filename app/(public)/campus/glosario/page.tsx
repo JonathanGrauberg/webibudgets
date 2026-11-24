@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'Glosario PyME: qué es ROI, KPI, SaaS, CAC, margen bruto y más de 40 términos de negocios y tecnología, explicados en criollo con ejemplos reales — para dueños de PyME y emprendedores.',
 }
 
-const WHATSAPP_NUMBER = '5493436959359'
+const WHATSAPP_NUMBER = '5493433005942'
 const WHATSAPP_MESSAGE = 'Hola! Vi el Glosario PyME de .budgets, ¿me contás más del sistema?'
 const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`
 

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'Sumate como revendedor de .budgets: recomendá el sistema a tus contactos, dales un descuento con tu código propio, y ganá una comisión por cada cliente que sume.',
 }
 
-const WHATSAPP_NUMBER = '5493436959359'
+const WHATSAPP_NUMBER = '5493433005942'
 const WHATSAPP_MESSAGE = 'Hola! Quiero sumarme como revendedor de .budgets, ¿me contás cómo funciona?'
 const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`
 

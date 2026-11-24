@@ -9,7 +9,7 @@ interface CountryConfig {
 }
 
 export const WHATSAPP_COUNTRIES: Record<WhatsappCountry, CountryConfig> = {
-  AR: { label: 'Argentina', dialCode: '54', mobilePrefix: '9', areaCodeLength: [2, 4], example: '343 6959359' },
+  AR: { label: 'Argentina', dialCode: '54', mobilePrefix: '9', areaCodeLength: [2, 4], example: '343 4123456' },
   VE: { label: 'Venezuela', dialCode: '58', mobilePrefix: '', areaCodeLength: [3, 3], example: '412 1234567' },
   CO: { label: 'Colombia', dialCode: '57', mobilePrefix: '', areaCodeLength: [3, 3], example: '300 1234567' },
 }
@@ -29,7 +29,7 @@ export function isValidWhatsappNumber(fullNumber: string): boolean {
   return /^\d{10,13}$/.test(fullNumber)
 }
 
-/** Formato lindo para mostrar en UI, ej: +54 9 343 6959359 */
+/** Formato lindo para mostrar en UI, ej: +54 9 343 4123456 */
 export function formatWhatsappDisplay(fullNumber: string | null | undefined): string | null {
   if (!fullNumber) return null
   return `+${fullNumber}`
