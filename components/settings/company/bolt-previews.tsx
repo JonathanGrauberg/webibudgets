@@ -142,6 +142,7 @@ export function PDFPreview({
   template?: string // 👈 nuevo
   templateDark?: boolean // 👈 nuevo
 }) {
+  const hidePrices = template === 'solo-total' // 👈 clásico sin columna de importes; al pie solo el total
   const logoPx = Math.round(48 * (logoSize / 100)) // 👈 nuevo — 48px = el w-12/h-12 actual (12 * 4px de Tailwind)
 
   if (template === 'contraste') {
@@ -267,17 +268,19 @@ export function PDFPreview({
                 backgroundColor: colors.primary,
                 color: getContrastColor(colors.primary),
               }}>
-              <div className="col-span-6 px-2 py-2 font-semibold">
+              <div className={`${hidePrices ? 'col-span-9' : 'col-span-6'} px-2 py-2 font-semibold`}>
                 Concepto
               </div>
 
-              <div className="col-span-2 px-2 py-2 text-right font-semibold">
+              <div className={`${hidePrices ? 'col-span-3' : 'col-span-2'} px-2 py-2 text-right font-semibold`}>
                 Cant.
               </div>
 
-              <div className="col-span-4 px-2 py-2 text-right font-semibold">
-                Subtotal
-              </div>
+              {!hidePrices && (
+                <div className="col-span-4 px-2 py-2 text-right font-semibold">
+                  Subtotal
+                </div>
+              )}
             </div>
 
             {[1, 2, 3].map((i) => (
@@ -285,17 +288,19 @@ export function PDFPreview({
                 key={i}
                 className="grid grid-cols-12 border-b last:border-b-0"
               >
-                <div className="col-span-6 px-2 py-2">
+                <div className={`${hidePrices ? 'col-span-9' : 'col-span-6'} px-2 py-2`}>
                   <div className="h-2 w-24 bg-slate-200 rounded" />
                 </div>
 
-                <div className="col-span-2 px-2 py-2">
+                <div className={`${hidePrices ? 'col-span-3' : 'col-span-2'} px-2 py-2`}>
                   <div className="ml-auto h-2 w-6 bg-slate-200 rounded" />
                 </div>
 
-                <div className="col-span-4 px-2 py-2">
-                  <div className="ml-auto h-2 w-14 bg-slate-200 rounded" />
-                </div>
+                {!hidePrices && (
+                  <div className="col-span-4 px-2 py-2">
+                    <div className="ml-auto h-2 w-14 bg-slate-200 rounded" />
+                  </div>
+                )}
               </div>
             ))}
           </div>
