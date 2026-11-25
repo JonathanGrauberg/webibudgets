@@ -29,6 +29,8 @@ export function renderBudgetPdf(budget: any, opts?: any) {
       return budgetPdfTemplateCantonera(budget, opts)
     case 'directa':
       return budgetPdfTemplateDirecta(budget, opts)
+    case 'solo-total':
+      return budgetPdfTemplate(budget, { ...opts, hidePrices: true })
     case 'clasico':
     default:
       return budgetPdfTemplate(budget, opts)

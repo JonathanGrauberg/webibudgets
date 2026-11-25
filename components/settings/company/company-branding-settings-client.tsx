@@ -78,7 +78,7 @@ type PdfSettings = {
   showFooterBranding: boolean
   conditionsPdfUrl: string | null
   conditionsPdfName: string | null
-  pdfTemplate: string // 👈 nuevo — "clasico" | "contraste" | "cantonera" | "directa"
+  pdfTemplate: string // 👈 nuevo — "clasico" | "contraste" | "cantonera" | "directa" | "solo-total"
   pdfTemplateDark: boolean // 👈 nuevo — toggle claro/oscuro, solo lo usa "directa"
 }
 
@@ -1082,6 +1082,7 @@ export default function CompanyBrandingSettingsClient({
                         { id: 'clasico', label: 'Clásico', description: 'El diseño de siempre, con tu logo y colores.', pro: false },
                         { id: 'cantonera', label: 'Cantonera', description: 'Un acento fino y minimalista, sin bloques de color.', pro: true },
                         { id: 'contraste', label: 'Contraste', description: 'Bloques de color con tu trío de marca completo.', pro: true },
+                        { id: 'solo-total', label: 'Solo total', description: 'Como el Clásico, pero sin precios por ítem: muestra los ítems y, al final, solo el total.', pro: true },
                         { id: 'directa', label: 'Directa', description: 'Tipografía grande y tabla numerada, con tu acento en detalles.', pro: true },
                       ] as const
                     ).map((opt) => {

@@ -11,6 +11,7 @@ export function budgetPdfTemplate(
     watermarkDataUri?: string
     companyName?: string   
     isTrial?: boolean
+    hidePrices?: boolean // 👈 plantilla "Solo total": ítems y cantidades sin precios, y al final solo el total
     tenant?: {
       name?: string
       phone?: string
@@ -28,6 +29,7 @@ export function budgetPdfTemplate(
 ) {
 
   const tenant = opts?.tenant
+  const hidePrices = opts?.hidePrices === true
   const logoWidthPx = Math.round(56 * ((tenant?.logoSize ?? 100) / 100)) // 👈 nuevo — 56px es el alto base actual
   const watermarkOpacity = tenant?.watermarkOpacity ?? 0.06
   const pdfPrimary = tenant?.primaryColor ?? '#0F172A'
@@ -252,8 +254,8 @@ export function budgetPdfTemplate(
         <tr>
           <th>Concepto</th>
           <th class="right">Cant.</th>
-          <th class="right">Precio Unit.</th>
-          <th class="right">Subtotal</th>
+          ${hidePrices ? '' : `<th class="right">Precio Unit.</th>
+          <th class="right">Subtotal</th>`}
         </tr>
       </thead>
       <tbody>
@@ -292,8 +294,8 @@ export function budgetPdfTemplate(
                   ${item.quantity ?? 0} ${conceptUnit}
                   ${calcBreakdown ? `<br/><span class="muted small">${calcBreakdown}</span>` : ''}
                 </td>
-                <td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
-                <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>
+                ${hidePrices ? '' : `<td class="right">${formatCurrency(Number(item.unitPrice ?? 0))}</td>
+                <td class="right">${formatCurrency(Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0))}</td>`}
               </tr>
             `
           }
@@ -305,7 +307,7 @@ export function budgetPdfTemplate(
     <h2>Resumen</h2>
     <table class="avoid-break">
       <tbody>
-        <tr>
+        ${hidePrices ? '' : `<tr>
           <td>Subtotal</td>
           <td class="right">${formatCurrency(Number(budget.subtotal ?? 0))}</td>
         </tr>
@@ -338,7 +340,7 @@ export function budgetPdfTemplate(
           <td class="right">+ ${formatCurrency(shippingValue)}</td>
         </tr>`
             : ''
-        }
+        }`}
 
         <tr class="total-row">
           <th>Total</th>
